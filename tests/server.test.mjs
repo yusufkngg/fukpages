@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { createApp } from "../server/index.mjs";
 import { hashPassword } from "../server/auth.mjs";
+import { createFixtureService, fixtureDomain } from "./fixtures/shopify.mjs";
 
 const document = () => ({
   schemaVersion: 1,
@@ -27,12 +28,13 @@ const document = () => ({
     },
   ],
 });
-async function fixture(t, configured = true) {
+async function fixture(t, configured = true, extra = {}) {
   const dataDir = mkdtempSync(join(tmpdir(), "fukpages-test-"));
   const password = randomBytes(24).toString("base64url");
   const { app, db } = createApp({
     dataDir,
     ownerHash: configured ? hashPassword(password) : undefined,
+    ...extra,
   });
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
@@ -258,4 +260,145 @@ test("import/save reject invalid trees and unsafe CSS; rich text and links are s
       .status,
     400,
   );
+});
+
+test("section library persists a complete section, isolates stores, and rejects leaf/disabled writes", async (t) => {
+  const { request, login } = await fixture(t);
+  await login();
+  const section = {
+    ...document().nodes[0],
+    id: "section-1",
+    kind: "section",
+    name: "Hero",
+    props: { sectionRole: "content", presetId: "custom-hero" },
+    children: [document().nodes[0]],
+  };
+  const response = await request("/stores/demo/sections", "POST", {
+    name: "Benim hero bölümüm",
+    section,
+  });
+  assert.equal(response.status, 201);
+  const saved = await response.json();
+  assert.equal(saved.section.children[0].styles.mobile.fontSize, "28px");
+  assert.equal(saved.section.props.presetId, "custom-hero");
+  const list = await request("/stores/demo/sections").then((r) => r.json());
+  assert.equal(list[0].name, "Benim hero bölümüm");
+  const other = await request("/stores", "POST", { name: "Other" }).then((r) =>
+    r.json(),
+  );
+  assert.deepEqual(
+    await request(`/stores/${other.id}/sections`).then((r) => r.json()),
+    [],
+  );
+  assert.equal(
+    (await request(`/stores/${other.id}/sections/${saved.id}`, "DELETE"))
+      .status,
+    404,
+  );
+  assert.equal(
+    (
+      await request("/stores/demo/sections", "POST", {
+        name: "Not a section",
+        section: document().nodes[0],
+      })
+    ).status,
+    400,
+  );
+  await request("/stores/demo/status", "PATCH", { status: "suspended" });
+  assert.equal(
+    (
+      await request("/stores/demo/sections", "POST", {
+        name: "Locked",
+        section,
+      })
+    ).status,
+    403,
+  );
+});
+
+test("theme sync persists real adapter output and only binds to its matching store/template", async (t) => {
+  const { request, login } = await fixture(t, true, {
+    shopify: createFixtureService(),
+  });
+  await login();
+  assert.equal(
+    (await request("/stores/demo/theme", "GET", undefined, false)).status,
+    401,
+  );
+  assert.equal(
+    (await request("/stores/demo/shopify", "PATCH", { domain: fixtureDomain }))
+      .status,
+    200,
+  );
+  const syncedResponse = await request("/stores/demo/theme/sync", "POST", {
+    template: "templates/page.json",
+  });
+  assert.equal(syncedResponse.status, 200);
+  const synced = await syncedResponse.json();
+  assert.equal(
+    synced.snapshot.sections.find((section) => section.type === "header").name,
+    "Header",
+  );
+  const cached = await request(
+    "/stores/demo/theme?template=templates%2Fpage.json",
+  ).then((r) => r.json());
+  assert.equal(cached.snapshot.id, synced.snapshot.id);
+  const linked = {
+    ...document(),
+    themeLayout: { snapshotId: synced.snapshot.id, useShell: true },
+  };
+  const pageResponse = await request("/stores/demo/pages", "POST", {
+    document: linked,
+  });
+  assert.equal(pageResponse.status, 201);
+  const page = await pageResponse.json();
+  const opened = await request(`/pages/${page.id}`).then((r) => r.json());
+  assert.equal(opened.themeSnapshot.id, synced.snapshot.id);
+  assert.equal(opened.document.themeLayout.useShell, true);
+  const other = await request("/stores", "POST", {
+    name: "Other",
+    domain: fixtureDomain,
+  }).then((r) => r.json());
+  assert.equal(
+    (await request(`/stores/${other.id}/pages`, "POST", { document: linked }))
+      .status,
+    400,
+  );
+  assert.equal(
+    (
+      await request(`/pages/${page.id}`, "PUT", {
+        version: 1,
+        document: { ...linked, type: "product" },
+      })
+    ).status,
+    400,
+  );
+  await request("/stores/demo/status", "PATCH", { status: "suspended" });
+  assert.equal(
+    (
+      await request("/stores/demo/theme/sync", "POST", {
+        template: "templates/page.json",
+      })
+    ).status,
+    403,
+  );
+});
+
+test("missing theme credentials fail explicitly without creating a fabricated snapshot", async (t) => {
+  const { request, login } = await fixture(t);
+  await login();
+  await request("/stores/demo/shopify", "PATCH", { domain: fixtureDomain });
+  assert.equal(
+    (
+      await request("/stores/demo/theme/sync", "POST", {
+        template: "templates/page.json",
+      })
+    ).status,
+    503,
+  );
+  const status = await request(
+    "/stores/demo/theme?template=templates%2Fpage.json",
+  ).then((r) => r.json());
+  assert.equal(status.configured, false);
+  assert.equal(status.snapshot, null);
 });

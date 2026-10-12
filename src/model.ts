@@ -45,6 +45,7 @@ export interface PageDocument {
   name: string;
   type: PageType;
   nodes: Block[];
+  themeLayout?: { snapshotId: string; useShell: boolean };
 }
 export interface Store {
   id: string;
@@ -52,7 +53,7 @@ export interface Store {
   client: string;
   domain: string;
   status: "active" | "suspended";
-  connection: "local";
+  connection: "local" | "configured" | "synced";
   pageCount: number;
 }
 export interface PageSummary {
@@ -357,7 +358,7 @@ export function createBlock(kind: Kind): Block {
     children: [],
   };
 }
-function block(
+export function block(
   kind: Kind,
   props: Block["props"] = {},
   styles: Styles = {},
@@ -553,6 +554,10 @@ export function starterDocument(type: PageType = "landing"): PageDocument {
     [block("row", {}, { gap: "16px" }, cards)],
   );
   features.styles.mobile = { paddingLeft: "24px", paddingRight: "24px" };
+  nav.name = "Header · FukPages";
+  nav.props.sectionRole = "header";
+  hero.name = "Hero · Ürün tanıtımı";
+  features.name = "Özellikler · Üç kolon";
   return {
     schemaVersion: 1,
     name: "Aura · Product launch",

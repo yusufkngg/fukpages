@@ -189,7 +189,8 @@ function Dashboard({
     [search, setSearch] = useState("");
   const [newStore, setNewStore] = useState(false),
     [name, setName] = useState(""),
-    [client, setClient] = useState("");
+    [client, setClient] = useState(""),
+    [domain, setDomain] = useState("");
   const [type, setType] = useState<PageType>("landing"),
     [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<Store | null>(null);
@@ -240,10 +241,14 @@ function Dashboard({
     event.preventDefault();
     setBusy(true);
     try {
-      await api("/stores", { method: "POST", body: json({ name, client }) });
+      await api("/stores", {
+        method: "POST",
+        body: json({ name, client, domain }),
+      });
       setNewStore(false);
       setName("");
       setClient("");
+      setDomain("");
       await reload();
       notify("Yerel çalışma alanı oluşturuldu. Shopify bağlantısı henüz yok.");
     } catch (error) {
@@ -321,8 +326,8 @@ function Dashboard({
           <div className="local-notice">
             <CircleAlert size={15} />
             <span>
-              Yerel geliştirme sürümü. Shopify mağazaları henüz bağlı değil;
-              yayınlar bu ortamda çalışır.
+              Shopify tema bölümleri eşleştirilebilir. Sayfa yayınları şu an
+              yerel önizlemede çalışır.
             </span>
           </div>
           {!selected ? (
@@ -399,7 +404,13 @@ function Dashboard({
                     <h3>{store.name}</h3>
                     <p>{store.client || "Müşteri belirtilmedi"}</p>
                     <span className="connection-label">
-                      Yerel çalışma alanı · Shopify bağlı değil
+                      {store.connection === "synced"
+                        ? "Shopify tema bölümleri alındı"
+                        : store.connection === "configured"
+                          ? "Tema erişimi yapılandırıldı"
+                          : store.domain
+                            ? "Shopify adresi kayıtlı · tema erişimi gerekli"
+                            : "Yerel çalışma alanı · Shopify bağlı değil"}
                     </span>
                     <div className="store-card-meta">
                       <span>
@@ -558,7 +569,8 @@ function Dashboard({
             <h2>Yeni çalışma alanı</h2>
             <p>
               Mağazana veya müşterine ait tasarımları ayrı bir alanda sakla.
-              Shopify bağlantısı sonraki kurulum adımıdır.
+              Shopify adresini şimdi veya editörün Tema panelinde
+              ekleyebilirsin.
             </p>
             <form onSubmit={(event) => void createStore(event)}>
               <label>
@@ -578,6 +590,15 @@ function Dashboard({
                   value={client}
                   onChange={(event) => setClient(event.target.value)}
                   placeholder="Kendi mağazam / müşteri adı"
+                />
+              </label>
+              <label>
+                Shopify adresi (isteğe bağlı)
+                <input
+                  aria-label="Yeni mağazanın Shopify adresi"
+                  value={domain}
+                  onChange={(event) => setDomain(event.target.value)}
+                  placeholder="magazam.myshopify.com"
                 />
               </label>
               <button className="primary-button" disabled={busy}>
@@ -603,8 +624,8 @@ function Dashboard({
             <h2>{confirm.name} devre dışı bırakılsın mı?</h2>
             <p>
               Bu çalışma alanının yerel yayınları kaldırılacak ve düzenleme
-              duracak. Taslaklar saklanacak. Şu anda bağlı bir Shopify mağazası
-              bulunmuyor.
+              duracak. Taslaklar saklanacak. Shopify tema dosyaları bu yerel
+              işlemle değiştirilmez.
             </p>
             <div className="dialog-actions">
               <button

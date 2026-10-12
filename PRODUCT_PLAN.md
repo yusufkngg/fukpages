@@ -16,8 +16,29 @@ ile özellik eşdeğerliğini hedefleyen bir sayfa oluşturucu geliştirmek.
 - Depo: `/workspace/fukpages`; yerel geliştirme sürümü uygulanmıştır.
 - Şifre korumalı owner paneli, müşteri/mağaza çalışma alanları, ayrıntılı blok
   editörü, cihaz stilleri, taslak kaydı ve yerel yayın kaldırma geliştirilmiştir.
-  Gerçek Shopify bağlantısı/yayınlama veya doğrulanmış GemPages özellik
-  eşdeğerliği henüz mevcut değildir. Kullanım: `README.md`.
+  11 hazır bölüm, bölüm kaydı/kopyalama ve Shopify tema bölüm sırasını okuyan
+  bağlantı altyapısı eklendi. Canlı mağaza erişimi, gerçek tema HTML/CSS
+  önizlemesi/yayınlama ve doğrulanmış GemPages özellik eşdeğerliği henüz
+  mevcut değildir. Kullanım: `README.md`.
+
+## Bölüm bazlı yeni çalışma akışı
+
+Tema header/footer grupları ve sayfa şablonunun yerel bölümleri kaynaklarını
+koruyarak listelenir. Özel FukPages bölümleri ayrı işaretlenir. "Tema düzenini
+kullan" seçimiyle tema bölümlerinin konumu gösterilir ve özel header/footer
+kopyaları aynı önizlemede tekrar gösterilmez. Tema bölümlerinin yerel görünümü
+şimdilik yapısal yer tutucudur; gerçek Liquid render entegrasyonu gerekir.
+
+Hazır bölümler tek tıkla veya sürükleyerek eklenir; alt öğeleri mevcut editörle
+düzenlenir. Seçilen bölüm kaydedilip yeni kimliklerle başka tasarıma eklenebilir.
+Kaydedilen bölüm kopyasını değiştirmek önceki tasarımları değiştirmez.
+
+Shopify okumaları `read_themes` izni ve mağazaya bağlı güvenli erişim gerektirir.
+Mevcut ilk bağlantı tek bir mağaza/anahtar çiftidir. Çoklu gerçek mağaza bağlantısı
+için OAuth ve mağaza başına token/oturum saklama tamamlanmalıdır. Bölüm verisi
+alma, mevcut tema dosyalarına yeni bölümler yayınlamakla aynı işlem değildir;
+yayınlama için tema extension/template stratejisi ve gerekli yetkiler ayrıca
+doğrulanmalıdır. Mevcut prototipte iki yönlü/otomatik canlı senkronizasyon yoktur.
 
 ## Tek sahip girişi ve merkezi mağaza yönetimi
 

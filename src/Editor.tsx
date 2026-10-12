@@ -30,6 +30,8 @@ import {
   Layers,
   LayoutTemplate,
   Loader2,
+  Store as StoreIcon,
+  LockKeyhole,
   Monitor,
   MoreHorizontal,
   MousePointer2,
@@ -49,6 +51,20 @@ import {
 import { api, json } from "./api";
 import { BlockContent, PageRenderer, richHtml } from "./Renderer";
 import { Inspector } from "./Inspector";
+import { SectionLibrary } from "./SectionLibrary";
+import {
+  createSectionPreset,
+  enclosingSection,
+  fromSavedSection,
+  insertSection,
+  type SavedSection,
+} from "./sections";
+import {
+  ThemePanel,
+  NativeThemeInspector,
+  NativeThemeSection,
+} from "./ThemePanel";
+import { templateForPage, type ThemeSnapshot, type ThemeStatus } from "./theme";
 import { blockIcons } from "./icons";
 import {
   cloneBlock,
@@ -79,6 +95,7 @@ interface PageResponse {
   id: string;
   document: PageDocument;
   version: number;
+  themeSnapshot?: ThemeSnapshot | null;
 }
 interface EditorProps {
   pageId: string;
@@ -290,7 +307,7 @@ function Layer({
   select: (id: string) => void;
   dragging: boolean;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(depth > 0);
   const drag = useDraggable({
     id: `layer:${node.id}`,
     data: { nodeId: node.id },
@@ -349,7 +366,12 @@ function Layer({
           <Icon size={14} />
           <span>{node.name}</span>
         </button>
-        <span className="layer-kind">{node.hidden.mobile && "M̸"}</span>
+        <span className="layer-kind">
+          {depth === 0 && node.kind === "section" && (
+            <i className="fp-section-tag">FP</i>
+          )}
+          {node.hidden.mobile && "M̸"}
+        </span>
       </div>
       {open &&
         node.children.map((child, index) => (
@@ -396,7 +418,18 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
   const pageRef = useRef<PageDocument | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [device, setDevice] = useState<Device>("desktop");
-  const [library, setLibrary] = useState("blocks");
+  const [library, setLibrary] = useState("sections");
+  const [savedSections, setSavedSections] = useState<SavedSection[]>([]);
+  const [themeStatus, setThemeStatus] = useState<ThemeStatus>({
+    configured: false,
+    domain: store.domain,
+    snapshot: null,
+  });
+  const [boundSnapshot, setBoundSnapshot] = useState<ThemeSnapshot | null>(
+    null,
+  );
+  const [themeBusy, setThemeBusy] = useState(false);
+  const [nativeSelected, setNativeSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [dragging, setDragging] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -434,12 +467,36 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
         savedRef.current = value;
         setSaved(value);
         setSelected(firstHeading(result.document.nodes));
+        setBoundSnapshot(result.themeSnapshot ?? null);
       })
       .catch((error) => notify(error.message, true));
     return () => {
       current = false;
     };
   }, [pageId, notify]);
+  const pageType = page?.type;
+  useEffect(() => {
+    if (!pageType) return;
+    let active = true;
+    Promise.all([
+      api<SavedSection[]>(`/stores/${store.id}/sections`),
+      api<ThemeStatus>(
+        `/stores/${store.id}/theme?template=${encodeURIComponent(templateForPage[pageType])}`,
+      ),
+    ])
+      .then(([sections, status]) => {
+        if (!active) return;
+        setSavedSections(sections);
+        setThemeStatus(status);
+      })
+      .catch((error) => notify(error.message, true));
+    return () => {
+      active = false;
+    };
+  }, [store.id, pageType, notify]);
+  useEffect(() => {
+    if (selected) setNativeSelected(null);
+  }, [selected]);
   useEffect(() => {
     if (!canvasRef.current) return;
     const observer = new ResizeObserver((entries) =>
@@ -632,7 +689,20 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
       parent: string | null;
       index: number;
     };
-    if (event.active.data.current?.kind) {
+    if (event.active.data.current?.sectionPresetId) {
+      const section = createSectionPreset(
+        String(event.active.data.current.sectionPresetId),
+      );
+      if (!section) return;
+      if (!canInsertSection(section)) return;
+      commit((document) => {
+        if (parent) return insertSection(document, section, parent);
+        const nodes = [...document.nodes];
+        nodes.splice(index, 0, section);
+        return { ...document, nodes };
+      });
+      setSelected(section.id);
+    } else if (event.active.data.current?.kind) {
       const node = createBlock(event.active.data.current.kind as Kind);
       commit((document) => ({
         ...document,
@@ -646,6 +716,138 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
         nodes: moveBlock(document.nodes, id, parent, index),
       }));
       setSelected(id);
+    }
+  };
+  const canInsertSection = (section: Block) => {
+    if (
+      pageRef.current?.themeLayout?.useShell &&
+      ["header", "footer"].includes(String(section.props.sectionRole))
+    ) {
+      notify(
+        "Header/footer temadan geliyor. Özel bir header/footer eklemek için Tema panelinden tema düzenini kapat.",
+      );
+      return false;
+    }
+    return true;
+  };
+  const addPreset = (id: string) => {
+    const section = createSectionPreset(id);
+    if (!section) return;
+    if (!canInsertSection(section)) return;
+    commit((document) => insertSection(document, section, selected));
+    setNativeSelected(null);
+    setSelected(section.id);
+    notify(`${section.name} eklendi; tüm alt öğeleri düzenleyebilirsin.`);
+  };
+  const addSaved = (saved: Block) => {
+    const section = fromSavedSection(saved);
+    if (!canInsertSection(section)) return;
+    commit((document) => insertSection(document, section, selected));
+    setNativeSelected(null);
+    setSelected(section.id);
+    notify("Kaydedilen bölüm eklendi. Bu kopya bağımsız düzenlenir.");
+  };
+  const saveSection = async (name: string) => {
+    const document = pageRef.current;
+    if (!document) return false;
+    const section = enclosingSection(document, selected);
+    if (!section) return false;
+    try {
+      const result = await api<SavedSection>(`/stores/${store.id}/sections`, {
+        method: "POST",
+        body: json({ name, section }),
+      });
+      setSavedSections((current) => [result, ...current]);
+      notify("Bölüm kütüphanene kaydedildi.");
+      return true;
+    } catch (error) {
+      notify((error as Error).message, true);
+      return false;
+    }
+  };
+  const removeSaved = async (id: string) => {
+    try {
+      await api(`/stores/${store.id}/sections/${id}`, { method: "DELETE" });
+      setSavedSections((current) => current.filter((item) => item.id !== id));
+      notify("Kütüphane kaydı kaldırıldı; sayfalardaki kopyalar korunur.");
+    } catch (error) {
+      notify((error as Error).message, true);
+    }
+  };
+  const bindTheme = (snapshot: ThemeSnapshot, useShell: boolean) => {
+    setBoundSnapshot(snapshot);
+    const current = pageRef.current;
+    if (
+      current &&
+      useShell &&
+      ["header", "footer"].includes(
+        String(enclosingSection(current, selected)?.props.sectionRole),
+      )
+    ) {
+      setSelected(
+        firstHeading(
+          current.nodes.filter(
+            (node) =>
+              !["header", "footer"].includes(String(node.props.sectionRole)),
+          ),
+        ),
+      );
+    }
+    commit((document) => ({
+      ...document,
+      themeLayout: { snapshotId: snapshot.id, useShell },
+    }));
+    setNativeSelected(null);
+  };
+  const syncTheme = async () => {
+    const current = pageRef.current;
+    if (!current) return;
+    setThemeBusy(true);
+    try {
+      const status = await api<ThemeStatus>(`/stores/${store.id}/theme/sync`, {
+        method: "POST",
+        body: json({ template: templateForPage[current.type] }),
+      });
+      setThemeStatus(status);
+      if (current.themeLayout?.useShell && status.snapshot)
+        bindTheme(status.snapshot, true);
+      notify("Shopify bölüm sırası okundu. Özel tasarımların korunuyor.");
+    } catch (error) {
+      notify((error as Error).message, true);
+    } finally {
+      setThemeBusy(false);
+    }
+  };
+  const saveDomain = async (domain: string) => {
+    setThemeBusy(true);
+    try {
+      await api(`/stores/${store.id}/shopify`, {
+        method: "PATCH",
+        body: json({ domain }),
+      });
+      const current = pageRef.current;
+      const status = await api<ThemeStatus>(
+        `/stores/${store.id}/theme?template=${encodeURIComponent(templateForPage[current?.type ?? "landing"])}`,
+      );
+      if (status.domain !== themeStatus.domain) {
+        setBoundSnapshot(null);
+        setNativeSelected(null);
+        commit((document) => {
+          const next = { ...document };
+          delete next.themeLayout;
+          return next;
+        });
+      }
+      setThemeStatus(status);
+      notify(
+        status.configured
+          ? "Mağaza adresi kaydedildi. Temayı senkronize edebilirsin."
+          : "Mağaza adresi kaydedildi. Tema okuma erişimi henüz yapılandırılmadı.",
+      );
+    } catch (error) {
+      notify((error as Error).message, true);
+    } finally {
+      setThemeBusy(false);
     }
   };
   const exportPage = () => {
@@ -701,6 +903,33 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
       </div>
     );
   const selectedNode = findBlock(page.nodes, selected);
+  const themeSnapshot = page.themeLayout
+    ? boundSnapshot?.id === page.themeLayout.snapshotId
+      ? boundSnapshot
+      : themeStatus.snapshot?.id === page.themeLayout.snapshotId
+        ? themeStatus.snapshot
+        : null
+    : null;
+  const useThemeShell = !!(page.themeLayout?.useShell && themeSnapshot);
+  const visibleNodes = page.nodes.filter(
+    (node) =>
+      !useThemeShell ||
+      !["header", "footer"].includes(String(node.props.sectionRole)),
+  );
+  const selectedThemeSection =
+    themeSnapshot?.sections.find((section) => section.id === nativeSelected) ??
+    themeStatus.snapshot?.sections.find(
+      (section) => section.id === nativeSelected,
+    );
+  const selectedNativeSnapshot = themeSnapshot?.sections.some(
+    (section) => section.id === nativeSelected,
+  )
+    ? themeSnapshot
+    : themeStatus.snapshot;
+  const selectNative = (id: string) => {
+    setSelected(null);
+    setNativeSelected(id);
+  };
   const scale = Math.max(0.15, Math.min(1, available / widths[device]) * zoom);
   const clean = JSON.stringify(page) === saved;
   const updateHtml = (id: string, html: string) =>
@@ -924,8 +1153,10 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
             <div>
               {[
                 ["blocks", Plus, "Öğeler"],
+                ["sections", LayoutTemplate, "Bölümler"],
                 ["layers", Layers, "Katmanlar"],
                 ["templates", LayoutTemplate, "Şablonlar"],
+                ["theme", StoreIcon, "Tema"],
               ].map(([id, Tool, title]) => {
                 const Icon = Tool as typeof Plus;
                 return (
@@ -955,21 +1186,59 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
             <div className="library-heading">
               <div>
                 <h2>
-                  {library === "blocks"
-                    ? "Bir şeyler oluştur."
-                    : library === "layers"
-                      ? "Katmanlar"
-                      : "İyi bir başlangıç."}
+                  {library === "sections"
+                    ? "Bölüm bölüm tasarla."
+                    : library === "theme"
+                      ? "Mağazanın teması."
+                      : library === "blocks"
+                        ? "Bir şeyler oluştur."
+                        : library === "layers"
+                          ? "Katmanlar"
+                          : "İyi bir başlangıç."}
                 </h2>
                 <p>
-                  {library === "blocks"
-                    ? "Sürükle, bırak, kendine göre düzenle."
-                    : library === "layers"
-                      ? "Sayfanın yapısını yönet."
-                      : "Bir şablon seç, kendi hikâyeni anlat."}
+                  {library === "sections"
+                    ? "Hazır bir bölüm ekle, her ayrıntıyı düzenle."
+                    : library === "theme"
+                      ? "Header, footer ve mevcut bölüm sırası."
+                      : library === "blocks"
+                        ? "Sürükle, bırak, kendine göre düzenle."
+                        : library === "layers"
+                          ? "Sayfanın yapısını yönet."
+                          : "Bir şablon seç, kendi hikâyeni anlat."}
                 </p>
               </div>
             </div>
+            {library === "sections" && (
+              <SectionLibrary
+                saved={savedSections}
+                addPreset={addPreset}
+                addSaved={addSaved}
+                saveSelected={saveSection}
+                selectedSection={enclosingSection(page, selected)}
+                removeSaved={removeSaved}
+              />
+            )}
+            {library === "theme" && (
+              <ThemePanel
+                status={themeStatus}
+                busy={themeBusy}
+                sync={() => void syncTheme()}
+                saveDomain={saveDomain}
+                selectedId={nativeSelected}
+                select={selectNative}
+                useShell={!!page.themeLayout?.useShell}
+                bind={bindTheme}
+                clearBinding={() => {
+                  commit((document) => {
+                    const next = { ...document };
+                    delete next.themeLayout;
+                    return next;
+                  });
+                  setNativeSelected(null);
+                }}
+              />
+            )}
             {library === "blocks" && (
               <>
                 <label className="library-search">
@@ -1029,17 +1298,45 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
             )}
             {library === "layers" && (
               <div className="library-scroll layer-tree">
-                {page.nodes.map((node, index) => (
+                {useThemeShell &&
+                  themeSnapshot?.sections
+                    .filter((section) => section.region !== "footer")
+                    .map((section) => (
+                      <button
+                        key={section.id}
+                        className="outline-theme-row"
+                        onClick={() => selectNative(section.id)}
+                      >
+                        <Layers size={13} />
+                        <span>{section.name}</span>
+                        <LockKeyhole size={11} />
+                      </button>
+                    ))}
+                {visibleNodes.map((node) => (
                   <Layer
                     key={node.id}
                     node={node}
-                    index={index}
+                    index={page.nodes.findIndex((item) => item.id === node.id)}
                     depth={0}
                     selected={selected}
                     select={selectLayer}
                     dragging={!!dragging}
                   />
                 ))}
+                {useThemeShell &&
+                  themeSnapshot?.sections
+                    .filter((section) => section.region === "footer")
+                    .map((section) => (
+                      <button
+                        key={section.id}
+                        className="outline-theme-row"
+                        onClick={() => selectNative(section.id)}
+                      >
+                        <Layers size={13} />
+                        <span>{section.name}</span>
+                        <LockKeyhole size={11} />
+                      </button>
+                    ))}
                 {!page.nodes.length && (
                   <p className="setting-help">İlk öğeni kütüphaneden ekle.</p>
                 )}
@@ -1065,6 +1362,7 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
                     className="template-card"
                     onClick={() => {
                       const next = starterDocument(page.type);
+                      next.themeLayout = page.themeLayout;
                       next.name = name;
                       if (id === "editorial") {
                         next.nodes = next.nodes.filter(
@@ -1129,7 +1427,11 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
                 <span className="canvas-status-dot" />
                 {deviceNames[device]} görünümü
               </span>
-              <span>Yerel taslak · Shopify bağlı değil</span>
+              <span>
+                {themeSnapshot
+                  ? `${themeSnapshot.themeName} · tema verisi okundu`
+                  : "Yerel taslak · Shopify bağlı değil"}
+              </span>
             </div>
             <div className="canvas-scroll" onClick={() => setSelected(null)}>
               <div
@@ -1155,11 +1457,23 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
                     <ShieldCheck size={11} />
                   </div>
                   <div className="page-surface editable-surface">
-                    {page.nodes.map((node, index) => (
+                    {useThemeShell &&
+                      themeSnapshot?.sections
+                        .filter((section) => section.region !== "footer")
+                        .map((section) => (
+                          <NativeThemeSection
+                            key={section.id}
+                            section={section}
+                            select={() => selectNative(section.id)}
+                          />
+                        ))}
+                    {visibleNodes.map((node) => (
                       <CanvasNode
                         key={node.id}
                         node={node}
-                        index={index}
+                        index={page.nodes.findIndex(
+                          (item) => item.id === node.id,
+                        )}
                         device={device}
                         selected={selected}
                         select={setSelected}
@@ -1169,6 +1483,16 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
                         dragging={!!dragging}
                       />
                     ))}
+                    {useThemeShell &&
+                      themeSnapshot?.sections
+                        .filter((section) => section.region === "footer")
+                        .map((section) => (
+                          <NativeThemeSection
+                            key={section.id}
+                            section={section}
+                            select={() => selectNative(section.id)}
+                          />
+                        ))}
                     {!page.nodes.length && (
                       <EmptyPage add={() => add("section")} />
                     )}
@@ -1180,10 +1504,7 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
                   onClick={(event) => {
                     event.stopPropagation();
                     const node = createBlock("section");
-                    commit((document) => ({
-                      ...document,
-                      nodes: [...document.nodes, node],
-                    }));
+                    commit((document) => insertSection(document, node, null));
                     setSelected(node.id);
                   }}
                 >
@@ -1223,16 +1544,23 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
               </div>
             </footer>
           </main>
-          <Inspector
-            node={selectedNode}
-            device={device}
-            update={(change, key) => {
-              changeSelected(change, key);
-            }}
-            duplicate={() => selected && duplicate(selected)}
-            remove={() => selected && remove(selected)}
-            move={moveSelected}
-          />
+          {selectedThemeSection && selectedNativeSnapshot ? (
+            <NativeThemeInspector
+              section={selectedThemeSection}
+              snapshot={selectedNativeSnapshot}
+            />
+          ) : (
+            <Inspector
+              node={selectedNode}
+              device={device}
+              update={(change, key) => {
+                changeSelected(change, key);
+              }}
+              duplicate={() => selected && duplicate(selected)}
+              remove={() => selected && remove(selected)}
+              move={moveSelected}
+            />
+          )}
         </div>
         <input
           ref={importRef}
@@ -1346,7 +1674,22 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
                 margin: "0 auto",
               }}
             >
-              <PageRenderer document={page} device={device} />
+              {useThemeShell &&
+                themeSnapshot?.sections
+                  .filter((section) => section.region !== "footer")
+                  .map((section) => (
+                    <NativeThemeSection key={section.id} section={section} />
+                  ))}
+              <PageRenderer
+                document={{ ...page, nodes: visibleNodes }}
+                device={device}
+              />
+              {useThemeShell &&
+                themeSnapshot?.sections
+                  .filter((section) => section.region === "footer")
+                  .map((section) => (
+                    <NativeThemeSection key={section.id} section={section} />
+                  ))}
             </div>
           </div>
         </div>

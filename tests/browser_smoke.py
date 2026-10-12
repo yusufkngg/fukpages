@@ -28,9 +28,10 @@ with TemporaryDirectory(prefix='fukpages-browser-') as temporary:
     environment = dict(os.environ, PORT=str(port), DATA_DIR=temporary, OWNER_PASSWORD_HASH=hashed, NODE_ENV='test')
     logs = open(Path(temporary) / 'server.log', 'w')
     development = '--dev' in sys.argv
+    theme_fixture = '--theme-fixture' in sys.argv
     ui_port = free_port() if development else port
     environment['VITE_PORT'] = str(ui_port)
-    command = ['npm', 'run', 'dev'] if development else ['node', 'server/index.mjs']
+    command = ['npm', 'run', 'dev'] if development else ['node', 'tests/serve-theme-fixture.mjs' if theme_fixture else 'server/index.mjs']
     server = subprocess.Popen(command, cwd=ROOT, env=environment, stdout=logs, stderr=logs, start_new_session=True)
     try:
         base = f'http://127.0.0.1:{ui_port}'
@@ -75,6 +76,7 @@ with TemporaryDirectory(prefix='fukpages-browser-') as temporary:
             expect(heading).to_have_css('font-size', '27px')
             page.get_by_role('button', name='Masaüstü', exact=True).click()
             print('PASS: independent desktop/tablet/mobile styles')
+            page.get_by_role('button', name='Öğeler', exact=True).click()
             page.locator('[data-palette="box"]').click()
             box = page.locator('.editor-block.selected[data-kind="box"]')
             box_id = box.get_attribute('data-node-id')
@@ -148,6 +150,58 @@ with TemporaryDirectory(prefix='fukpages-browser-') as temporary:
             page.get_by_role('button', name='Düzenle', exact=True).click()
             expect(page.get_by_label('Sayfa adı')).to_have_value('Aura · Product launch')
             expect(page.locator('[data-kind="heading"]:has(h1) .rich-content')).to_have_text('EVERY DETAIL. FULLY YOURS.')
+            page.get_by_role('button', name='Bölümler', exact=True).click()
+            page.locator('[data-section-preset="faq"]').click()
+            faq = page.locator('.editor-block.selected[data-kind="section"]')
+            expect(faq.locator('[data-kind="accordion"]')).to_have_count(3)
+            section_id = faq.get_attribute('data-node-id')
+            page.get_by_role('button', name='Seçili bölümü kaydet', exact=True).click()
+            page.get_by_label('Kaydedilen bölüm adı').fill('Benim SSS bölümüm')
+            page.get_by_title('Bölümü kaydet', exact=True).click()
+            expect(page.locator('.saved-section-card')).to_have_count(1)
+            page.locator('.saved-section-insert').click()
+            inserted = page.locator('.editor-block.selected[data-kind="section"]')
+            assert inserted.get_attribute('data-node-id') != section_id
+            expect(inserted.locator('[data-kind="accordion"]')).to_have_count(3)
+            page.get_by_role('button', name='Kaydet', exact=True).click()
+            expect(page.locator('.save-indicator')).to_have_text('Kaydedildi', timeout=10000)
+            print('PASS: ready-made section insertion, complete section saving, independent reusable copy')
+            if theme_fixture:
+                page.get_by_role('button', name='Tema', exact=True).click()
+                page.get_by_label('Shopify mağaza adresi', exact=True).fill('fukpages-fixture.myshopify.com')
+                page.get_by_role('button', name='Adresi kaydet', exact=True).click()
+                expect(page.get_by_role('button', name='Temayı senkronize et')).to_be_enabled()
+                page.get_by_role('button', name='Temayı senkronize et').click()
+                expect(page.locator('[data-native-section="header"]')).to_be_visible()
+                page.get_by_label('Tema düzenini kullan', exact=True).check()
+                expect(page.locator('[data-theme-section="header"]')).to_be_visible()
+                page.locator('[data-native-section="header"]').click()
+                expect(page.get_by_role('heading', name='Temanızdaki bölüm.')).to_be_visible()
+                page.screenshot(path=str(ARTIFACTS / 'theme-sections.png'), full_page=True)
+                page.get_by_role('button', name='Bölümler', exact=True).click()
+                page.screenshot(path=str(ARTIFACTS / 'section-library.png'), full_page=True)
+                section_count = page.locator('.editable-surface > [data-kind="section"]').count()
+                page.locator('[data-section-preset="header"]').click()
+                assert page.locator('.editable-surface > [data-kind="section"]').count() == section_count
+                expect(page.locator('.toast')).to_contain_text('Header/footer temadan geliyor')
+                page.get_by_role('button', name='Kaydet', exact=True).click()
+                expect(page.locator('.save-indicator')).to_have_text('Kaydedildi', timeout=10000)
+                themed = page.request.get(base + '/api/pages/' + page_id).json()
+                assert themed['document']['themeLayout']['useShell'] is True
+                assert themed['themeSnapshot']['sections'][1]['type'] == 'header'
+                page.get_by_role('button', name='Önizle', exact=True).click()
+                expect(page.locator('.preview-modal [data-theme-section="header"]')).to_be_visible()
+                expect(page.locator('.preview-modal .editor-block')).to_have_count(0)
+                page.get_by_role('button', name='Önizlemeyi kapat').click()
+                print('PASS: theme API fixture sync, authoritative header/footer positions, bound theme persistence')
+                page.get_by_role('button', name='Tema', exact=True).click()
+                page.get_by_label('Shopify mağaza adresi', exact=True).fill('other-fixture.myshopify.com')
+                page.get_by_role('button', name='Adresi kaydet', exact=True).click()
+                expect(page.locator('[data-theme-section="header"]')).to_have_count(0)
+                page.get_by_role('button', name='Kaydet', exact=True).click()
+                expect(page.locator('.save-indicator')).to_have_text('Kaydedildi', timeout=10000)
+                assert 'themeLayout' not in page.request.get(base + '/api/pages/' + page_id).json()['document']
+                print('PASS: changing shop domain clears obsolete theme binding without deleting design blocks')
             page.get_by_title('Mağazalara dön').click()
             page.get_by_role('button', name='Devre dışı bırak', exact=True).click()
             expect(page.get_by_role('heading', name='Aura Studio devre dışı bırakılsın mı?')).to_be_visible()

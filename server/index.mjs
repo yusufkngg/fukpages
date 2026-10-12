@@ -6,6 +6,10 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import sanitizeHtml from "sanitize-html";
 import { verifyPassword } from "./auth.mjs";
+import {
+  createShopifyThemeService,
+  normalizeShopDomain,
+} from "./shopify-theme.mjs";
 
 const kinds = new Set([
   "section",
@@ -158,6 +162,8 @@ export function validateDocument(input) {
           "animation",
           "cssId",
           "targetBlank",
+          "sectionRole",
+          "presetId",
         ].includes(key)
       )
         continue;
@@ -189,18 +195,33 @@ export function validateDocument(input) {
           : [],
     };
   }
-  return {
+  const result = {
     schemaVersion: 1,
     name: cleanText(input.name).slice(0, 120),
     type: input.type,
     nodes: input.nodes.map((node) => walk(node, 0)),
   };
+  if (input.themeLayout !== undefined) {
+    if (
+      !input.themeLayout ||
+      typeof input.themeLayout.snapshotId !== "string" ||
+      !/^[a-f0-9-]{36}$/.test(input.themeLayout.snapshotId) ||
+      typeof input.themeLayout.useShell !== "boolean"
+    )
+      throw new Error("Geçersiz tema bağlantısı.");
+    result.themeLayout = {
+      snapshotId: input.themeLayout.snapshotId,
+      useShell: input.themeLayout.useShell,
+    };
+  }
+  return result;
 }
 
 export function createApp({
   dataDir = process.env.DATA_DIR ?? ".local",
   ownerHash = process.env.OWNER_PASSWORD_HASH,
   ownerLogin = process.env.OWNER_LOGIN ?? "owner",
+  shopify = createShopifyThemeService(),
 } = {}) {
   mkdirSync(dataDir, { recursive: true, mode: 0o700 });
   if (!ownerHash && existsSync(resolve(dataDir, "owner.hash")))
@@ -211,7 +232,9 @@ export function createApp({
     CREATE TABLE IF NOT EXISTS stores (id TEXT PRIMARY KEY, name TEXT NOT NULL, client TEXT NOT NULL, domain TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', created INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS pages (id TEXT PRIMARY KEY, store_id TEXT NOT NULL, document TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, updated INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS publications (page_id TEXT PRIMARY KEY, document TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, published INTEGER NOT NULL);
-    CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, store_id TEXT, action TEXT NOT NULL, created INTEGER NOT NULL);`);
+    CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, store_id TEXT, action TEXT NOT NULL, created INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS saved_sections (id TEXT PRIMARY KEY, store_id TEXT NOT NULL, name TEXT NOT NULL, section TEXT NOT NULL, created INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS theme_snapshots (id TEXT PRIMARY KEY, store_id TEXT NOT NULL, domain TEXT NOT NULL, template TEXT NOT NULL, snapshot TEXT NOT NULL, created INTEGER NOT NULL);`);
   if (!db.prepare("SELECT id FROM stores LIMIT 1").get()) {
     db.prepare(
       "INSERT INTO stores (id,name,client,domain,created) VALUES (?,?,?,?,?)",
@@ -339,7 +362,15 @@ export function createApp({
         .all()
         .map((store) => ({
           ...store,
-          connection: "local",
+          connection: db
+            .prepare(
+              "SELECT id FROM theme_snapshots WHERE store_id=? AND domain=? LIMIT 1",
+            )
+            .get(store.id, store.domain)
+            ? "synced"
+            : shopify.configured(store.domain)
+              ? "configured"
+              : "local",
           pageCount: db
             .prepare("SELECT COUNT(*) AS count FROM pages WHERE store_id=?")
             .get(store.id).count,
@@ -350,9 +381,21 @@ export function createApp({
     const name = cleanText(req.body.name).trim().slice(0, 80);
     if (!name) return res.status(400).json({ error: "Mağaza adı gerekli." });
     const id = randomBytes(12).toString("hex");
+    let domain = "";
+    try {
+      if (req.body.domain) domain = normalizeShopDomain(req.body.domain);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
     db.prepare(
       "INSERT INTO stores (id,name,client,domain,created) VALUES (?,?,?,?,?)",
-    ).run(id, name, cleanText(req.body.client).slice(0, 100), "", Date.now());
+    ).run(
+      id,
+      name,
+      cleanText(req.body.client).slice(0, 100),
+      domain,
+      Date.now(),
+    );
     audit(id, "Yerel çalışma alanı oluşturuldu");
     res.status(201).json({ id });
   });
@@ -430,11 +473,168 @@ export function createApp({
     }
     return store;
   };
+  const validThemeBinding = (document, storeId) => {
+    if (!document.themeLayout) return true;
+    const row = db
+      .prepare(
+        "SELECT theme_snapshots.domain,theme_snapshots.template,stores.domain AS current_domain FROM theme_snapshots JOIN stores ON stores.id=theme_snapshots.store_id WHERE theme_snapshots.id=? AND theme_snapshots.store_id=?",
+      )
+      .get(document.themeLayout.snapshotId, storeId);
+    const base = {
+      landing: "page",
+      home: "index",
+      product: "product",
+      collection: "collection",
+      page: "page",
+      blog: "blog",
+      article: "article",
+      cart: "cart",
+      search: "search",
+    }[document.type];
+    return (
+      !!row &&
+      row.domain === row.current_domain &&
+      new RegExp(`^templates/${base}(\\.[a-zA-Z0-9_-]+)?\\.json$`).test(
+        row.template,
+      )
+    );
+  };
+  app.patch("/api/stores/:id/shopify", auth, csrf, (req, res) => {
+    if (!activeStore(req.params.id, res)) return;
+    let domain;
+    try {
+      domain = normalizeShopDomain(req.body.domain);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+    db.prepare("UPDATE stores SET domain=? WHERE id=?").run(
+      domain,
+      req.params.id,
+    );
+    audit(req.params.id, "Shopify mağaza adresi kaydedildi");
+    res.json({ domain, configured: shopify.configured(domain) });
+  });
+  app.get("/api/stores/:id/theme", auth, (req, res) => {
+    const store = db
+      .prepare("SELECT * FROM stores WHERE id=?")
+      .get(req.params.id);
+    if (!store) return res.status(404).json({ error: "Mağaza bulunamadı." });
+    const template =
+      typeof req.query.template === "string"
+        ? req.query.template
+        : "templates/index.json";
+    const cached = db
+      .prepare(
+        "SELECT snapshot FROM theme_snapshots WHERE store_id=? AND domain=? AND template=? ORDER BY created DESC,rowid DESC LIMIT 1",
+      )
+      .get(store.id, store.domain, template);
+    res.json({
+      domain: store.domain,
+      configured: shopify.configured(store.domain),
+      snapshot: cached ? JSON.parse(cached.snapshot) : null,
+    });
+  });
+  const syncing = new Set();
+  app.post("/api/stores/:id/theme/sync", auth, csrf, async (req, res) => {
+    const store = activeStore(req.params.id, res);
+    if (!store) return;
+    const key = `${store.id}:${req.body.template ?? "templates/index.json"}`;
+    if (syncing.has(key))
+      return res
+        .status(409)
+        .json({ error: "Tema senkronizasyonu zaten devam ediyor." });
+    syncing.add(key);
+    try {
+      const snapshot = await shopify.sync(store.domain, req.body.template);
+      const current = activeStore(store.id, res);
+      if (!current) return;
+      if (current.domain !== store.domain)
+        return res
+          .status(409)
+          .json({
+            error:
+              "Mağaza adresi değişti. Senkronizasyonu yeni adresle tekrar başlatın.",
+          });
+      db.prepare(
+        "INSERT INTO theme_snapshots (id,store_id,domain,template,snapshot,created) VALUES (?,?,?,?,?,?)",
+      ).run(
+        snapshot.id,
+        store.id,
+        store.domain,
+        snapshot.templateFilename,
+        JSON.stringify(snapshot),
+        snapshot.syncedAt,
+      );
+      audit(store.id, "Shopify tema bölüm sırası okundu");
+      res.json({ domain: store.domain, configured: true, snapshot });
+    } catch (error) {
+      res.status(error.status ?? 502).json({ error: error.message });
+    } finally {
+      syncing.delete(key);
+    }
+  });
+  app.get("/api/stores/:id/sections", auth, (req, res) => {
+    if (!db.prepare("SELECT id FROM stores WHERE id=?").get(req.params.id))
+      return res.status(404).json({ error: "Mağaza bulunamadı." });
+    res.json(
+      db
+        .prepare(
+          "SELECT id,name,section,created FROM saved_sections WHERE store_id=? ORDER BY created DESC",
+        )
+        .all(req.params.id)
+        .map((row) => ({ ...row, section: JSON.parse(row.section) })),
+    );
+  });
+  app.post("/api/stores/:id/sections", auth, csrf, (req, res) => {
+    if (!activeStore(req.params.id, res)) return;
+    try {
+      const name = cleanText(req.body.name).trim().slice(0, 100);
+      if (!name) return res.status(400).json({ error: "Bölüm adı gerekli." });
+      const document = validateDocument({
+        schemaVersion: 1,
+        name,
+        type: "landing",
+        nodes: [req.body.section],
+      });
+      const section = document.nodes[0];
+      if (section.kind !== "section")
+        return res
+          .status(400)
+          .json({ error: "Yalnızca bir bütün bölüm kaydedilebilir." });
+      section.name = name;
+      const id = randomBytes(12).toString("hex");
+      const created = Date.now();
+      db.prepare("INSERT INTO saved_sections VALUES (?,?,?,?,?)").run(
+        id,
+        req.params.id,
+        name,
+        JSON.stringify(section),
+        created,
+      );
+      audit(req.params.id, `Bölüm kütüphaneye kaydedildi: ${name}`);
+      res.status(201).json({ id, name, section, created });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+  app.delete("/api/stores/:id/sections/:sectionId", auth, csrf, (req, res) => {
+    if (!activeStore(req.params.id, res)) return;
+    const result = db
+      .prepare("DELETE FROM saved_sections WHERE id=? AND store_id=?")
+      .run(req.params.sectionId, req.params.id);
+    if (!result.changes)
+      return res.status(404).json({ error: "Kaydedilen bölüm bulunamadı." });
+    res.json({ ok: true });
+  });
   app.post("/api/stores/:id/pages", auth, csrf, (req, res) => {
     if (!activeStore(req.params.id, res)) return;
     let document;
     try {
       document = validateDocument(req.body.document);
+      if (!validThemeBinding(document, req.params.id))
+        throw new Error(
+          "Tema bağlantısı bu mağazaya ait değil veya güncel değil.",
+        );
     } catch (error) {
       return res.status(400).json({ error: error.message });
     }
@@ -450,7 +650,20 @@ export function createApp({
       .prepare("SELECT * FROM pages WHERE id=?")
       .get(req.params.id);
     if (!page) return res.status(404).json({ error: "Sayfa bulunamadı." });
-    res.json({ ...page, document: JSON.parse(page.document) });
+    const document = JSON.parse(page.document);
+    const theme =
+      document.themeLayout && validThemeBinding(document, page.store_id)
+        ? db
+            .prepare(
+              "SELECT snapshot FROM theme_snapshots WHERE id=? AND store_id=?",
+            )
+            .get(document.themeLayout.snapshotId, page.store_id)
+        : null;
+    res.json({
+      ...page,
+      document,
+      themeSnapshot: theme ? JSON.parse(theme.snapshot) : null,
+    });
   });
   app.put("/api/pages/:id", auth, csrf, (req, res) => {
     const page = db
@@ -459,15 +672,17 @@ export function createApp({
     if (!page) return res.status(404).json({ error: "Sayfa bulunamadı." });
     if (!activeStore(page.store_id, res)) return;
     if (req.body.version !== page.version)
-      return res
-        .status(409)
-        .json({
-          error:
-            "Sayfa başka bir sekmede değişti. Kaydınızı dışa aktarıp güncel sürümü yeniden açın.",
-        });
+      return res.status(409).json({
+        error:
+          "Sayfa başka bir sekmede değişti. Kaydınızı dışa aktarıp güncel sürümü yeniden açın.",
+      });
     let document;
     try {
       document = validateDocument(req.body.document);
+      if (!validThemeBinding(document, page.store_id))
+        throw new Error(
+          "Tema bağlantısı bu mağazaya ait değil veya güncel değil.",
+        );
     } catch (error) {
       return res.status(400).json({ error: error.message });
     }
@@ -524,7 +739,7 @@ if (
   const { app } = createApp();
   app.listen(Number(process.env.PORT ?? 3001), "0.0.0.0", () =>
     console.log(
-      "FukPages sunucusu hazır. Shopify bağlantısı: henüz yapılandırılmadı.",
+      "FukPages sunucusu hazır. Tema senkronizasyonu mağaza erişimiyle etkinleşir.",
     ),
   );
 }
