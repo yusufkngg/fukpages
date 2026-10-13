@@ -9,7 +9,7 @@ içeriği koruyan bölüm düzeni, kart yönetimi ve gerçek bölüm önizlemesi
 42 otomatik test ve 720 bölüm/ekran kontrolü geçti. 155 maddeden 113'ü yerel
 testle, 23'ü kod incelemesiyle kontrol edildi; ertelenen/sınırlı maddeler raporda.
 Şifreli panel ve örnek mağaza için Netlify Functions/Blobs kurulumu hazır;
-canlı Netlify hesabına deploy henüz doğrulanmadı. [Kurulum](docs/NETLIFY_DEMO.md).
+canlı giriş ekranı/API/demo mağaza/sepet masaüstü ve mobilde doğrulandı. [Kurulum](docs/NETLIFY_DEMO.md).
 Aşağıdaki Shopify kabul koşulları sonraki bağlantı aşamasına aittir; tamamlandığı iddia edilmez.
 
 ## Ürün ve sonraki bağlantı planı

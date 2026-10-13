@@ -63,7 +63,7 @@ başlatabilirsin; build cache sorununda **Clear cache and deploy site** kullan.
 
 `npm run build:netlify`, `npm test`, `npm run test:netlify` ve `npm run test:browser` kullanılır. Paket testi `--no-experimental-require-module` ayarıyla resmi Netlify paketleyicisini, resmi **yerel** Blobs sunucusunu ve gerçek native medya/font dönüşümünü çalıştırır; özel `.local`, `.env`, SQLite ve hash dosyalarının pakete girmediğini kontrol eder. Tarayıcı testi aynı modda şifreli paneli, demo mağazayı, sepeti, kalıcı düzenlemeyi, API hatasını, zaman aşımını ve yeniden denemeyi doğrular.
 
-Bu kontroller canlı Netlify hesabına deploy yapıldığını göstermez. Hesap bağlandıktan sonra canlı URL'de giriş, kayıt, yeniden açma ve demo mağaza ayrıca kontrol edilmelidir.
+fukpages.netlify.app üzerinde 0.3.2 canlı sürümünün API/giriş ekranı/demo mağaza/yerel sepet ve masaüstü/mobil görünümü ayrıca kontrol edildi. Chromium kaynakları TLS doğrulaması açık bir HTTPS transportuyla aldı. API sağlıklı, oturumsuz yönetim 401 ve geçerli şifre yapılandırması doğrulandı. Gerçek sahibin şifresi kullanılmadı; canlı yönetici oturumu ve canlı sayfa değiştirme/yayınlama bu kontrolde yapılmadı.
 
 - “Yönetici hesabı henüz yapılandırılmadı”: `FUKPAGES_DEMO_PASSWORD` adını, en az 12 karakteri ve Functions/Production kapsamını kontrol edip tekrar deploy et.
 - `/api/health` JSON yerine HTML dönüyorsa Functions/redirect ayarlarını ve `netlify.toml` dosyasının depo kökünde olduğunu kontrol et.

@@ -13,7 +13,7 @@ Kullanıcının özgün özellik listesi [REQUESTED_FEATURES.md](REQUESTED_FEATU
 - `npm run test:network`: izin verilen GitHub görselini gerçek HTTPS/proxy üzerinden içe alma. Shopify/AI çağrısı yapmaz.
 - `npm run format:check` ve `npm audit --omit=dev`.
 
-Testler geçici şifre/veritabanı ve örnek veriler kullanır. Gerçek yönetici hesabı, mağaza veya sağlayıcı kullanılmaz. Netlify canlı deploy hesabı bu ortamda bağlı değildir; paket ve yerel sunucusuz test, canlı deploy doğrulaması yerine geçmez.
+Testler geçici şifre/veritabanı ve örnek veriler kullanır. Gerçek yönetici hesabı, mağaza veya sağlayıcı kullanılmaz. Netlify hesabının yönetim API erişimi bu ortamda bağlı değildir. fukpages.netlify.app üzerinde gerçek HTTPS ile API/giriş ekranı, demo mağaza, yerel sepet, masaüstü ve mobil görüntü ayrıca doğrulandı. Şifre paylaşılmadan geçerli yapılandırma doğrulandı; gerçek sahibiyle giriş/kayıt/yayın testi bu canlı kontrolde yapılmadı.
 
 ## Bu sürümdeki ek kabul kontrolleri
 
@@ -25,7 +25,7 @@ Testler geçici şifre/veritabanı ve örnek veriler kullanır. Gerçek yönetic
 | Bölüm düzeni değiştirme | Uyumlu düzen değişikliğinde içerik, öğe kimlikleri, bağlantılar, görünürlük korunur; ek içerik sessizce üretilmez. |
 | Tekrarlanan kartlar | Metinleri değiştir, sırasını değiştir, çoğalt, kaldır; kopyalarda iç bağlantılar yeni kimliklere eşlenir. |
 | Bölüm önizlemesi | Gerçek sayfa renderer'ı ile marka/font ve masaüstü/tablet/mobil görünümü; önizlemede eylemler çalıştırılmaz. |
-| Netlify prototipi | Şifreli panel `/`, örnek mağaza `/p/demo/demo-store`; SQLite+medya koşullu Blobs kaydı; soğuk başlangıç, yarışan kayıt, kayıp upload cevabı, parola değişimi ve mağaza durdurma testleri. Canlı deploy bekliyor. |
+| Netlify prototipi | Şifreli panel `/`, örnek mağaza `/p/demo/demo-store`; SQLite+medya koşullu Blobs kaydı; soğuk başlangıç, yarışan kayıt, kayıp upload cevabı, parola değişimi ve mağaza durdurma testleri. Canlı API/giriş ekranı/demo mağaza/sepet kontrolü geçti; gerçek owner oturumu açılmadı. |
 
 ## Durum sayıları
 

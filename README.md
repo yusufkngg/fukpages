@@ -16,7 +16,9 @@ Netlify ortam ayarına en az 12 karakterlik `FUKPAGES_DEMO_PASSWORD` ekle;
 kullanıcı adı `owner`. Panel `/`, demo mağaza `/p/demo/demo-store` adresindedir.
 `main` güncellemeleri otomatik deploy edilir; taslaklar ve medya Netlify Blobs'ta
 korunur. [Adım adım kurulum ve prototip sınırları](docs/NETLIFY_DEMO.md).
-Canlı Netlify hesabı bu ortamda bağlı değildir; canlı yayın doğrulaması bekler.
+Canlı demo: https://fukpages.netlify.app/ . Giriş ekranı, API, demo mağaza ve
+yerel sepet masaüstü/mobilde canlı olarak doğrulandı. Yönetici şifresi
+Netlify ortam ayarlarından sağlanır; gerçek sahip oturumu bu testte açılmadı.
 
 ## 0.3 geliştirmeleri
 
