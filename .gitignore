@@ -8,6 +8,7 @@ dist/
 __pycache__/
 .netlify/
 netlify/.deployment-context.json
+server/generated/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm

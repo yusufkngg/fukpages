@@ -68,7 +68,9 @@ export async function api<T>(
     });
   } catch {
     throw new ApiError(
-      "Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.",
+      options.signal?.reason?.name === "TimeoutError"
+        ? "Sunucu zamanında yanıt vermedi. Tekrar dene."
+        : "Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.",
       0,
     );
   }
@@ -77,7 +79,11 @@ export async function api<T>(
     result = await response.json();
   } catch {
     throw new ApiError(
-      "Sunucunun yanıtı okunamadı. İşlemi tekrar dene.",
+      options.signal?.reason?.name === "TimeoutError"
+        ? "Sunucu zamanında yanıt vermedi. Tekrar dene."
+        : response.status >= 500
+          ? "Sunucu şu anda çalışmıyor. Biraz sonra tekrar dene."
+          : "Sunucunun yanıtı okunamadı. İşlemi tekrar dene.",
       response.status,
     );
   }

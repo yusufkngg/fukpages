@@ -19,6 +19,12 @@ setEnvironmentContext({
   apiURL: `http://127.0.0.1:${port}`,
 });
 const server = createServer(async (req, res) => {
+  // Test-only stalled response; the browser must cancel it at its deadline.
+  if (
+    req.url === "/api/auth/status" &&
+    req.headers["x-fukpages-test-stall"] === "1"
+  )
+    return;
   try {
     if (req.url.startsWith("/api/") || req.url.startsWith("/p/")) {
       const chunks = [];

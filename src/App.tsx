@@ -186,6 +186,28 @@ function Login({
 function MouseMark() {
   return <span>↗</span>;
 }
+function StartupFailure({
+  title,
+  message,
+  retry,
+}: {
+  title: string;
+  message: string;
+  retry: () => void;
+}) {
+  return (
+    <div className="loading-screen">
+      <main className="startup-error" role="alert">
+        <CircleAlert size={28} />
+        <h1>{title}</h1>
+        <p>{message}</p>
+        <button className="primary-button" onClick={retry}>
+          Tekrar dene
+        </button>
+      </main>
+    </div>
+  );
+}
 function Dashboard({
   role = "owner",
   demo = false,
@@ -695,6 +717,13 @@ function Dashboard({
   );
 }
 export function App() {
+  const [startupError, setStartupError] = useState("");
+  const [startupAttempt, setStartupAttempt] = useState(0);
+  const retryStartup = () => {
+    setStartupError("");
+    setPublicError("");
+    setStartupAttempt((n) => n + 1);
+  };
   const [status, setStatus] = useState<{
     authenticated: boolean;
     configured: boolean;
@@ -747,6 +776,20 @@ export function App() {
     return () => clearTimeout(timer);
   }, [toast]);
   useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    const timeout = setTimeout(
+      () =>
+        controller.abort(
+          new DOMException("Sunucu zaman aşımı", "TimeoutError"),
+        ),
+      30_000,
+    );
+    const cleanup = () => {
+      active = false;
+      clearTimeout(timeout);
+      controller.abort();
+    };
     if (publishedId || previewToken || experimentId || funnelId || publicPath) {
       api<{
         document: PageDocument;
@@ -766,8 +809,10 @@ export function App() {
               : previewToken
                 ? `/public/previews/${encodeURIComponent(previewToken)}`
                 : `/public/pages/${encodeURIComponent(publishedId!)}`,
+        { signal: controller.signal },
       )
         .then((result) => {
+          if (!active) return;
           setPublicPage(result.document);
           setPublicMeta(result);
           document.title = result.document.seo?.title || result.document.name;
@@ -790,7 +835,10 @@ export function App() {
             m.content = content;
           }
         })
-        .catch((error) => setPublicError(error.message));
+        .catch((error) => {
+          if (active) setPublicError(error.message);
+        })
+        .finally(() => clearTimeout(timeout));
       const change = () =>
         setDevice(
           window.innerWidth <= 600
@@ -801,16 +849,33 @@ export function App() {
         );
       change();
       window.addEventListener("resize", change);
-      return () => window.removeEventListener("resize", change);
+      return () => {
+        cleanup();
+        window.removeEventListener("resize", change);
+      };
     }
     api<{ authenticated: boolean; configured: boolean; csrf?: string }>(
       "/auth/status",
+      { signal: controller.signal },
     )
       .then((result) => {
+        if (!active) return;
+        if (
+          !result ||
+          typeof result.authenticated !== "boolean" ||
+          typeof result.configured !== "boolean"
+        )
+          throw new Error(
+            "Sunucudan geçerli giriş bilgisi alınamadı. Tekrar dene.",
+          );
         setCsrf(result.csrf ?? "");
         setStatus(result);
       })
-      .catch((error) => notify(error.message, true));
+      .catch((error) => {
+        if (active) setStartupError(error.message);
+      })
+      .finally(() => clearTimeout(timeout));
+    return cleanup;
   }, [
     notify,
     publishedId,
@@ -819,6 +884,7 @@ export function App() {
     funnelId,
     funnelStage,
     publicPath,
+    startupAttempt,
   ]);
   async function logout() {
     try {
@@ -836,12 +902,24 @@ export function App() {
         <PageRenderer document={publicPage} device={device} />
         {previewToken && <PreviewReview token={previewToken} />}
       </StudioProvider>
+    ) : publicError ? (
+      <StartupFailure
+        title="Sayfa açılamadı"
+        message={publicError}
+        retry={retryStartup}
+      />
     ) : (
-      <div className="loading-screen">{publicError || "Sayfa yükleniyor…"}</div>
+      <div className="loading-screen">Sayfa yükleniyor…</div>
     );
   return (
     <>
-      {!status ? (
+      {startupError ? (
+        <StartupFailure
+          title="Stüdyo açılamadı"
+          message={startupError}
+          retry={retryStartup}
+        />
+      ) : !status ? (
         <div className="loading-screen">
           <Loader2 className="spin" /> Stüdyo hazırlanıyor…
         </div>

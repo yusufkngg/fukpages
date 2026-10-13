@@ -5,7 +5,7 @@ import { readFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
-import sanitizeHtml from "sanitize-html";
+import sanitizeHtml from "./generated/sanitize-html.cjs";
 import { createTeamService } from "./team.mjs";
 import { verifyPassword } from "./auth.mjs";
 import { registerSeo } from "./seo.mjs";

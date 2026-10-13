@@ -9,6 +9,7 @@ Kullanıcının özgün özellik listesi [REQUESTED_FEATURES.md](REQUESTED_FEATU
 - `npm run test:browser`: gerçek Chromium; editör, ürün, medya, font, formlar, çeviri, klavye erişimi, kayıt kurtarma, çakışma, popup, bölüm düzen/kart/önizleme ve demo panel/mağaza akışları.
 - 60 bölüm × 3 içerik durumu × 4 ekran genişliği = **720 bölüm kontrolü**. Taşma ve JavaScript hatası yok; bu sayı 720 ayrı özellik veya bütün etkileşimlerin testi değildir.
 - `npm run test:netlify`: Netlify'ın resmi paketleyicisiyle Node 24 paketi; özel dosyaların hariç tutulması; resmi **yerel** Blobs sunucusunda şifreli giriş, kalıcı kayıt, görsel yükleme ve TTF→WOFF2 dönüşümü.
+- 0.3.1 regresyonu: paket ve Netlify tarayıcı kontrolü `--no-experimental-require-module` modunda çalışır. İlk API hatası, yanıtsız istek zaman aşımı ve tekrar denemeyle toparlanma doğrulanır; sonsuz başlangıç ekranı kaldırılmıştır.
 - `npm run test:network`: izin verilen GitHub görselini gerçek HTTPS/proxy üzerinden içe alma. Shopify/AI çağrısı yapmaz.
 - `npm run format:check` ve `npm audit --omit=dev`.
 

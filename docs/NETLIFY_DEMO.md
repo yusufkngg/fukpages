@@ -37,7 +37,24 @@ Netlify Blobs, SQLite ve medyanın sıkıştırılmış anlık görüntüsünü 
 
 ## Doğrulama ve sorun giderme
 
-`npm run build:netlify`, `npm test`, `npm run test:netlify` ve `npm run test:browser` kullanılır. Paket testi resmi Netlify paketleyicisini, resmi **yerel** Blobs sunucusunu ve gerçek native medya/font dönüşümünü çalıştırır; özel `.local`, `.env`, SQLite ve hash dosyalarının pakete girmediğini kontrol eder. Tarayıcı testi şifreli paneli, demo mağazayı, sepeti ve kalıcı düzenlemeyi doğrular.
+0.3.1, Netlify/Lambda'da `require(ESM)` kapalıyken `sanitize-html` →
+`htmlparser2` yüklemesindeki `ERR_REQUIRE_ESM` çökmesini giderir. Güncel
+`sanitize-html` 2.18.0 ve ayrıştırıcısı build sırasında CommonJS paketine
+derlenir; deneysel runtime bayrağı açmak gerekmez. `npm run build`, `npm run dev`
+ve `npm test` gerekli dosyayı üretir. Üretim başlangıcı önceden derlenmiş dosyayı
+kullanabilir. `server/generated/` kaynak deposuna eklenmez; Netlify build'i
+dosyayı üretip Function paketine dahil eder.
+
+Panel giriş durumu 30 saniyede yanıtlanmazsa veya API çökerse yükleme ekranı
+hata ve **Tekrar dene** düğmesine dönüşür. Demo sayfasında da yeniden deneme
+vardır. `X-FukPages-Version` ve Netlify build commit'i mevcutsa
+`X-FukPages-Commit` yanıt başlıkları hangi sürümün yayımlandığını gösterir.
+
+Bu hata için Netlify **Deploys** ekranındaki son yayının GitHub `main` dalındaki
+son commit'e ait olduğunu kontrol et. Yeni commit'i seçerek yeniden deploy
+başlatabilirsin; build cache sorununda **Clear cache and deploy site** kullan.
+
+`npm run build:netlify`, `npm test`, `npm run test:netlify` ve `npm run test:browser` kullanılır. Paket testi `--no-experimental-require-module` ayarıyla resmi Netlify paketleyicisini, resmi **yerel** Blobs sunucusunu ve gerçek native medya/font dönüşümünü çalıştırır; özel `.local`, `.env`, SQLite ve hash dosyalarının pakete girmediğini kontrol eder. Tarayıcı testi aynı modda şifreli paneli, demo mağazayı, sepeti, kalıcı düzenlemeyi, API hatasını, zaman aşımını ve yeniden denemeyi doğrular.
 
 Bu kontroller canlı Netlify hesabına deploy yapıldığını göstermez. Hesap bağlandıktan sonra canlı URL'de giriş, kayıt, yeniden açma ve demo mağaza ayrıca kontrol edilmelidir.
 

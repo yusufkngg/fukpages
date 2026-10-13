@@ -3876,3 +3876,23 @@ p {
   opacity: 0.5;
   cursor: default;
 }
+.startup-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  max-width: 440px;
+  padding: 32px;
+  text-align: center;
+}
+.startup-error h1 {
+  font-size: 24px;
+}
+.startup-error p {
+  line-height: 1.6;
+  color: #b4bdb6;
+}
+.startup-error .primary-button {
+  width: auto;
+  min-width: 160px;
+}

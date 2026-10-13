@@ -20,6 +20,11 @@ Canlı Netlify hesabı bu ortamda bağlı değildir; canlı yayın doğrulaması
 
 ## 0.3 geliştirmeleri
 
+0.3.1: Netlify'daki `ERR_REQUIRE_ESM` başlangıç çökmesi giderildi. Güncel HTML
+temizleme paketleri build sırasında CommonJS biçimine derlenir; Lambda uyumlu
+paket ve tarayıcı testleri `require(ESM)` kapalıyken de geçer. Panel API
+hatasında veya 30 saniyelik zaman aşımında hata/yeniden deneme gösterir.
+
 - Bağlantı kaybında tarayıcıda yerel taslak saklama ve kurtarma; iki sekmenin
   çakışmasını karşılaştırıp alan bazında birleştirme ve iki JSON'u indirme.
 - Yükleme tamamlanıp cevap kaybolursa tekrar denemede aynı medya kaydı; yükleme

@@ -28,6 +28,8 @@ export default async function handler(request, context) {
     ownerLogin: process.env.OWNER_LOGIN || "owner",
   })(event, context);
   const headers = new Headers(result.headers);
+  headers.set("X-FukPages-Version", deployment.version);
+  if (deployment.commit) headers.set("X-FukPages-Commit", deployment.commit);
   for (const [key, values] of Object.entries(result.multiValueHeaders || {})) {
     headers.delete(key);
     for (const value of values) headers.append(key, value);

@@ -17,7 +17,8 @@ def browser_fixture(lose_upload_response=False, netlify=False):
             env.pop('OWNER_PASSWORD_HASH',None)
             env['FUKPAGES_DEMO_PASSWORD']=password
         with open(Path(temp)/'server.log','w') as logs:
-            server=subprocess.Popen(['node','tests/serve-netlify-demo.mjs' if netlify else 'tests/serve-browser-review.mjs' if lose_upload_response else 'server/index.mjs'],cwd=ROOT,env=env,stdout=logs,stderr=logs,start_new_session=True)
+            command=['node']+(['--no-experimental-require-module'] if netlify else [])+['tests/serve-netlify-demo.mjs' if netlify else 'tests/serve-browser-review.mjs' if lose_upload_response else 'server/index.mjs']
+            server=subprocess.Popen(command,cwd=ROOT,env=env,stdout=logs,stderr=logs,start_new_session=True)
             try:
                 base=f'http://127.0.0.1:{port}'
                 for _ in range(100):

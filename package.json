@@ -1,6 +1,6 @@
 {
   "name": "fukpages",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "engines": {
@@ -15,8 +15,12 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"server/*.mjs\" \"netlify/functions/*.mjs\" \"scripts/*.mjs\" \"tests/*.{mjs,ts}\"",
     "test:browser": "python tests/browser_smoke.py && python tests/browser_studio.py && python tests/browser_reliability.py && python tests/browser_critical.py && python tests/browser_sections_quality.py && node scripts/netlify-context.mjs && python tests/browser_netlify.py",
     "test:network": "node --use-env-proxy --use-system-ca tests/remote_media_smoke.mjs",
-    "test:netlify": "node scripts/netlify-context.mjs && node scripts/check-netlify.mjs",
-    "build:netlify": "npm run build && node scripts/netlify-context.mjs"
+    "test:netlify": "node scripts/build-sanitizer.mjs && node scripts/netlify-context.mjs && node --no-experimental-require-module scripts/check-netlify.mjs",
+    "build:netlify": "npm run build && node scripts/netlify-context.mjs",
+    "prebuild": "node scripts/build-sanitizer.mjs",
+    "predev": "node scripts/build-sanitizer.mjs",
+    "pretest": "node scripts/build-sanitizer.mjs",
+    "prestart": "node scripts/build-sanitizer.mjs --if-missing"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
@@ -42,6 +46,7 @@
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.1.1",
+    "esbuild": "0.28.2",
     "fflate": "0.8.3",
     "prettier": "3.9.10",
     "smol-toml": "1.9.1",
