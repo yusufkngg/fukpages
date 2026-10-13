@@ -1,6 +1,39 @@
 import type { CSSProperties } from "react";
 export type Device = "desktop" | "tablet" | "mobile";
+export const advancedLabels = {
+  form: "Form",
+  select: "Açılır seçim",
+  checkbox: "Onay kutusu",
+  radio: "Radyo seçimi",
+  tabs: "Sekmeler",
+  carousel: "Carousel",
+  gallery: "Görsel galeri",
+  logos: "Logo şeridi",
+  rating: "Yıldız puanı",
+  comparison: "Karşılaştırma tablosu",
+  beforeAfter: "Önce / sonra",
+  coupon: "Kupon kopyalama",
+  shipping: "Teslimat / kargo",
+  popup: "Popup",
+  videoPopup: "Video popup",
+  backToTop: "Yukarı dön",
+  breadcrumb: "Breadcrumb",
+  mobileMenu: "Mobil menü",
+  blogList: "Yazı listesi",
+  customCode: "Kontrollü HTML",
+  appEmbed: "Uygulama alanı",
+  productGallery: "Ürün galerisi",
+  variantPicker: "Varyant seçimi",
+  quantity: "Adet seçici",
+  addToCart: "Sepete ekle",
+  stickyCart: "Sticky satın alma",
+  collectionGrid: "Koleksiyon vitrini",
+  productField: "Dinamik ürün alanı",
+  bundle: "Paket teklif",
+  sizeTable: "Beden tablosu",
+} as const;
 export type Kind =
+  | keyof typeof advancedLabels
   | "section"
   | "row"
   | "column"
@@ -45,6 +78,15 @@ export interface PageDocument {
   name: string;
   type: PageType;
   nodes: Block[];
+  locales?: string[];
+  defaultLocale?: string;
+  seo?: {
+    slug: string;
+    title: string;
+    description: string;
+    image: string;
+    noindex: boolean;
+  };
   themeLayout?: { snapshotId: string; useShell: boolean };
 }
 export interface Store {
@@ -85,6 +127,7 @@ export const pageNames: Record<PageType, string> = {
   search: "Arama",
 };
 export const labels: Record<Kind, string> = {
+  ...advancedLabels,
   section: "Bölüm",
   row: "Satır",
   column: "Kolon",
@@ -124,10 +167,48 @@ export const groups: { name: string; kinds: Kind[] }[] = [
     name: "FORM & MEDYA",
     kinds: ["input", "textarea", "video", "list", "accordion"],
   },
-  { name: "SATIŞ", kinds: ["product", "countdown"] },
+  {
+    name: "SATIŞ",
+    kinds: [
+      "product",
+      "countdown",
+      "productField",
+      "productGallery",
+      "variantPicker",
+      "quantity",
+      "addToCart",
+      "stickyCart",
+      "collectionGrid",
+      "bundle",
+      "shipping",
+      "coupon",
+    ],
+  },
+  {
+    name: "ETKİLEŞİM",
+    kinds: [
+      "tabs",
+      "carousel",
+      "gallery",
+      "logos",
+      "rating",
+      "comparison",
+      "beforeAfter",
+      "popup",
+      "videoPopup",
+      "backToTop",
+      "breadcrumb",
+      "mobileMenu",
+      "blogList",
+      "sizeTable",
+      "customCode",
+      "appEmbed",
+    ],
+  },
+  { name: "FORM ALANLARI", kinds: ["form", "select", "checkbox", "radio"] },
 ];
 export const isContainer = (kind: Kind) =>
-  ["section", "row", "column", "box"].includes(kind);
+  ["section", "row", "column", "box", "form", "popup"].includes(kind);
 export const uid = () => crypto.randomUUID();
 const boxStyle = {
   paddingTop: "24px",
@@ -136,11 +217,34 @@ const boxStyle = {
   paddingLeft: "24px",
 };
 export function createBlock(kind: Kind): Block {
-  const props: Block["props"] = {};
+  const props: Block["props"] =
+    kind in advancedLabels
+      ? {
+          title: advancedLabels[kind as keyof typeof advancedLabels],
+          text: advancedLabels[kind as keyof typeof advancedLabels],
+          items: "Birinci seçenek\nİkinci seçenek\nÜçüncü seçenek",
+          options: "Birinci seçenek\nİkinci seçenek",
+          images: "/assets/headphones.svg\n/assets/headphones.svg",
+          columns: "Özellik|Standart|Premium",
+          rows: "Garanti|1 yıl|2 yıl\nTeslimat|3 gün|1 gün",
+          rating: "4.8",
+          count: "120",
+          label: "Alan etiketi",
+          fieldName: "",
+          action: "navigate",
+          destination: "local",
+          successMessage: "Gönderimin alındı.",
+          threshold: "1000",
+          currency: "TRY",
+          globalStyle: "auto",
+        }
+      : {};
   let desktop: Styles = {};
   const tablet: Styles = {},
     mobile: Styles = {};
   switch (kind) {
+    case "form":
+    case "popup":
     case "section":
       desktop = {
         ...boxStyle,
@@ -348,6 +452,8 @@ export function createBlock(kind: Kind): Block {
       };
       break;
   }
+  if (kind in advancedLabels && !Object.keys(desktop).length)
+    desktop = { width: "100%", paddingTop: "12px", paddingBottom: "12px" };
   return {
     id: uid(),
     kind,

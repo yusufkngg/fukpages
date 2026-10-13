@@ -26,6 +26,7 @@ with TemporaryDirectory(prefix='fukpages-browser-') as temporary:
     hashed = subprocess.run(['node', '--input-type=module', '-e', "import {hashPassword} from './server/auth.mjs'; let p=''; for await (const c of process.stdin) p+=c; process.stdout.write(hashPassword(p));"], cwd=ROOT, input=password, text=True, capture_output=True, check=True).stdout
     port = free_port()
     environment = dict(os.environ, PORT=str(port), DATA_DIR=temporary, OWNER_PASSWORD_HASH=hashed, NODE_ENV='test')
+    environment.update(OWNER_LOGIN='owner', SHOPIFY_SHOP_DOMAIN='', SHOPIFY_ADMIN_ACCESS_TOKEN='', FUKPAGES_AI_API_KEY='', OPENAI_API_KEY='', FORM_WEBHOOK_URL='', FORM_WEBHOOK_SECRET='')
     logs = open(Path(temporary) / 'server.log', 'w')
     development = '--dev' in sys.argv
     theme_fixture = '--theme-fixture' in sys.argv

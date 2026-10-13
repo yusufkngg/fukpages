@@ -1,3 +1,6 @@
+import { TeamPanel } from "./TeamPanel";
+import { GrowthPanel } from "./GrowthPanel";
+import { CatalogPanel, type Catalog } from "./Commerce";
 import {
   useCallback,
   useEffect,
@@ -48,7 +51,27 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import { api, json } from "./api";
+import { api, json, uploadFiles } from "./api";
+import { MediaPanel } from "./MediaPanel";
+import { BrandPanel } from "./BrandPanel";
+import {
+  StudioProvider,
+  brandStyle,
+  assetUrl,
+  defaultBrand,
+  type Asset,
+  type Brand,
+} from "./studio";
+import {
+  isLocked,
+  rootSelection,
+  groupSelection,
+  ungroupSelection,
+  clipboardBlocks,
+  pasteBlocks,
+} from "./editorCommands";
+import { SelectionTools } from "./SelectionTools";
+import { WorkflowPanel } from "./WorkflowPanel";
 import { BlockContent, PageRenderer, richHtml } from "./Renderer";
 import { Inspector } from "./Inspector";
 import { SectionLibrary } from "./SectionLibrary";
@@ -99,6 +122,7 @@ interface PageResponse {
 }
 interface EditorProps {
   pageId: string;
+  role?: "owner" | "editor";
   store: Store;
   back: () => void;
   notify: (message: string, error?: boolean) => void;
@@ -167,6 +191,7 @@ function CanvasNode({
   duplicate,
   remove,
   dragging,
+  resizeColumn,
 }: {
   node: Block;
   parent?: string | null;
@@ -174,15 +199,20 @@ function CanvasNode({
   horizontalParent?: boolean;
   device: Device;
   selected: string | null;
-  select: (id: string) => void;
+  select: (id: string, multi?: boolean) => void;
   updateHtml: (id: string, value: string) => void;
   duplicate: (id: string) => void;
   remove: (id: string) => void;
   dragging: boolean;
+  resizeColumn?: (id: string, value: number) => void;
 }) {
+  const columnDrag = useRef<{ x: number; start: number; width: number } | null>(
+    null,
+  );
   const drag = useDraggable({
     id: `node:${node.id}`,
     data: { nodeId: node.id },
+    disabled: !!node.props.locked,
   });
   const drop = useDroppable({
     id: `inside:${node.id}`,
@@ -190,7 +220,16 @@ function CanvasNode({
     disabled: !isContainer(node.kind),
   });
   if (node.hidden[device]) return null;
-  const style = effectiveStyle(node, device);
+  const style = {
+    ...brandStyle(node, device),
+    ...effectiveStyle(node, device),
+    ...(node.props.backgroundSrc
+      ? {
+          backgroundImage: `linear-gradient(${String(node.props.backgroundOverlay || "#00000000")},${String(node.props.backgroundOverlay || "#00000000")}),url("${assetUrl(node.props.backgroundSrc)}")`,
+          backgroundSize: "cover",
+        }
+      : {}),
+  };
   const horizontal =
     style.display === "flex" &&
     String(style.flexDirection ?? "row").startsWith("row");
@@ -202,11 +241,12 @@ function CanvasNode({
       }}
       data-node-id={node.id}
       data-kind={node.kind}
+      data-block={node.id}
       className={`content-block editor-block ${selected === node.id ? "selected" : ""} ${drag.isDragging ? "moving" : ""} ${drop.isOver ? "drop-inside" : ""}`}
       style={style}
       onClick={(event) => {
         event.stopPropagation();
-        select(node.id);
+        select(node.id, event.shiftKey || event.ctrlKey || event.metaKey);
       }}
     >
       {selected === node.id && (
@@ -255,9 +295,57 @@ function CanvasNode({
         dragging={dragging}
         horizontal={horizontalParent}
       />
+      {selected === node.id &&
+        node.kind === "row" &&
+        node.children.length >= 2 &&
+        !node.props.locked && (
+          <div
+            className="column-resize-handle"
+            role="separator"
+            aria-label="Kolonları boyutlandır"
+            style={{
+              left: `${((parseFloat(String(effectiveStyle(node.children[0], device).width)) || 50) / ((parseFloat(String(effectiveStyle(node.children[0], device).width)) || 50) + (parseFloat(String(effectiveStyle(node.children[1], device).width)) || 50))) * 100}%`,
+            }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              const row = e.currentTarget.parentElement!,
+                rect = row.getBoundingClientRect(),
+                first = row.querySelector(":scope > .content-block");
+              columnDrag.current = {
+                x: e.clientX,
+                width: rect.width,
+                start: first
+                  ? (first.getBoundingClientRect().width / rect.width) * 100
+                  : 50,
+              };
+              e.currentTarget.setPointerCapture(e.pointerId);
+            }}
+            onPointerMove={(e) => {
+              if (columnDrag.current) {
+                e.stopPropagation();
+                const d = columnDrag.current;
+                resizeColumn?.(
+                  node.id,
+                  Math.max(
+                    10,
+                    Math.min(90, d.start + ((e.clientX - d.x) / d.width) * 100),
+                  ),
+                );
+              }
+            }}
+            onPointerUp={() => {
+              columnDrag.current = null;
+            }}
+            onPointerCancel={() => {
+              columnDrag.current = null;
+            }}
+          />
+        )}
       <BlockContent
         node={node}
-        editable
+        device={device}
+        editable={!node.props.locked}
         onHtml={(html) => updateHtml(node.id, html)}
       >
         {isContainer(node.kind) && (
@@ -276,6 +364,7 @@ function CanvasNode({
                 duplicate={duplicate}
                 remove={remove}
                 dragging={dragging}
+                resizeColumn={resizeColumn}
               />
             ))}
             {!node.children.length && (
@@ -304,13 +393,14 @@ function Layer({
   index?: number;
   depth: number;
   selected: string | null;
-  select: (id: string) => void;
+  select: (id: string, multi?: boolean) => void;
   dragging: boolean;
 }) {
   const [open, setOpen] = useState(depth > 0);
   const drag = useDraggable({
     id: `layer:${node.id}`,
     data: { nodeId: node.id },
+    disabled: !!node.props.locked,
   });
   const drop = useDroppable({
     id: `layer-inside:${node.id}`,
@@ -361,7 +451,7 @@ function Layer({
           {...drag.attributes}
           {...drag.listeners}
           className="layer-select"
-          onClick={() => select(node.id)}
+          onClick={(e) => select(node.id, e.shiftKey || e.ctrlKey || e.metaKey)}
         >
           <Icon size={14} />
           <span>{node.name}</span>
@@ -413,10 +503,68 @@ function EmptyPage({ add }: { add: () => void }) {
     </div>
   );
 }
-export function Editor({ pageId, store, back, notify }: EditorProps) {
+export function Editor({
+  pageId,
+  store,
+  back,
+  notify,
+  role = "owner",
+}: EditorProps) {
+  const [catalog, setCatalog] = useState<Catalog>({
+    source: "local",
+    products: [],
+    collections: [],
+  });
+  const refreshCatalog = useCallback(
+    async () => setCatalog(await api<Catalog>(`/stores/${store.id}/catalog`)),
+    [store.id],
+  );
+  useEffect(() => {
+    void refreshCatalog().catch((e) => notify(e.message, true));
+  }, [refreshCatalog, notify]);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [formDestination, setFormDestination] = useState(
+    "Webhook yapılandırılmadı",
+  );
+  useEffect(() => {
+    api<{ forms: { webhookLabel: string } }>(`/stores/${store.id}/integrations`)
+      .then((r) => setFormDestination(r.forms.webhookLabel))
+      .catch((e) => notify(e.message, true));
+  }, [store.id, notify]);
+  const [brand, setBrand] = useState<Brand>(defaultBrand),
+    [brandVersion, setBrandVersion] = useState(0);
+  const [customWidth, setCustomWidth] = useState<number | null>(null);
+  const refreshAssets = useCallback(
+    async () => setAssets(await api<Asset[]>(`/stores/${store.id}/assets`)),
+    [store.id],
+  );
+  useEffect(() => {
+    void refreshAssets().catch((e) => notify(e.message, true));
+    api<{ brand: Brand; version: number }>(`/stores/${store.id}/brand`)
+      .then((r) => {
+        setBrand(r.brand);
+        setBrandVersion(r.version);
+      })
+      .catch((e) => notify(e.message, true));
+  }, [store.id, refreshAssets, notify]);
   const [page, setPage] = useState<PageDocument | null>(null);
   const pageRef = useRef<PageDocument | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [selection, setSelection] = useState<string[]>([]);
+  const selectMany = useCallback((id: string, multi = false) => {
+    setSelected(id);
+    setSelection((old) =>
+      multi
+        ? old.includes(id)
+          ? old.filter((v) => v !== id)
+          : [...old, id]
+        : [id],
+    );
+  }, []);
   const [device, setDevice] = useState<Device>("desktop");
   const [library, setLibrary] = useState("sections");
   const [savedSections, setSavedSections] = useState<SavedSection[]>([]);
@@ -494,6 +642,10 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
       active = false;
     };
   }, [store.id, pageType, notify]);
+  useEffect(() => {
+    if (library === "media" || library === "brand")
+      void refreshAssets().catch((e) => notify(e.message, true));
+  }, [library, refreshAssets, notify]);
   useEffect(() => {
     if (selected) setNativeSelected(null);
   }, [selected]);
@@ -595,7 +747,7 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
       if (!current) return;
       const node = findBlock(current.nodes, id),
         where = locateBlock(current.nodes, id);
-      if (!node || !where) return;
+      if (!node || !where || isLocked(current.nodes, id)) return;
       const copy = cloneBlock(node);
       commit((document) => ({
         ...document,
@@ -607,6 +759,10 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
   );
   const remove = useCallback(
     (id: string) => {
+      if (isLocked(pageRef.current?.nodes || [], id)) {
+        notify("Kilitli öğeyi önce aç.");
+        return;
+      }
       commit((document) => ({
         ...document,
         nodes: removeBlock(document.nodes, id),
@@ -672,6 +828,23 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
         event.preventDefault();
         remove(selected);
       }
+      if (selected && ["ArrowUp", "ArrowDown"].includes(event.key)) {
+        event.preventDefault();
+        const current = pageRef.current,
+          where = current && locateBlock(current.nodes, selected);
+        if (current && where && !isLocked(current.nodes, selected)) {
+          const direction = event.key === "ArrowDown" ? 2 : -1;
+          commit((d) => ({
+            ...d,
+            nodes: moveBlock(
+              d.nodes,
+              selected,
+              where.parent,
+              Math.max(0, where.index + direction),
+            ),
+          }));
+        }
+      }
       if (event.key === "Escape") {
         setSelected(null);
         setPreview(false);
@@ -681,10 +854,106 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
   }, [selected, undo, redo, duplicate, remove, save]);
+  const addAsset = useCallback(
+    (asset: Asset, mode = "replace") => {
+      if (asset.type !== "image") return;
+      const current = pageRef.current;
+      if (!current) return;
+      const old = findBlock(current.nodes, selected);
+      if (mode === "background" && old) {
+        commit((d) => ({
+          ...d,
+          nodes: mapBlock(d.nodes, old.id, (n) => ({
+            ...n,
+            props: { ...n.props, backgroundSrc: asset.url },
+          })),
+        }));
+        return;
+      }
+      if (mode === "mobile" && old?.kind === "image") {
+        commit((d) => ({
+          ...d,
+          nodes: mapBlock(d.nodes, old.id, (n) => ({
+            ...n,
+            props: { ...n.props, mobileSrc: asset.url },
+          })),
+        }));
+        return;
+      }
+      if (mode === "mobile") {
+        notify("Önce mobil görsel eklenecek öğeyi seç.", true);
+        return;
+      }
+      if (mode !== "add" && old?.kind === "image" && !old.props.locked) {
+        commit((d) => ({
+          ...d,
+          nodes: mapBlock(d.nodes, old.id, (n) => ({
+            ...n,
+            props: { ...n.props, src: asset.url, alt: asset.name },
+          })),
+        }));
+      } else {
+        const image = createBlock("image");
+        image.props.src = asset.url;
+        image.props.alt = asset.name;
+        commit((d) => ({
+          ...d,
+          nodes: insertBlock(
+            d.nodes,
+            old && isContainer(old.kind) ? old.id : null,
+            old && isContainer(old.kind) ? old.children.length : d.nodes.length,
+            image,
+          ),
+        }));
+        setSelected(image.id);
+      }
+    },
+    [commit, selected],
+  );
+  async function dropFiles(files: File[]) {
+    try {
+      const r = await uploadFiles(
+        `/stores/${store.id}/assets`,
+        files,
+        { type: "image" },
+        () => {},
+      );
+      for (const result of r.results)
+        if (result.ok && result.asset) addAsset(result.asset, "add");
+        else notify(result.error || "Görsel yüklenemedi.", true);
+      await refreshAssets();
+    } catch (e) {
+      notify((e as Error).message, true);
+    }
+  }
+  useEffect(() => {
+    const paste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.matches("input,textarea") || target.isContentEditable) return;
+      const files = [...(e.clipboardData?.items || [])]
+        .filter((i) => i.type.startsWith("image/"))
+        .map((i) => i.getAsFile())
+        .filter(Boolean) as File[];
+      if (files.length) {
+        e.preventDefault();
+        void dropFiles(files);
+      }
+    };
+    window.addEventListener("paste", paste);
+    return () => window.removeEventListener("paste", paste);
+  });
   const onDragEnd = (event: DragEndEvent) => {
     setDragging(null);
     const target = event.over?.data.current;
     if (!target || !pageRef.current) return;
+    if (
+      (target.parent && isLocked(pageRef.current.nodes, target.parent)) ||
+      (event.active.data.current?.nodeId &&
+        isLocked(pageRef.current.nodes, event.active.data.current.nodeId))
+    ) {
+      notify("Kilitli öğeler taşınamaz.");
+      return;
+    }
     const { parent, index } = target as {
       parent: string | null;
       index: number;
@@ -747,7 +1016,7 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
     setSelected(section.id);
     notify("Kaydedilen bölüm eklendi. Bu kopya bağımsız düzenlenir.");
   };
-  const saveSection = async (name: string) => {
+  const saveSection = async (name: string, synchronized = false) => {
     const document = pageRef.current;
     if (!document) return false;
     const section = enclosingSection(document, selected);
@@ -755,14 +1024,59 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
     try {
       const result = await api<SavedSection>(`/stores/${store.id}/sections`, {
         method: "POST",
-        body: json({ name, section }),
+        body: json({ name, section, synchronized }),
       });
       setSavedSections((current) => [result, ...current]);
+      if (synchronized)
+        commit((d) => ({
+          ...d,
+          nodes: mapBlock(d.nodes, section.id, (n) => ({
+            ...n,
+            props: {
+              ...n.props,
+              linkedSectionId: result.id,
+              linkedVersion: "1",
+            },
+          })),
+        }));
       notify("Bölüm kütüphanene kaydedildi.");
       return true;
     } catch (error) {
       notify((error as Error).message, true);
       return false;
+    }
+  };
+  const syncSelected = async () => {
+    const current = pageRef.current;
+    if (!current) return;
+    const section = enclosingSection(current, selected);
+    if (!section?.props.linkedSectionId) return;
+    try {
+      if (!(await save())) return;
+      const r = await api<{ affectedPages: string[] }>(
+        `/stores/${store.id}/sections/${section.props.linkedSectionId}/sync`,
+        {
+          method: "PUT",
+          body: json({
+            section,
+            version: Number(section.props.linkedVersion || 1),
+          }),
+        },
+      );
+      const fetched = await api<PageResponse>(`/pages/${pageId}`);
+      version.current = fetched.version;
+      pageRef.current = fetched.document;
+      setPage(fetched.document);
+      savedRef.current = JSON.stringify(fetched.document);
+      setSaved(savedRef.current);
+      setSavedSections(
+        await api<SavedSection[]>(`/stores/${store.id}/sections`),
+      );
+      notify(
+        `${r.affectedPages.length} sayfanın taslağı güncellendi. Yayınlar değişmedi.`,
+      );
+    } catch (e) {
+      notify((e as Error).message, true);
     }
   };
   const removeSaved = async (id: string) => {
@@ -930,9 +1244,11 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
     setSelected(null);
     setNativeSelected(id);
   };
-  const scale = Math.max(0.15, Math.min(1, available / widths[device]) * zoom);
+  const viewWidth = customWidth || widths[device];
+  const scale = Math.max(0.15, Math.min(1, available / viewWidth) * zoom);
   const clean = JSON.stringify(page) === saved;
   const updateHtml = (id: string, html: string) =>
+    !isLocked(pageRef.current?.nodes || [], id) &&
     commit(
       (document) => ({
         ...document,
@@ -943,17 +1259,112 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
       }),
       `html:${id}`,
     );
-  const changeSelected = (change: (node: Block) => Block, key?: string) =>
-    selected &&
-    commit(
-      (document) => ({
-        ...document,
-        nodes: mapBlock(document.nodes, selected, change),
-      }),
-      key,
-    );
-  const moveSelected = (direction: -1 | 1) => {
+  const changeSelected = (change: (node: Block) => Block, key?: string) => {
     if (!selected) return;
+    commit((document) => {
+      let nodes = document.nodes;
+      for (const id of selection.includes(selected) ? selection : [selected])
+        nodes = mapBlock(nodes, id, change);
+      return { ...document, nodes };
+    }, key);
+  };
+  const command = (action: string) => {
+    try {
+      const current = pageRef.current;
+      if (!current || !selected) return;
+      const node = findBlock(current.nodes, selected);
+      if (!node) return;
+      const ids = selection.includes(selected) ? selection : [selected];
+      if (action === "sync") void syncSelected();
+      else if (action === "copyStyle")
+        localStorage.setItem(
+          "fp-style-clipboard",
+          JSON.stringify({
+            styles: node.styles,
+            hidden: node.hidden,
+            hoverStyles: node.props.hoverStyles,
+            focusStyles: node.props.focusStyles,
+          }),
+        );
+      else if (action === "pasteStyle") {
+        const data = JSON.parse(
+          localStorage.getItem("fp-style-clipboard") || "null",
+        );
+        if (data)
+          changeSelected((n) =>
+            isLocked(current.nodes, n.id)
+              ? n
+              : {
+                  ...n,
+                  styles: structuredClone(data.styles),
+                  hidden: structuredClone(data.hidden),
+                  props: {
+                    ...n.props,
+                    hoverStyles: data.hoverStyles || "{}",
+                    focusStyles: data.focusStyles || "{}",
+                  },
+                },
+          );
+      } else if (action === "copyBlocks")
+        localStorage.setItem(
+          "fp-block-clipboard",
+          JSON.stringify(clipboardBlocks(current, ids)),
+        );
+      else if (action === "pasteBlocks") {
+        const blocks = JSON.parse(
+          localStorage.getItem("fp-block-clipboard") || "[]",
+        );
+        const result = pasteBlocks(
+          current,
+          blocks,
+          isContainer(node.kind)
+            ? node.id
+            : locateBlock(current.nodes, node.id)?.parent || null,
+        );
+        commit(() => result.page);
+        setSelection(result.ids);
+        setSelected(result.ids[0] || null);
+      } else if (action === "parent") {
+        const parent = locateBlock(current.nodes, selected)?.parent;
+        if (parent) selectMany(parent);
+      } else if (action === "group") {
+        const r = groupSelection(current, ids);
+        commit(() => r.page);
+        selectMany(r.id);
+      } else if (action === "ungroup")
+        commit((p) => ungroupSelection(p, selected));
+      else if (action === "lock")
+        changeSelected((n) => ({
+          ...n,
+          props: { ...n.props, locked: !node.props.locked },
+        }));
+      else if (action.startsWith("columnWidth:") && node.children.length >= 2) {
+        const width = Number(action.split(":")[1]);
+        changeSelected((n) => ({
+          ...n,
+          children: n.children.map((c, i) =>
+            i < 2
+              ? {
+                  ...c,
+                  styles: {
+                    ...c.styles,
+                    [device]: {
+                      ...c.styles[device],
+                      width: `${i === 0 ? width : 100 - width}%`,
+                      flexBasis: `${i === 0 ? width : 100 - width}%`,
+                    },
+                  },
+                }
+              : c,
+          ),
+        }));
+      }
+    } catch (e) {
+      notify((e as Error).message, true);
+    }
+  };
+  const moveSelected = (direction: -1 | 1) => {
+    if (!selected || isLocked(page.nodes, selected)) return;
     const where = locateBlock(page.nodes, selected);
     if (!where) return;
     const siblings = where.parent
@@ -975,7 +1386,7 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
     }));
   };
   const selectLayer = (id: string) => {
-    setSelected(id);
+    selectMany(id);
     document
       .querySelector(`[data-node-id="${id}"]`)
       ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -993,653 +1404,76 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
     });
   };
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={collision}
-      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-      onDragStart={(event) => setDragging(String(event.active.id))}
-      onDragEnd={onDragEnd}
-      onDragCancel={() => setDragging(null)}
+    <StudioProvider
+      page={page}
+      value={{
+        brand,
+        assets,
+        catalog,
+        storeId: store.id,
+        pageId,
+        editable: true,
+        formDestination,
+      }}
     >
-      <div className="studio">
-        <header className="studio-topbar">
-          <button
-            className="brand"
-            title="Mağazalara dön"
-            onClick={async () => {
-              if (await save()) back();
-            }}
-          >
-            <span className="brand-mark">
-              <Layers size={18} />
-            </span>
-            <b>
-              fuk<span>pages</span>
-            </b>
-          </button>
-          <div className="topbar-divider" />
-          <div className="document-info">
-            <span>
-              {store.name} <ChevronRight size={10} /> {pageNames[page.type]}
-            </span>
-            <input
-              aria-label="Sayfa adı"
-              value={page.name}
-              onChange={(event) =>
-                commit(
-                  (document) => ({ ...document, name: event.target.value }),
-                  "document-name",
-                )
-              }
-            />
-          </div>
-          <div className="history-controls">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={collision}
+        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+        onDragStart={(event) => setDragging(String(event.active.id))}
+        onDragEnd={onDragEnd}
+        onDragCancel={() => setDragging(null)}
+      >
+        <div className="studio">
+          <header className="studio-topbar">
             <button
-              title="Geri al (Ctrl+Z)"
-              aria-label="Geri al"
-              disabled={!past.current.length}
-              onClick={undo}
-            >
-              <Undo2 size={17} />
-            </button>
-            <button
-              title="İleri al (Ctrl+Shift+Z)"
-              aria-label="İleri al"
-              disabled={!future.current.length}
-              onClick={redo}
-            >
-              <Redo2 size={17} />
-            </button>
-          </div>
-          <div className="device-switch">
-            {(
-              [
-                ["desktop", Monitor],
-                ["tablet", Tablet],
-                ["mobile", Smartphone],
-              ] as const
-            ).map(([key, Icon]) => (
-              <button
-                key={key}
-                title={deviceNames[key]}
-                aria-label={deviceNames[key]}
-                className={device === key ? "active" : ""}
-                onClick={() => setDevice(key)}
-              >
-                <Icon size={17} />
-              </button>
-            ))}
-            <span>{widths[device]}px</span>
-          </div>
-          <div className="topbar-end">
-            <span
-              className={`save-indicator ${saveError ? "error" : ""}`}
-              title={
-                saveError ||
-                (clean
-                  ? "Tüm değişiklikler kaydedildi"
-                  : "Kaydedilmemiş değişiklikler")
-              }
-            >
-              {saving ? (
-                <Loader2 size={12} className="spin" />
-              ) : clean ? (
-                <Check size={12} />
-              ) : (
-                <span className="unsaved-dot" />
-              )}
-              {saveError
-                ? "Kaydedilemedi"
-                : saving
-                  ? "Kaydediliyor"
-                  : clean
-                    ? "Kaydedildi"
-                    : "Değiştirildi"}
-            </span>
-            <button
-              className="top-action"
-              onClick={() => void save()}
-              disabled={saving}
-            >
-              Kaydet
-            </button>
-            <button className="top-action" onClick={() => setPreview(true)}>
-              <Eye size={14} /> Önizle
-            </button>
-            <button
-              className="publish-button"
-              onClick={() => void publish()}
-              disabled={publishing || saving}
-            >
-              {publishing ? (
-                <Loader2 size={14} className="spin" />
-              ) : (
-                <span className="publish-dot" />
-              )}
-              {published ? "Yerel yayın güncelle" : "Yerel yayın"}
-              <ChevronDown size={12} />
-            </button>
-            <div className="more-menu">
-              <button
-                className="icon-button"
-                aria-label="Tasarım işlemleri"
-                onClick={() => setMenu(!menu)}
-              >
-                <MoreHorizontal size={18} />
-              </button>
-              {menu && (
-                <div className="dropdown-menu">
-                  <button onClick={exportPage}>
-                    <Download size={14} /> JSON dışa aktar
-                  </button>
-                  <button onClick={() => importRef.current?.click()}>
-                    <Upload size={14} /> JSON içe aktar
-                  </button>
-                  <button
-                    onClick={() => {
-                      setLibrary("templates");
-                      setMenu(false);
-                    }}
-                  >
-                    <LayoutTemplate size={14} /> Başlangıç şablonları
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-        <div className="studio-workspace">
-          <nav className="tool-rail">
-            <div>
-              {[
-                ["blocks", Plus, "Öğeler"],
-                ["sections", LayoutTemplate, "Bölümler"],
-                ["layers", Layers, "Katmanlar"],
-                ["templates", LayoutTemplate, "Şablonlar"],
-                ["theme", StoreIcon, "Tema"],
-              ].map(([id, Tool, title]) => {
-                const Icon = Tool as typeof Plus;
-                return (
-                  <button
-                    key={String(id)}
-                    className={library === id ? "active" : ""}
-                    title={String(title)}
-                    onClick={() => setLibrary(String(id))}
-                  >
-                    <Icon size={20} />
-                    <span>{String(title)}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              title="Mağaza yönetimi"
+              className="brand"
+              title="Mağazalara dön"
               onClick={async () => {
                 if (await save()) back();
               }}
             >
-              <ShieldCheck size={20} />
-              <span>Yönetim</span>
-            </button>
-          </nav>
-          <aside className="library">
-            <div className="library-heading">
-              <div>
-                <h2>
-                  {library === "sections"
-                    ? "Bölüm bölüm tasarla."
-                    : library === "theme"
-                      ? "Mağazanın teması."
-                      : library === "blocks"
-                        ? "Bir şeyler oluştur."
-                        : library === "layers"
-                          ? "Katmanlar"
-                          : "İyi bir başlangıç."}
-                </h2>
-                <p>
-                  {library === "sections"
-                    ? "Hazır bir bölüm ekle, her ayrıntıyı düzenle."
-                    : library === "theme"
-                      ? "Header, footer ve mevcut bölüm sırası."
-                      : library === "blocks"
-                        ? "Sürükle, bırak, kendine göre düzenle."
-                        : library === "layers"
-                          ? "Sayfanın yapısını yönet."
-                          : "Bir şablon seç, kendi hikâyeni anlat."}
-                </p>
-              </div>
-            </div>
-            {library === "sections" && (
-              <SectionLibrary
-                saved={savedSections}
-                addPreset={addPreset}
-                addSaved={addSaved}
-                saveSelected={saveSection}
-                selectedSection={enclosingSection(page, selected)}
-                removeSaved={removeSaved}
-              />
-            )}
-            {library === "theme" && (
-              <ThemePanel
-                status={themeStatus}
-                busy={themeBusy}
-                sync={() => void syncTheme()}
-                saveDomain={saveDomain}
-                selectedId={nativeSelected}
-                select={selectNative}
-                useShell={!!page.themeLayout?.useShell}
-                bind={bindTheme}
-                clearBinding={() => {
-                  commit((document) => {
-                    const next = { ...document };
-                    delete next.themeLayout;
-                    return next;
-                  });
-                  setNativeSelected(null);
-                }}
-              />
-            )}
-            {library === "blocks" && (
-              <>
-                <label className="library-search">
-                  <Search size={14} />
-                  <input
-                    aria-label="Öğe ara"
-                    placeholder="Öğe ara…"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                  />
-                  <span>⌘ K</span>
-                </label>
-                <div className="library-scroll">
-                  {groups.map((group) => {
-                    const filtered = group.kinds.filter((kind) =>
-                      labels[kind]
-                        .toLocaleLowerCase("tr")
-                        .includes(search.toLocaleLowerCase("tr")),
-                    );
-                    return (
-                      !!filtered.length && (
-                        <section className="palette-group" key={group.name}>
-                          <h3>
-                            {group.name}
-                            <ChevronDown size={12} />
-                          </h3>
-                          <div className="palette-grid">
-                            {filtered.map((kind) => (
-                              <PaletteItem
-                                key={kind}
-                                kind={kind}
-                                onAdd={() => add(kind)}
-                              />
-                            ))}
-                          </div>
-                        </section>
-                      )
-                    );
-                  })}
-                  {!groups.some((group) =>
-                    group.kinds.some((kind) =>
-                      labels[kind]
-                        .toLocaleLowerCase("tr")
-                        .includes(search.toLocaleLowerCase("tr")),
-                    ),
-                  ) && <p className="setting-help">Eşleşen öğe bulunamadı.</p>}
-                </div>
-                <div className="library-tip">
-                  <MousePointer2 size={15} />
-                  <p>
-                    Öğeyi sürükle veya tıklayarak ekle.
-                    <br />
-                    <span>Metne çift tıkla ve yazmaya başla.</span>
-                  </p>
-                </div>
-              </>
-            )}
-            {library === "layers" && (
-              <div className="library-scroll layer-tree">
-                {useThemeShell &&
-                  themeSnapshot?.sections
-                    .filter((section) => section.region !== "footer")
-                    .map((section) => (
-                      <button
-                        key={section.id}
-                        className="outline-theme-row"
-                        onClick={() => selectNative(section.id)}
-                      >
-                        <Layers size={13} />
-                        <span>{section.name}</span>
-                        <LockKeyhole size={11} />
-                      </button>
-                    ))}
-                {visibleNodes.map((node) => (
-                  <Layer
-                    key={node.id}
-                    node={node}
-                    index={page.nodes.findIndex((item) => item.id === node.id)}
-                    depth={0}
-                    selected={selected}
-                    select={selectLayer}
-                    dragging={!!dragging}
-                  />
-                ))}
-                {useThemeShell &&
-                  themeSnapshot?.sections
-                    .filter((section) => section.region === "footer")
-                    .map((section) => (
-                      <button
-                        key={section.id}
-                        className="outline-theme-row"
-                        onClick={() => selectNative(section.id)}
-                      >
-                        <Layers size={13} />
-                        <span>{section.name}</span>
-                        <LockKeyhole size={11} />
-                      </button>
-                    ))}
-                {!page.nodes.length && (
-                  <p className="setting-help">İlk öğeni kütüphaneden ekle.</p>
-                )}
-              </div>
-            )}
-            {library === "templates" && (
-              <div className="library-scroll template-list">
-                {[
-                  ["Aura · Product launch", "aura", "Ürününü öne çıkar."],
-                  [
-                    "Minimal · Editorial",
-                    "editorial",
-                    "Sade tasarım, güçlü hikâye.",
-                  ],
-                  [
-                    "Fresh · Summer sale",
-                    "sale",
-                    "Kampanyanı canlı renklerle anlat.",
-                  ],
-                ].map(([name, id, description]) => (
-                  <button
-                    key={id}
-                    className="template-card"
-                    onClick={() => {
-                      const next = starterDocument(page.type);
-                      next.themeLayout = page.themeLayout;
-                      next.name = name;
-                      if (id === "editorial") {
-                        next.nodes = next.nodes.filter(
-                          (_, index) => index !== 0,
-                        );
-                        const heading = findBlock(
-                          next.nodes,
-                          firstHeading(next.nodes),
-                        );
-                        if (heading)
-                          heading.props.html = "LESS, BUT<br/>BETTER.";
-                        next.nodes[0].styles.desktop.backgroundColor =
-                          "#f5efe8";
-                      }
-                      if (id === "sale") {
-                        const heading = findBlock(
-                          next.nodes,
-                          firstHeading(next.nodes),
-                        );
-                        if (heading)
-                          heading.props.html = "GOOD VIBES.<br/>GREAT DEALS.";
-                        next.nodes[1].styles.desktop.backgroundColor =
-                          "#f8f5d6";
-                      }
-                      commit(() => next);
-                      setSelected(firstHeading(next.nodes));
-                      notify(
-                        "Şablon uygulandı. Geri al ile önceki tasarıma dönebilirsin.",
-                      );
-                    }}
-                  >
-                    <div className={`template-thumbnail ${id}`}>
-                      <span>
-                        {id === "aura"
-                          ? "aura✦"
-                          : id === "sale"
-                            ? "SUMMER / 26"
-                            : "The Journal."}
-                      </span>
-                      <b>
-                        {id === "aura"
-                          ? "SOUND THAT MOVES YOU."
-                          : id === "sale"
-                            ? "GOOD VIBES."
-                            : "LESS, BUT BETTER."}
-                      </b>
-                      <div />
-                    </div>
-                    <strong>{name}</strong>
-                    <small>{description}</small>
-                    <span className="template-use">
-                      Şablonu kullan <ChevronRight size={12} />
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </aside>
-          <main className="canvas-area" ref={canvasRef}>
-            <div className="canvas-topline">
-              <span>
-                <span className="canvas-status-dot" />
-                {deviceNames[device]} görünümü
-              </span>
-              <span>
-                {themeSnapshot
-                  ? `${themeSnapshot.themeName} · tema verisi okundu`
-                  : "Yerel taslak · Shopify bağlı değil"}
-              </span>
-            </div>
-            <div className="canvas-scroll" onClick={() => setSelected(null)}>
-              <div
-                className="canvas-sheet-holder"
-                style={{ width: widths[device] * scale, marginBottom: -30 }}
-              >
-                <div
-                  className="canvas-sheet"
-                  style={
-                    { width: widths[device], zoom: scale } as CSSProperties
-                  }
-                >
-                  <div className="canvas-browser">
-                    <div>
-                      <i />
-                      <i />
-                      <i />
-                    </div>
-                    <span>
-                      {store.name.toLowerCase().replaceAll(" ", "-")}.preview /{" "}
-                      {page.type}
-                    </span>
-                    <ShieldCheck size={11} />
-                  </div>
-                  <div className="page-surface editable-surface">
-                    {useThemeShell &&
-                      themeSnapshot?.sections
-                        .filter((section) => section.region !== "footer")
-                        .map((section) => (
-                          <NativeThemeSection
-                            key={section.id}
-                            section={section}
-                            select={() => selectNative(section.id)}
-                          />
-                        ))}
-                    {visibleNodes.map((node) => (
-                      <CanvasNode
-                        key={node.id}
-                        node={node}
-                        index={page.nodes.findIndex(
-                          (item) => item.id === node.id,
-                        )}
-                        device={device}
-                        selected={selected}
-                        select={setSelected}
-                        updateHtml={updateHtml}
-                        duplicate={duplicate}
-                        remove={remove}
-                        dragging={!!dragging}
-                      />
-                    ))}
-                    {useThemeShell &&
-                      themeSnapshot?.sections
-                        .filter((section) => section.region === "footer")
-                        .map((section) => (
-                          <NativeThemeSection
-                            key={section.id}
-                            section={section}
-                            select={() => selectNative(section.id)}
-                          />
-                        ))}
-                    {!page.nodes.length && (
-                      <EmptyPage add={() => add("section")} />
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="canvas-bottom-add">
-                <button
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    const node = createBlock("section");
-                    commit((document) => insertSection(document, node, null));
-                    setSelected(node.id);
-                  }}
-                >
-                  <Plus size={15} /> Yeni bölüm ekle
-                </button>
-              </div>
-            </div>
-            <footer className="canvas-footer">
-              <div>
-                <MousePointer2 size={12} />
-                <span>
-                  {selectedNode?.name ?? "Bir öğe seç"}
-                  {selectedNode && (
-                    <>
-                      <ChevronRight size={10} />
-                      {labels[selectedNode.kind]}
-                    </>
-                  )}
-                </span>
-              </div>
-              <div>
-                <button
-                  title="Uzaklaştır"
-                  onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
-                >
-                  <ZoomOut size={14} />
-                </button>
-                <button onClick={() => setZoom(1)} title="Ekrana sığdır">
-                  {Math.round(scale * 100)}%
-                </button>
-                <button
-                  title="Yakınlaştır"
-                  onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
-                >
-                  <ZoomIn size={14} />
-                </button>
-              </div>
-            </footer>
-          </main>
-          {selectedThemeSection && selectedNativeSnapshot ? (
-            <NativeThemeInspector
-              section={selectedThemeSection}
-              snapshot={selectedNativeSnapshot}
-            />
-          ) : (
-            <Inspector
-              node={selectedNode}
-              device={device}
-              update={(change, key) => {
-                changeSelected(change, key);
-              }}
-              duplicate={() => selected && duplicate(selected)}
-              remove={() => selected && remove(selected)}
-              move={moveSelected}
-            />
-          )}
-        </div>
-        <input
-          ref={importRef}
-          type="file"
-          accept="application/json,.json"
-          hidden
-          onChange={(event) => void importPage(event.target.files?.[0])}
-        />
-        {selectedNode && ["text", "heading"].includes(selectedNode.kind) && (
-          <div className="rich-format-toolbar">
-            <span>Metin</span>
-            {[
-              ["bold", "B"],
-              ["italic", "I"],
-              ["underline", "U"],
-              ["strikeThrough", "S"],
-            ].map(([command, label]) => (
-              <button
-                key={command}
-                title={command}
-                style={{
-                  fontWeight: command === "bold" ? 800 : undefined,
-                  fontStyle: command === "italic" ? "italic" : undefined,
-                  textDecoration:
-                    command === "underline"
-                      ? "underline"
-                      : command === "strikeThrough"
-                        ? "line-through"
-                        : undefined,
-                }}
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  const selection = window.getSelection();
-                  const anchor = selection?.anchorNode;
-                  const element =
-                    anchor instanceof Element ? anchor : anchor?.parentElement;
-                  const editable = element?.closest(".rich-content");
-                  if (
-                    !editable ||
-                    editable
-                      .closest("[data-node-id]")
-                      ?.getAttribute("data-node-id") !== selected
-                  ) {
-                    notify("Biçimlendirmek için tasarım alanındaki metni seç.");
-                    return;
-                  }
-                  document.execCommand(command);
-                }}
-              >
-                {label}
-              </button>
-            ))}
-            <small>Metne çift tıkla</small>
-          </div>
-        )}
-      </div>
-      <DragOverlay>
-        {dragging && (
-          <div className="drag-chip">
-            <GripVertical size={16} />
-            {dragging.startsWith("palette:")
-              ? labels[dragging.split(":")[1] as Kind]
-              : "Öğeyi taşı"}
-            <Plus size={12} />
-          </div>
-        )}
-      </DragOverlay>
-      {preview && (
-        <div className="preview-modal">
-          <header>
-            <button className="brand">
               <span className="brand-mark">
                 <Layers size={18} />
               </span>
-              <b>Önizleme</b>
+              <b>
+                fuk<span>pages</span>
+              </b>
             </button>
-            <span className="preview-label">
-              Yerel tasarım önizlemesi · Shopify bağlantısı yok
-            </span>
+            <div className="topbar-divider" />
+            <div className="document-info">
+              <span>
+                {store.name} <ChevronRight size={10} /> {pageNames[page.type]}
+              </span>
+              <input
+                aria-label="Sayfa adı"
+                value={page.name}
+                onChange={(event) =>
+                  commit(
+                    (document) => ({ ...document, name: event.target.value }),
+                    "document-name",
+                  )
+                }
+              />
+            </div>
+            <div className="history-controls">
+              <button
+                title="Geri al (Ctrl+Z)"
+                aria-label="Geri al"
+                disabled={!past.current.length}
+                onClick={undo}
+              >
+                <Undo2 size={17} />
+              </button>
+              <button
+                title="İleri al (Ctrl+Shift+Z)"
+                aria-label="İleri al"
+                disabled={!future.current.length}
+                onClick={redo}
+              >
+                <Redo2 size={17} />
+              </button>
+            </div>
             <div className="device-switch">
               {(
                 [
@@ -1651,49 +1485,842 @@ export function Editor({ pageId, store, back, notify }: EditorProps) {
                 <button
                   key={key}
                   title={deviceNames[key]}
+                  aria-label={deviceNames[key]}
                   className={device === key ? "active" : ""}
-                  onClick={() => setDevice(key)}
+                  onClick={() => {
+                    setDevice(key);
+                    setCustomWidth(null);
+                  }}
                 >
                   <Icon size={17} />
                 </button>
               ))}
+              <input
+                aria-label="Önizleme genişliği"
+                type="number"
+                min={280}
+                max={2560}
+                value={viewWidth}
+                style={{ width: 65 }}
+                onChange={(e) =>
+                  setCustomWidth(
+                    Math.max(280, Math.min(2560, Number(e.target.value))),
+                  )
+                }
+              />
+              <button
+                title="Cihaz genişliğine dön"
+                onClick={() => setCustomWidth(null)}
+              >
+                ↺
+              </button>
             </div>
-            <button
-              className="icon-button"
-              aria-label="Önizlemeyi kapat"
-              onClick={() => setPreview(false)}
-            >
-              <X size={20} />
-            </button>
+            <div className="topbar-end">
+              <span
+                className={`save-indicator ${saveError ? "error" : ""}`}
+                title={
+                  saveError ||
+                  (clean
+                    ? "Tüm değişiklikler kaydedildi"
+                    : "Kaydedilmemiş değişiklikler")
+                }
+              >
+                {saving ? (
+                  <Loader2 size={12} className="spin" />
+                ) : clean ? (
+                  <Check size={12} />
+                ) : (
+                  <span className="unsaved-dot" />
+                )}
+                {saveError
+                  ? "Kaydedilemedi"
+                  : saving
+                    ? "Kaydediliyor"
+                    : clean
+                      ? "Kaydedildi"
+                      : "Değiştirildi"}
+              </span>
+              <button
+                className="top-action"
+                onClick={() => void save()}
+                disabled={saving}
+              >
+                Kaydet
+              </button>
+              <button className="top-action" onClick={() => setPreview(true)}>
+                <Eye size={14} /> Önizle
+              </button>
+              <button
+                className="publish-button"
+                onClick={() => void publish()}
+                disabled={publishing || saving}
+              >
+                {publishing ? (
+                  <Loader2 size={14} className="spin" />
+                ) : (
+                  <span className="publish-dot" />
+                )}
+                {published ? "Yerel yayın güncelle" : "Yerel yayın"}
+                <ChevronDown size={12} />
+              </button>
+              <div className="more-menu">
+                <button
+                  className="icon-button"
+                  aria-label="Tasarım işlemleri"
+                  onClick={() => setMenu(!menu)}
+                >
+                  <MoreHorizontal size={18} />
+                </button>
+                {menu && (
+                  <div className="dropdown-menu">
+                    <button onClick={exportPage}>
+                      <Download size={14} /> JSON dışa aktar
+                    </button>
+                    <button onClick={() => importRef.current?.click()}>
+                      <Upload size={14} /> JSON içe aktar
+                    </button>
+                    <button
+                      onClick={() => {
+                        setLibrary("templates");
+                        setMenu(false);
+                      }}
+                    >
+                      <LayoutTemplate size={14} /> Başlangıç şablonları
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </header>
-          <div className="preview-scroll">
-            <div
-              style={{
-                width: widths[device],
-                maxWidth: "100%",
-                margin: "0 auto",
+          <div className="studio-workspace">
+            <nav className="tool-rail">
+              <div>
+                {[
+                  ["blocks", Plus, "Öğeler"],
+                  ["sections", LayoutTemplate, "Bölümler"],
+                  ["layers", Layers, "Katmanlar"],
+                  ["templates", LayoutTemplate, "Şablonlar"],
+                  ["theme", StoreIcon, "Tema"],
+                  ["media", Upload, "Medya"],
+                  ["brand", LayoutTemplate, "Marka"],
+                  ["workflow", MoreHorizontal, "Sayfa"],
+                  ["catalog", StoreIcon, "Ürünler"],
+                  ["growth", LayoutTemplate, "Akışlar"],
+                  ...(role === "owner"
+                    ? [["team", ShieldCheck, "Hesaplar"]]
+                    : []),
+                ].map(([id, Tool, title]) => {
+                  const Icon = Tool as typeof Plus;
+                  return (
+                    <button
+                      key={String(id)}
+                      className={library === id ? "active" : ""}
+                      title={String(title)}
+                      onClick={() => setLibrary(String(id))}
+                    >
+                      <Icon size={20} />
+                      <span>{String(title)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                title="Mağaza yönetimi"
+                onClick={async () => {
+                  if (await save()) back();
+                }}
+              >
+                <ShieldCheck size={20} />
+                <span>Yönetim</span>
+              </button>
+            </nav>
+            <aside className="library">
+              <div className="library-heading">
+                <div>
+                  <h2>
+                    {(
+                      {
+                        media: "Medya kütüphanesi",
+                        brand: "Marka kiti",
+                        workflow: "Sayfa ayarları",
+                        catalog: "Yerel ürünler",
+                        growth: "Diller ve akışlar",
+                      } as Record<string, string>
+                    )[library] ||
+                      (library === "sections"
+                        ? "Bölüm bölüm tasarla."
+                        : library === "theme"
+                          ? "Mağazanın teması."
+                          : library === "blocks"
+                            ? "Bir şeyler oluştur."
+                            : library === "layers"
+                              ? "Katmanlar"
+                              : "İyi bir başlangıç.")}
+                  </h2>
+                  <p>
+                    {library === "sections"
+                      ? "Hazır bir bölüm ekle, her ayrıntıyı düzenle."
+                      : library === "theme"
+                        ? "Header, footer ve mevcut bölüm sırası."
+                        : library === "blocks"
+                          ? "Sürükle, bırak, kendine göre düzenle."
+                          : library === "layers"
+                            ? "Sayfanın yapısını yönet."
+                            : "Bir şablon seç, kendi hikâyeni anlat."}
+                  </p>
+                </div>
+              </div>
+              {library === "team" && role === "owner" && (
+                <TeamPanel notify={notify} />
+              )}
+              {library === "growth" && (
+                <GrowthPanel
+                  pageId={pageId}
+                  storeId={store.id}
+                  page={page}
+                  assets={assets}
+                  commit={commit}
+                  save={save}
+                  notify={notify}
+                />
+              )}
+              {library === "catalog" && (
+                <CatalogPanel
+                  storeId={store.id}
+                  refresh={refreshCatalog}
+                  notify={notify}
+                />
+              )}
+              {library === "media" && (
+                <MediaPanel
+                  storeId={store.id}
+                  assets={assets}
+                  refresh={refreshAssets}
+                  select={addAsset}
+                  notify={notify}
+                />
+              )}
+              {library === "brand" && (
+                <BrandPanel
+                  key={brandVersion}
+                  storeId={store.id}
+                  brand={brand}
+                  version={brandVersion}
+                  assets={assets}
+                  refresh={refreshAssets}
+                  update={(b, v) => {
+                    setBrand(b);
+                    setBrandVersion(v);
+                  }}
+                  notify={notify}
+                />
+              )}
+              {library === "workflow" && (
+                <WorkflowPanel
+                  pageId={pageId}
+                  storeId={store.id}
+                  page={page}
+                  commit={commit}
+                  save={save}
+                  notify={notify}
+                />
+              )}
+              {library === "sections" && (
+                <SectionLibrary
+                  saved={savedSections}
+                  addPreset={addPreset}
+                  addSaved={addSaved}
+                  saveSelected={saveSection}
+                  selectedSection={enclosingSection(page, selected)}
+                  removeSaved={removeSaved}
+                />
+              )}
+              {library === "theme" && (
+                <ThemePanel
+                  status={themeStatus}
+                  busy={themeBusy}
+                  sync={() => void syncTheme()}
+                  saveDomain={saveDomain}
+                  selectedId={nativeSelected}
+                  select={selectNative}
+                  useShell={!!page.themeLayout?.useShell}
+                  bind={bindTheme}
+                  clearBinding={() => {
+                    commit((document) => {
+                      const next = { ...document };
+                      delete next.themeLayout;
+                      return next;
+                    });
+                    setNativeSelected(null);
+                  }}
+                />
+              )}
+              {library === "blocks" && (
+                <>
+                  <label className="library-search">
+                    <Search size={14} />
+                    <input
+                      aria-label="Öğe ara"
+                      placeholder="Öğe ara…"
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                    />
+                    <span>⌘ K</span>
+                  </label>
+                  <div className="library-scroll">
+                    {groups.map((group) => {
+                      const filtered = group.kinds.filter((kind) =>
+                        labels[kind]
+                          .toLocaleLowerCase("tr")
+                          .includes(search.toLocaleLowerCase("tr")),
+                      );
+                      return (
+                        !!filtered.length && (
+                          <section className="palette-group" key={group.name}>
+                            <h3>
+                              {group.name}
+                              <ChevronDown size={12} />
+                            </h3>
+                            <div className="palette-grid">
+                              {filtered.map((kind) => (
+                                <PaletteItem
+                                  key={kind}
+                                  kind={kind}
+                                  onAdd={() => add(kind)}
+                                />
+                              ))}
+                            </div>
+                          </section>
+                        )
+                      );
+                    })}
+                    {!groups.some((group) =>
+                      group.kinds.some((kind) =>
+                        labels[kind]
+                          .toLocaleLowerCase("tr")
+                          .includes(search.toLocaleLowerCase("tr")),
+                      ),
+                    ) && (
+                      <p className="setting-help">Eşleşen öğe bulunamadı.</p>
+                    )}
+                  </div>
+                  <div className="library-tip">
+                    <MousePointer2 size={15} />
+                    <p>
+                      Öğeyi sürükle veya tıklayarak ekle.
+                      <br />
+                      <span>Metne çift tıkla ve yazmaya başla.</span>
+                    </p>
+                  </div>
+                </>
+              )}
+              {library === "layers" && (
+                <div className="library-scroll layer-tree">
+                  <input
+                    aria-label="Katman ara"
+                    placeholder="Katman ara"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                  {useThemeShell &&
+                    themeSnapshot?.sections
+                      .filter((section) => section.region !== "footer")
+                      .map((section) => (
+                        <button
+                          key={section.id}
+                          className="outline-theme-row"
+                          onClick={() => selectNative(section.id)}
+                        >
+                          <Layers size={13} />
+                          <span>{section.name}</span>
+                          <LockKeyhole size={11} />
+                        </button>
+                      ))}
+                  {visibleNodes
+                    .filter(
+                      (node) =>
+                        !search ||
+                        JSON.stringify(node)
+                          .toLocaleLowerCase("tr")
+                          .includes(search.toLocaleLowerCase("tr")),
+                    )
+                    .map((node) => (
+                      <Layer
+                        key={node.id}
+                        node={node}
+                        index={page.nodes.findIndex(
+                          (item) => item.id === node.id,
+                        )}
+                        depth={0}
+                        selected={selected}
+                        select={selectLayer}
+                        dragging={!!dragging}
+                      />
+                    ))}
+                  {useThemeShell &&
+                    themeSnapshot?.sections
+                      .filter((section) => section.region === "footer")
+                      .map((section) => (
+                        <button
+                          key={section.id}
+                          className="outline-theme-row"
+                          onClick={() => selectNative(section.id)}
+                        >
+                          <Layers size={13} />
+                          <span>{section.name}</span>
+                          <LockKeyhole size={11} />
+                        </button>
+                      ))}
+                  {!page.nodes.length && (
+                    <p className="setting-help">İlk öğeni kütüphaneden ekle.</p>
+                  )}
+                </div>
+              )}
+              {library === "templates" && (
+                <div className="library-scroll template-list">
+                  {[
+                    ["Aura · Product launch", "aura", "Ürününü öne çıkar."],
+                    [
+                      "Minimal · Editorial",
+                      "editorial",
+                      "Sade tasarım, güçlü hikâye.",
+                    ],
+                    [
+                      "Fresh · Summer sale",
+                      "sale",
+                      "Kampanyanı canlı renklerle anlat.",
+                    ],
+                  ].map(([name, id, description]) => (
+                    <button
+                      key={id}
+                      className="template-card"
+                      onClick={() => {
+                        const next = starterDocument(page.type);
+                        next.themeLayout = page.themeLayout;
+                        next.name = name;
+                        if (id === "editorial") {
+                          next.nodes = next.nodes.filter(
+                            (_, index) => index !== 0,
+                          );
+                          const heading = findBlock(
+                            next.nodes,
+                            firstHeading(next.nodes),
+                          );
+                          if (heading)
+                            heading.props.html = "LESS, BUT<br/>BETTER.";
+                          next.nodes[0].styles.desktop.backgroundColor =
+                            "#f5efe8";
+                        }
+                        if (id === "sale") {
+                          const heading = findBlock(
+                            next.nodes,
+                            firstHeading(next.nodes),
+                          );
+                          if (heading)
+                            heading.props.html = "GOOD VIBES.<br/>GREAT DEALS.";
+                          next.nodes[1].styles.desktop.backgroundColor =
+                            "#f8f5d6";
+                        }
+                        commit(() => next);
+                        setSelected(firstHeading(next.nodes));
+                        notify(
+                          "Şablon uygulandı. Geri al ile önceki tasarıma dönebilirsin.",
+                        );
+                      }}
+                    >
+                      <div className={`template-thumbnail ${id}`}>
+                        <span>
+                          {id === "aura"
+                            ? "aura✦"
+                            : id === "sale"
+                              ? "SUMMER / 26"
+                              : "The Journal."}
+                        </span>
+                        <b>
+                          {id === "aura"
+                            ? "SOUND THAT MOVES YOU."
+                            : id === "sale"
+                              ? "GOOD VIBES."
+                              : "LESS, BUT BETTER."}
+                        </b>
+                        <div />
+                      </div>
+                      <strong>{name}</strong>
+                      <small>{description}</small>
+                      <span className="template-use">
+                        Şablonu kullan <ChevronRight size={12} />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </aside>
+            <main
+              className="canvas-area"
+              ref={canvasRef}
+              onContextMenu={(e) => {
+                const el = (e.target as Element).closest("[data-node-id]");
+                if (el) {
+                  e.preventDefault();
+                  selectMany(el.getAttribute("data-node-id")!);
+                  setContextMenu({ x: e.clientX, y: e.clientY });
+                }
+              }}
+              onDragOver={(e) => {
+                if (e.dataTransfer.types.includes("Files")) e.preventDefault();
+              }}
+              onDrop={(e) => {
+                if (e.dataTransfer.files.length) {
+                  e.preventDefault();
+                  void dropFiles([...e.dataTransfer.files]);
+                }
               }}
             >
-              {useThemeShell &&
-                themeSnapshot?.sections
-                  .filter((section) => section.region !== "footer")
-                  .map((section) => (
-                    <NativeThemeSection key={section.id} section={section} />
-                  ))}
-              <PageRenderer
-                document={{ ...page, nodes: visibleNodes }}
-                device={device}
+              <div className="canvas-topline">
+                <span>
+                  <span className="canvas-status-dot" />
+                  {deviceNames[device]} görünümü
+                </span>
+                <span>
+                  {themeSnapshot
+                    ? `${themeSnapshot.themeName} · tema verisi okundu`
+                    : "Yerel taslak · Shopify bağlı değil"}
+                </span>
+              </div>
+              <div className="canvas-scroll" onClick={() => setSelected(null)}>
+                <div
+                  className="canvas-sheet-holder"
+                  style={{ width: viewWidth * scale, marginBottom: -30 }}
+                >
+                  <div
+                    className="canvas-sheet"
+                    style={{ width: viewWidth, zoom: scale } as CSSProperties}
+                  >
+                    <div className="canvas-browser">
+                      <div>
+                        <i />
+                        <i />
+                        <i />
+                      </div>
+                      <span>
+                        {store.name.toLowerCase().replaceAll(" ", "-")}.preview
+                        / {page.type}
+                      </span>
+                      <ShieldCheck size={11} />
+                    </div>
+                    <div
+                      className="page-surface editable-surface"
+                      data-device={device}
+                    >
+                      {useThemeShell &&
+                        themeSnapshot?.sections
+                          .filter((section) => section.region !== "footer")
+                          .map((section) => (
+                            <NativeThemeSection
+                              key={section.id}
+                              section={section}
+                              select={() => selectNative(section.id)}
+                            />
+                          ))}
+                      {visibleNodes.map((node) => (
+                        <CanvasNode
+                          key={node.id}
+                          node={node}
+                          index={page.nodes.findIndex(
+                            (item) => item.id === node.id,
+                          )}
+                          device={device}
+                          selected={selected}
+                          select={selectMany}
+                          resizeColumn={(id, value) =>
+                            commit(
+                              (d) => ({
+                                ...d,
+                                nodes: mapBlock(d.nodes, id, (n) => ({
+                                  ...n,
+                                  children: n.children.map((c, i) =>
+                                    i < 2
+                                      ? {
+                                          ...c,
+                                          styles: {
+                                            ...c.styles,
+                                            [device]: {
+                                              ...c.styles[device],
+                                              width: `${i === 0 ? value : 100 - value}%`,
+                                              flexBasis: `${i === 0 ? value : 100 - value}%`,
+                                            },
+                                          },
+                                        }
+                                      : c,
+                                  ),
+                                })),
+                              }),
+                              `resize:${id}:${device}`,
+                            )
+                          }
+                          updateHtml={updateHtml}
+                          duplicate={duplicate}
+                          remove={remove}
+                          dragging={!!dragging}
+                        />
+                      ))}
+                      {useThemeShell &&
+                        themeSnapshot?.sections
+                          .filter((section) => section.region === "footer")
+                          .map((section) => (
+                            <NativeThemeSection
+                              key={section.id}
+                              section={section}
+                              select={() => selectNative(section.id)}
+                            />
+                          ))}
+                      {!page.nodes.length && (
+                        <EmptyPage add={() => add("section")} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="canvas-bottom-add">
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      const node = createBlock("section");
+                      commit((document) => insertSection(document, node, null));
+                      setSelected(node.id);
+                    }}
+                  >
+                    <Plus size={15} /> Yeni bölüm ekle
+                  </button>
+                </div>
+              </div>
+              <footer className="canvas-footer">
+                <div>
+                  <MousePointer2 size={12} />
+                  <span>
+                    {selectedNode?.name ?? "Bir öğe seç"}
+                    {selectedNode && (
+                      <>
+                        <ChevronRight size={10} />
+                        {labels[selectedNode.kind]}
+                      </>
+                    )}
+                  </span>
+                </div>
+                <div>
+                  <button
+                    title="Uzaklaştır"
+                    onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
+                  >
+                    <ZoomOut size={14} />
+                  </button>
+                  <button onClick={() => setZoom(1)} title="Ekrana sığdır">
+                    {Math.round(scale * 100)}%
+                  </button>
+                  <button
+                    title="Yakınlaştır"
+                    onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
+                  >
+                    <ZoomIn size={14} />
+                  </button>
+                </div>
+              </footer>
+            </main>
+            <div className="inspector-container">
+              <SelectionTools
+                node={selectedNode}
+                count={
+                  selection.includes(selected || "") ? selection.length : 1
+                }
+                command={command}
               />
-              {useThemeShell &&
-                themeSnapshot?.sections
-                  .filter((section) => section.region === "footer")
-                  .map((section) => (
-                    <NativeThemeSection key={section.id} section={section} />
-                  ))}
+              {selectedThemeSection && selectedNativeSnapshot ? (
+                <NativeThemeInspector
+                  section={selectedThemeSection}
+                  snapshot={selectedNativeSnapshot}
+                />
+              ) : (
+                <Inspector
+                  node={selectedNode}
+                  openMedia={() => setLibrary("media")}
+                  storeId={store.id}
+                  assets={assets}
+                  device={device}
+                  update={(change, key) => {
+                    changeSelected(change, key);
+                  }}
+                  duplicate={() => selected && duplicate(selected)}
+                  remove={() => selected && remove(selected)}
+                  move={moveSelected}
+                />
+              )}
             </div>
           </div>
+          {contextMenu && (
+            <div
+              className="editor-context-menu"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+            >
+              {[
+                ["copyStyle", "Stili kopyala"],
+                ["pasteStyle", "Stili yapıştır"],
+                ["copyBlocks", "Öğeleri kopyala"],
+                ["pasteBlocks", "Öğeleri yapıştır"],
+                ["parent", "Üst öğeyi seç"],
+                ["lock", "Kilidi değiştir"],
+              ].map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => {
+                    command(id);
+                    setContextMenu(null);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+              <button onClick={() => setContextMenu(null)}>Kapat</button>
+            </div>
+          )}
+          <input
+            ref={importRef}
+            type="file"
+            accept="application/json,.json"
+            hidden
+            onChange={(event) => void importPage(event.target.files?.[0])}
+          />
+          {selectedNode && ["text", "heading"].includes(selectedNode.kind) && (
+            <div className="rich-format-toolbar">
+              <span>Metin</span>
+              {[
+                ["bold", "B"],
+                ["italic", "I"],
+                ["underline", "U"],
+                ["strikeThrough", "S"],
+              ].map(([command, label]) => (
+                <button
+                  key={command}
+                  title={command}
+                  style={{
+                    fontWeight: command === "bold" ? 800 : undefined,
+                    fontStyle: command === "italic" ? "italic" : undefined,
+                    textDecoration:
+                      command === "underline"
+                        ? "underline"
+                        : command === "strikeThrough"
+                          ? "line-through"
+                          : undefined,
+                  }}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    const selection = window.getSelection();
+                    const anchor = selection?.anchorNode;
+                    const element =
+                      anchor instanceof Element
+                        ? anchor
+                        : anchor?.parentElement;
+                    const editable = element?.closest(".rich-content");
+                    if (
+                      !editable ||
+                      editable
+                        .closest("[data-node-id]")
+                        ?.getAttribute("data-node-id") !== selected
+                    ) {
+                      notify(
+                        "Biçimlendirmek için tasarım alanındaki metni seç.",
+                      );
+                      return;
+                    }
+                    document.execCommand(command);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+              <small>Metne çift tıkla</small>
+            </div>
+          )}
         </div>
-      )}
-    </DndContext>
+        <DragOverlay>
+          {dragging && (
+            <div className="drag-chip">
+              <GripVertical size={16} />
+              {dragging.startsWith("palette:")
+                ? labels[dragging.split(":")[1] as Kind]
+                : "Öğeyi taşı"}
+              <Plus size={12} />
+            </div>
+          )}
+        </DragOverlay>
+        {preview && (
+          <div className="preview-modal">
+            <header>
+              <button className="brand">
+                <span className="brand-mark">
+                  <Layers size={18} />
+                </span>
+                <b>Önizleme</b>
+              </button>
+              <span className="preview-label">
+                Yerel tasarım önizlemesi · Shopify bağlantısı yok
+              </span>
+              <div className="device-switch">
+                {(
+                  [
+                    ["desktop", Monitor],
+                    ["tablet", Tablet],
+                    ["mobile", Smartphone],
+                  ] as const
+                ).map(([key, Icon]) => (
+                  <button
+                    key={key}
+                    title={deviceNames[key]}
+                    className={device === key ? "active" : ""}
+                    onClick={() => {
+                      setDevice(key);
+                      setCustomWidth(null);
+                    }}
+                  >
+                    <Icon size={17} />
+                  </button>
+                ))}
+              </div>
+              <button
+                className="icon-button"
+                aria-label="Önizlemeyi kapat"
+                onClick={() => setPreview(false)}
+              >
+                <X size={20} />
+              </button>
+            </header>
+            <div className="preview-scroll">
+              <div
+                style={{
+                  width: widths[device],
+                  maxWidth: "100%",
+                  margin: "0 auto",
+                }}
+              >
+                {useThemeShell &&
+                  themeSnapshot?.sections
+                    .filter((section) => section.region !== "footer")
+                    .map((section) => (
+                      <NativeThemeSection key={section.id} section={section} />
+                    ))}
+                <PageRenderer
+                  document={{ ...page, nodes: visibleNodes }}
+                  device={device}
+                />
+                {useThemeShell &&
+                  themeSnapshot?.sections
+                    .filter((section) => section.region === "footer")
+                    .map((section) => (
+                      <NativeThemeSection key={section.id} section={section} />
+                    ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </DndContext>
+    </StudioProvider>
   );
 }

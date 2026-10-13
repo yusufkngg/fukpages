@@ -1,7 +1,9 @@
 # FukPages Studio
 
 Tek sahip girişi, çoklu müşteri/mağaza çalışma alanları ve görsel sayfa editörü.
-Bu ilk geliştirme sürümü **yerel taslaklar ve yerel yayınlar** için çalışır.
+Bu geliştirme sürümü **yerel taslaklar, yerel katalog ve yerel yayınlar** için çalışır.
+Kullanıcının isteğiyle bu aşamada Shopify bağlantısı kurulmaz.
+İstenen 155 kontrol maddesinin durum/kanıt kaydı [docs/FEATURE_AUDIT.md](docs/FEATURE_AUDIT.md) içindedir.
 Shopify OAuth, ürün API'si, tema yayınlama ve gerçek mağazada yayından kaldırma
 henüz uygulanmadı. Shopify tema bölümlerini okuyan bağlantı altyapısı eklendi;
 canlı mağaza erişimi bu ortamda henüz yapılandırılmadı.
@@ -76,8 +78,8 @@ kaldır/önizlemeyi kapat. Metin/input alanları kendi klavye davranışlarını
 
 ## Yönetim ve yerel yayınlama
 
-Tek owner hesabı bütün yönetim API'lerine erişir. Müşteri hesapları veya herkese
-açık kayıt akışı bulunmaz. Oturumlar HttpOnly cookie kullanır; yazma işlemleri
+Tek owner hesabı bütün yönetim API'lerine erişir. Başlangıçta ek hesap yoktur;
+owner isterse mağazaya sınırlı editor/viewer açabilir. Herkese açık kayıt akışı yoktur. Oturumlar HttpOnly cookie kullanır; yazma işlemleri
 CSRF token'ı ister; başarısız girişler sınırlandırılır.
 
 Yeni çalışma alanı oluşturabilir, sayfalarını yönetebilir ve devre dışı
@@ -92,7 +94,7 @@ ziyaretçi görünümü uygulamanın `published` query parametresiyle ve yayın 
 
 ## Bölüm kütüphanesi ve Shopify tema eşleşmesi
 
-Editör varsayılan olarak **Bölümler** kütüphanesini açar. 11 hazır düzen vardır:
+Editör varsayılan olarak **Bölümler** kütüphanesini açar. 30 aileden 60 hazır düzen vardır. İlk aileler:
 ürün hero'su, ortalanmış hero, özellik kartları, görsel/hikâye, ürün vitrini,
 yorumlar, SSS, bülten, kampanya bandı, header ve footer. Bunlar tek bir bölüm
 olarak eklenir; içindeki metin, kutu, görsel ve düğmeler bağımsız düzenlenebilir.
@@ -132,6 +134,119 @@ Sorgu şekilleri Shopify'ın resmi CLI kaynaklarıyla karşılaştırıldı:
 [get_themes](https://github.com/Shopify/cli/blob/main/packages/cli-kit/src/cli/api/graphql/admin/queries/get_themes.graphql),
 [get_theme_file_bodies](https://github.com/Shopify/cli/blob/main/packages/cli-kit/src/cli/api/graphql/admin/queries/get_theme_file_bodies.graphql).
 
+## Medya, font ve marka kiti
+
+Medya paneli bilgisayardan çoklu yükleme, dosya bırakma, tuvale bırakma ve native
+panodan görsel yapıştırmayı destekler. Seçili görselin stilleri korunarak kaynak
+veya mobil görsel değiştirilebilir; kutu/bölüm arka planı seçilebilir. Arama,
+klasör, etiket, favori, yeniden adlandırma, boyut/format ve kullanım bilgisi vardır.
+Kullanılan dosya kaldırılmadan önce etkilenen sayfalar gösterilir. Kaldırma
+kütüphaneden arşivler; eski yayın ve sürümlerin dosyaları korunur.
+
+PNG/JPEG/WebP/AVIF/GIF kabul edilir; SVG etkin içerik/dış kaynak kontrolünden sonra
+rasterleştirilir. İç gradient/use referansları korunur. Görseller optimize edilir,
+320/640/1280/1920 genişlik varyantları oluşturulur; renderer srcset, lazy loading,
+contain/cover, odak, dönüş/çevirme, oran, alt metin, bağlantı ve lightbox kullanır.
+Kırpma yeni dosya oluşturur; asıl dosya korunur. Dosyalar mağaza bazında ayrılır;
+özel/henüz yayınlanmamış dosyalar owner veya yetkili ekip oturumu ister.
+
+HTTPS URL içe aktarma yalnızca izin verilen hostname'lerden yapılır; yönlendirme,
+IP adresi ve etkin SVG kaynakları kabul edilmez. Varsayılanlar images.unsplash.com,
+images.pexels.com, cdn.shopify.com ve raw.githubusercontent.com. Diğer güvenilen
+kaynaklar `MEDIA_IMPORT_HOSTS` ile tam hostname olarak eklenir. Bulut network
+policy ayrıca hedefe izin vermelidir; mevcut proxy ve TLS doğrulaması korunur.
+Sunucunun fontconfig önbelleği yazılabilir tmp dizininde tutulur.
+
+WOFF/WOFF2/TTF/OTF fontlar doğrulanır; TTF/OTF WOFF2'ye dönüşür. Aile, kalınlık,
+italik, değişken eksenler ve Türkçe glif kapsamı saklanır. Katalog sistem fontları
+ve yüklenen ailelerden oluşur; canlı metin önizlemesi, yedek font ve kullanım
+bilgisi vardır. Değişken eksenler cihaz bazında düzenlenir. Yalnızca gerekli
+font yüzleri tarayıcı tarafından yüklenir; yayın/önizleme aynı dosyaları kullanır.
+Test fixture fontları OFL lisanslarıyla `tests/fixtures` içinde bulunur.
+
+Marka kitinde primary/secondary/accent/text/background/border renkleri,
+başlık/gövde/düğme/yedek fontları, H1–H6 boyut/kalınlık ve satır yüksekliği,
+küçük metin/link stilleri, mobil ölçek, container, bölüm boşluğu, köşe ve gölge
+vardır. Yeni hazır bölümler marka değerlerine bağlanır; özel değerler korunur.
+Globalden ayır mevcut değerleri dondurur; global stile geri dön tekrar bağlar.
+
+## Gelişmiş düzenleme ve bölüm paylaşımı
+
+Stil ve öğe panosu sayfalar arasında kullanılabilir. Shift/Ctrl ile çoklu seçim,
+gruplama/çözme, üst öğeyi seçme, kilitleme, katman adlandırma/arama, sağ tık,
+klavye yeniden sıralama, kolon sürükleme tutamacı, mobil order, responsive reset,
+esnek önizleme genişliği ve hover/focus arka plan durumları vardır.
+
+Sunucudaki kalıcı sürüm geçmişi oturum içi undo'dan ayrıdır. Eski belgeyi taslağa
+almak yeni kayda dönüşür. Yerel yayın geçmişi ayrı tutulur ve önceki yayına dönülür.
+Kaydetme çakışmaları/hataları gösterilir; sessizce üzerine yazılmaz.
+
+Kayıtlı bölüm bağımsız kopya veya senkron kayıt olabilir. "Senkron bölümü tüm
+taslaklarda güncelle" komutu bağlı sayfaları aynı işlemde günceller. Yerel yayın
+snapshot'ları tekrar yayınlanana kadar korunur. Bu, otomatik Shopify senkronu değildir.
+
+## Yeni öğeler, katalog ve formlar
+
+Toplam 49 öğe türü vardır. Temel 19'a form/select/checkbox/radio, tabs, carousel,
+galeri, logo şeridi, puan, karşılaştırma, önce/sonra, kupon, kargo eşiği, popup,
+video popup, yukarı dön, breadcrumb, mobil menü, blog kartları, kontrollü HTML,
+uygulama alanı ve ürün/varyant/adet/sepete ekle/collection/bundle öğeleri eklendi.
+Kontrollü HTML scriptsiz iframe'de çalışır; uygulama alanı bağlı bir SDK olmadan
+bağlantı kurulmamış olarak gösterilir.
+
+Ürünler paneli **yerel katalog** JSON'unu yönetir: ürün adı/açıklama/görseller,
+metafield, varyant seçenekleri, kuruş cinsinden fiyat/indirim fiyatı/stok ve
+koleksiyonlar. Yayındaki yerel sayfalar katalog değişikliğini okur. Galeri,
+varyant-fiyat-görsel-stok, adet, koleksiyon sıralama/sayfalama, paket ve adet teklifi
+önizlemeleri çalışır. Sepet tarayıcıda yerel tutulur; **ödeme oluşturmaz**.
+Shopify gerçek ürün/checkout bağlantısı bu aşamada ertelenmiştir.
+
+Form container ve alanlar zorunluluk/email/telefon/seçenek/izin doğrulaması,
+özel mesaj, loading/success/failure, yönlendirme, honeypot/rate-limit, idempotent
+tekrar ve kalıcı kayıtları destekler. Formun hedefi görünür. Varsayılan hedef
+uygulama içidir; yalnızca "webhook" seçilen form ve yapılandırılmış HTTPS hedefi
+varsa harici kuyruk oluşturulur. Retry aynı idempotency anahtarını korur. Yerel
+formlar sağlayıcı yapılandırılmış olsa bile otomatik dışarı gönderilmez.
+E-posta/CRM uygulamasına özgü SDK bağlantıları sağlayıcı seçimi gerektirir.
+
+Butonlar sayfa/ürün/koleksiyon URL'si, bölüm kaydırma, popup aç/kapat, yerel
+sepet ekle/aç, form submit, kupon, telefon/mailto/WhatsApp aksiyonları kullanır.
+
+## Sayfa, SEO, çeviri ve ajans akışları
+
+Sayfa paneli kısa URL `/p/:store/:slug`, ilk HTML'de SEO/OG meta, noindex,
+7 günlük snapshot önizleme bağlantısı, yerel publish/unpublish zamanlaması,
+kalite uyarıları ve görsel byte/resource timing bilgisini sunar. Zamanlamalar
+sunucu çalışırken yürür; mağaza durdurulunca yayın ve pending planlar kapatılır.
+Yeniden etkinleştirme kendiliğinden eski yayınları açmaz.
+
+Akışlar panelinde içerik çevirileri ve dil seçimi, yerel A/B testi (kalıcı ziyaretçi
+ataması), sayfa hunisi, preview/onay kayıtları ve mağazalar arası aktarım vardır.
+Aktarım ürün/koleksiyon eşleştirmesi ister; dosyalar hedef mağazaya kopyalanır.
+Global marka tokenları hedef kitini kullanır; doğrudan atanmış özel fontlar kopyalanır.
+Huni ödeme/satın alma sonrası Shopify teklifi değildir. Ölçüm yerel view/click/add
+olaylarını toplar; gerçek Shopify satış ölçümü değildir.
+
+Başlangıçta yalnızca owner hesabı vardır; genel kayıt yoktur. İsteğe bağlı ekip
+hesabını owner açar: mağaza bazında editor veya salt okunur viewer. Başka mağaza
+kaynaklarına erişim ve owner işlemleri sunucuda engellenir. Hesabı durdurmak veya
+rolünü değiştirmek mevcut oturumları iptal eder. Müşteri önizleme/onay için hesap
+zorunlu değildir; owner'ın ürettiği süreli bağlantı yeterlidir.
+
+## İsteğe bağlı dış hizmetler
+
+Canlı sağlayıcı bu görevde bağlanmadı. AI JSON/vision tasarım adaptörü sonuçları
+normal belge doğrulamasından geçirir; geçersiz yanıt uygulanmaz. Provider mevcut
+değilse UI üretimi açmaz ve API 503 verir. `FUKPAGES_AI_API_KEY` güvenli ayardan,
+`AI_MODEL` isteğe bağlı model seçiminden gelir; HTTPS hedefi api.openai.com'dur.
+Platforma ayrılan OPENAI_ isimleri yerine uygulamaya özel anahtar adı kullanılır.
+Anahtar sohbete, Git'e veya tarayıcıya yazılmaz. Tasarım taslağa alınır; otomatik yayın yoktur.
+
+Webhook için isteğe bağlı `FORM_WEBHOOK_URL` (HTTPS) ve `FORM_WEBHOOK_SECRET`
+güvenli ortam ayarlarıdır. Gerçek hedef hostname'i ve provider listesi seçilmeden
+sahte bağlantı/binding oluşturulmaz. Canlı AI/e-posta/CRM/abonelik entegrasyonu
+ve Shopify yayınlama doğrulanmış kabul edilmez; ayrıntılar özellik denetiminde yer alır.
+
 ## Doğrulama
 
 ```sh
@@ -140,6 +255,9 @@ npm run build
 python tests/browser_smoke.py
 python tests/browser_smoke.py --dev
 python tests/browser_smoke.py --theme-fixture
+python tests/browser_studio.py
+npm run test:network
+npm run format:check
 ```
 
 Sunucu testleri gerçek HTTP/SQLite üzerinden owner erişimi, CSRF, giriş limiti,

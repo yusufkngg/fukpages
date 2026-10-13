@@ -20,8 +20,11 @@ import {
   FormInput,
   TextCursorInput,
 } from "lucide-react";
-import type { Kind } from "./model";
+import { advancedLabels, type Kind } from "./model";
 export const blockIcons: Record<Kind, typeof Box> = {
+  ...(Object.fromEntries(
+    Object.keys(advancedLabels).map((k) => [k, Box]),
+  ) as Record<keyof typeof advancedLabels, typeof Box>),
   section: RectangleHorizontal,
   row: Rows3,
   column: Columns3,

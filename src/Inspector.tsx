@@ -23,9 +23,14 @@ import {
   type Styles,
 } from "./model";
 import { plain } from "./Renderer";
+import { NodeExtras } from "./NodeExtras";
+import { resolveBrandStyles, useStudio, type Asset } from "./studio";
 import { blockIcons } from "./icons";
 type Props = {
   node?: Block;
+  openMedia: () => void;
+  storeId: string;
+  assets: Asset[];
   device: Device;
   update: (change: (node: Block) => Block, key?: string) => void;
   duplicate: () => void;
@@ -34,6 +39,9 @@ type Props = {
 };
 export function Inspector({
   node,
+  openMedia,
+  storeId,
+  assets,
   device,
   update,
   duplicate,
@@ -42,6 +50,7 @@ export function Inspector({
 }: Props) {
   const [tab, setTab] = useState("style");
   const [linked, setLinked] = useState(true);
+  const { brand } = useStudio();
   if (!node)
     return (
       <aside className="inspector">
@@ -60,7 +69,11 @@ export function Inspector({
     );
   const Icon = blockIcons[node.kind];
   const nodeId = node.id;
-  const effective = effectiveStyle(node, device) as Styles;
+  const effective = resolveBrandStyles(
+    effectiveStyle(node, device) as Styles,
+    brand,
+    device,
+  ) as Styles;
   const own = node.styles[device];
   const style = (key: string, value: string | number) =>
     update(
@@ -284,6 +297,16 @@ export function Inspector({
         )}
       </div>
       <div className="inspector-scroll">
+        {tab === "content" && node && (
+          <NodeExtras
+            node={node}
+            update={update}
+            openMedia={openMedia}
+            assets={assets}
+            storeId={storeId}
+            device={device}
+          />
+        )}
         {tab === "content" && (
           <>
             <details open>
@@ -312,9 +335,11 @@ export function Inspector({
                       value={String(node.props.tag)}
                       onChange={(event) => prop("tag", event.target.value)}
                     >
-                      {["h1", "h2", "h3", "h4", "p", "div"].map((tag) => (
-                        <option key={tag}>{tag}</option>
-                      ))}
+                      {["h1", "h2", "h3", "h4", "h5", "h6", "p", "div"].map(
+                        (tag) => (
+                          <option key={tag}>{tag}</option>
+                        ),
+                      )}
                     </select>
                   </label>
                 )}
@@ -425,6 +450,8 @@ export function Inspector({
                   {input("height", "Yükseklik")}
                   {input("maxWidth", "Maks. genişlik")}
                   {input("minHeight", "Min. yükseklik")}
+                  {input("order", "Bu cihazda sıralama", "0")}
+                  {input("flexBasis", "Kolon genişliği", "50%")}
                 </div>
                 {["section", "row", "column", "box"].includes(node.kind) && (
                   <>
@@ -482,6 +509,22 @@ export function Inspector({
               <summary>Tipografi</summary>
               <div className="settings-body">
                 {select("fontFamily", "Yazı tipi", [
+                  ...[
+                    ...new Set(
+                      assets
+                        .filter((a) => a.type === "font")
+                        .map((a) => a.family),
+                    ),
+                  ].map(
+                    (f) =>
+                      [`${f}, ${brand.fonts.fallback}`, String(f)] as [
+                        string,
+                        string,
+                      ],
+                  ),
+                  ["var(--font-heading)", "Marka başlık fontu"],
+                  ["var(--font-body)", "Marka gövde fontu"],
+                  ["var(--font-button)", "Marka düğme fontu"],
                   ["Arial, sans-serif", "Arial"],
                   ["Georgia, serif", "Georgia"],
                   ["Verdana, sans-serif", "Verdana"],

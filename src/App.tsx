@@ -1,3 +1,6 @@
+import { Viewer } from "./Viewer";
+import { PreviewReview } from "./GrowthPanel";
+import { StudioProvider, type Asset, type Brand } from "./studio";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   ArrowRight,
@@ -175,10 +178,12 @@ function MouseMark() {
   return <span>↗</span>;
 }
 function Dashboard({
+  role = "owner",
   openPage,
   logout,
   notify,
 }: {
+  role?: "owner" | "editor" | "viewer";
   openPage: (id: string, store: Store) => void;
   logout: () => void;
   notify: (message: string, error?: boolean) => void;
@@ -226,6 +231,15 @@ function Dashboard({
   async function createPage(store: Store) {
     setBusy(true);
     try {
+      if (role === "viewer") {
+        const list = await api<PageSummary[]>(`/stores/${store.id}/pages`);
+        if (!list.length) {
+          notify("Bu mağazada izlenecek taslak yok.");
+          return;
+        }
+        openPage(list[0].id, store);
+        return;
+      }
       const result = await api<{ id: string }>(`/stores/${store.id}/pages`, {
         method: "POST",
         body: json({ document: starterDocument(type) }),
@@ -296,7 +310,13 @@ function Dashboard({
             fuk<span>pages</span>
           </b>
         </div>
-        <span className="workspace-label">OWNER WORKSPACE</span>
+        <span className="workspace-label">
+          {role === "owner"
+            ? "OWNER WORKSPACE"
+            : role === "editor"
+              ? "DÜZENLEYİCİ"
+              : "İZLEYİCİ"}
+        </span>
         <button className="active" onClick={() => setSelected(null)}>
           <StoreIcon size={18} /> Mağazalarım
         </button>
@@ -343,6 +363,7 @@ function Dashboard({
                 </div>
                 <button
                   className="primary-button"
+                  hidden={role !== "owner"}
                   onClick={() => setNewStore(true)}
                 >
                   <Plus size={16} /> Çalışma alanı ekle
@@ -441,7 +462,10 @@ function Dashboard({
                           disabled={busy}
                           onClick={() => void createPage(store)}
                         >
-                          Editörü aç <Plus size={13} />
+                          {role === "viewer"
+                            ? "Tasarımı görüntüle"
+                            : "Editörü aç"}{" "}
+                          <Plus size={13} />
                         </button>
                       )}
                     </div>
@@ -652,6 +676,7 @@ export function App() {
   const [status, setStatus] = useState<{
     authenticated: boolean;
     configured: boolean;
+    role?: "owner" | "editor" | "viewer";
   } | null>(null);
   const [editing, setEditing] = useState<{ id: string; store: Store } | null>(
     null,
@@ -663,6 +688,29 @@ export function App() {
   const [publicPage, setPublicPage] = useState<PageDocument | null>(null),
     [publicError, setPublicError] = useState("");
   const [device, setDevice] = useState<Device>("desktop");
+  const slugPath = /^\/p\/([\w-]+)\/([a-z0-9-]+)\/?$/.exec(
+    window.location.pathname,
+  );
+  const publicPath = slugPath
+    ? `/public/stores/${slugPath[1]}/pages/${slugPath[2]}`
+    : null;
+  const experimentId = new URLSearchParams(window.location.search).get(
+      "experiment",
+    ),
+    funnelId = new URLSearchParams(window.location.search).get("funnel"),
+    funnelStage =
+      new URLSearchParams(window.location.search).get("stage") || "0";
+  const previewToken = new URLSearchParams(window.location.search).get(
+    "preview",
+  );
+  const [publicMeta, setPublicMeta] = useState<{
+    brand: Brand;
+    assets: Asset[];
+    storeId: string;
+    pageId: string;
+    catalog: import("./Commerce").Catalog;
+    previewToken?: string;
+  } | null>(null);
   const publishedId = new URLSearchParams(window.location.search).get(
     "published",
   );
@@ -676,11 +724,49 @@ export function App() {
     return () => clearTimeout(timer);
   }, [toast]);
   useEffect(() => {
-    if (publishedId) {
-      api<{ document: PageDocument }>(
-        `/public/pages/${encodeURIComponent(publishedId)}`,
+    if (publishedId || previewToken || experimentId || funnelId || publicPath) {
+      api<{
+        document: PageDocument;
+        brand: Brand;
+        assets: Asset[];
+        storeId: string;
+        pageId: string;
+        catalog: import("./Commerce").Catalog;
+        previewToken?: string;
+      }>(
+        publicPath
+          ? publicPath
+          : experimentId
+            ? `/public/experiments/${encodeURIComponent(experimentId)}`
+            : funnelId
+              ? `/public/funnels/${encodeURIComponent(funnelId)}/${encodeURIComponent(funnelStage)}`
+              : previewToken
+                ? `/public/previews/${encodeURIComponent(previewToken)}`
+                : `/public/pages/${encodeURIComponent(publishedId!)}`,
       )
-        .then((result) => setPublicPage(result.document))
+        .then((result) => {
+          setPublicPage(result.document);
+          setPublicMeta(result);
+          document.title = result.document.seo?.title || result.document.name;
+          const seo = result.document.seo;
+          for (const [name, content] of Object.entries({
+            description: seo?.description || "",
+            robots:
+              seo?.noindex || previewToken
+                ? "noindex,nofollow"
+                : "index,follow",
+          })) {
+            let m = document.querySelector<HTMLMetaElement>(
+              `meta[name="${name}"]`,
+            );
+            if (!m) {
+              m = document.createElement("meta");
+              m.name = name;
+              document.head.append(m);
+            }
+            m.content = content;
+          }
+        })
         .catch((error) => setPublicError(error.message));
       const change = () =>
         setDevice(
@@ -702,7 +788,15 @@ export function App() {
         setStatus(result);
       })
       .catch((error) => notify(error.message, true));
-  }, [notify, publishedId]);
+  }, [
+    notify,
+    publishedId,
+    previewToken,
+    experimentId,
+    funnelId,
+    funnelStage,
+    publicPath,
+  ]);
   async function logout() {
     try {
       await api("/auth/logout", { method: "POST", body: "{}" });
@@ -713,9 +807,12 @@ export function App() {
       notify((error as Error).message, true);
     }
   }
-  if (publishedId)
-    return publicPage ? (
-      <PageRenderer document={publicPage} device={device} />
+  if (publishedId || previewToken || experimentId || funnelId || publicPath)
+    return publicPage && publicMeta ? (
+      <StudioProvider page={publicPage} value={publicMeta}>
+        <PageRenderer document={publicPage} device={device} />
+        {previewToken && <PreviewReview token={previewToken} />}
+      </StudioProvider>
     ) : (
       <div className="loading-screen">{publicError || "Sayfa yükleniyor…"}</div>
     );
@@ -730,19 +827,33 @@ export function App() {
           configured={status.configured}
           onLogin={(csrf) => {
             setCsrf(csrf);
-            setStatus({ authenticated: true, configured: true });
+            api<{
+              authenticated: boolean;
+              configured: boolean;
+              role?: "owner" | "editor" | "viewer";
+            }>("/auth/status")
+              .then(setStatus)
+              .catch((e) => notify(e.message, true));
           }}
+        />
+      ) : editing && status.role === "viewer" ? (
+        <Viewer
+          pageId={editing.id}
+          store={editing.store}
+          back={() => setEditing(null)}
         />
       ) : editing ? (
         <Editor
           key={editing.id}
           pageId={editing.id}
           store={editing.store}
+          role={status.role === "editor" ? "editor" : "owner"}
           back={() => setEditing(null)}
           notify={notify}
         />
       ) : (
         <Dashboard
+          role={status.role || "owner"}
           openPage={(id, store) => setEditing({ id, store })}
           logout={() => void logout()}
           notify={notify}

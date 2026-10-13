@@ -6,6 +6,9 @@ import {
   type ReactNode,
 } from "react";
 import DOMPurify from "dompurify";
+import { CommerceBlock } from "./Commerce";
+import { AdvancedContent, performAction } from "./AdvancedContent";
+import { assetUrl, brandStyle, useStudio } from "./studio";
 import { Play, ShoppingBag } from "lucide-react";
 import {
   effectiveStyle,
@@ -96,28 +99,36 @@ export function BlockContent({
   node,
   children,
   editable = false,
+  device = "desktop",
   onHtml,
   onEdit,
 }: {
   node: Block;
   children?: ReactNode;
   editable?: boolean;
+  device?: Device;
   onHtml?: (html: string) => void;
   onEdit?: () => void;
 }) {
-  const p = node.props;
+  const studioContext = useStudio();
+  let p = node.props;
+  if (!editable && studioContext.language !== "tr")
+    try {
+      p = {
+        ...p,
+        ...JSON.parse(String(p.translations || "{}"))[studioContext.language],
+      };
+    } catch {}
+  const { previewToken, pageId, assets } = useStudio();
+  const [lightbox, setLightbox] = useState(false);
+  const [actionError, setActionError] = useState("");
   if (["section", "row", "column", "box"].includes(node.kind))
     return <>{children}</>;
   switch (node.kind) {
     case "heading":
     case "text": {
       const Tag = (node.kind === "heading" ? String(p.tag ?? "h2") : "div") as
-        | "h1"
-        | "h2"
-        | "h3"
-        | "h4"
-        | "p"
-        | "div";
+        "h1" | "h2" | "h3" | "h4" | "p" | "div";
       return editable ? (
         <EditableText tag={Tag} html={p.html} onHtml={onHtml} onEdit={onEdit} />
       ) : (
@@ -127,50 +138,134 @@ export function BlockContent({
         />
       );
     }
-    case "image":
-      return (
+    case "image": {
+      const src = assetUrl(
+        device === "mobile" && p.mobileSrc ? p.mobileSrc : p.src,
+        previewToken,
+      );
+      const image = (
         <img
           className="block-image"
-          src={String(p.src)}
+          src={src}
+          srcSet={assets
+            .find(
+              (a) =>
+                String(
+                  device === "mobile" && p.mobileSrc ? p.mobileSrc : p.src,
+                ).includes(a.id) && a.format !== "gif",
+            )
+            ?.variants?.map(
+              (v) => `${assetUrl(v.url, previewToken)} ${v.width}w`,
+            )
+            .join(",")}
+          sizes="(max-width:600px) 100vw, 50vw"
           alt={String(p.alt ?? "")}
+          loading="lazy"
+          style={{
+            objectFit: "inherit",
+            objectPosition: `${Number(p.focusX ?? 50)}% ${Number(p.focusY ?? 50)}%`,
+            aspectRatio: String(p.aspectRatio || "auto"),
+            transform: `rotate(${Number(p.rotation || 0)}deg) scale(${p.flipX ? -1 : 1},${p.flipY ? -1 : 1})`,
+          }}
           draggable={false}
+          onClick={
+            !editable && p.lightbox ? () => setLightbox(true) : undefined
+          }
           onError={(event) => {
             event.currentTarget.style.opacity = "0.35";
           }}
         />
       );
+      return (
+        <>
+          {p.href && !editable ? <a href={safeHref(p.href)}>{image}</a> : image}
+          {lightbox && (
+            <div
+              className="builder-modal"
+              role="dialog"
+              aria-label="Görseli büyüt"
+              onClick={() => setLightbox(false)}
+            >
+              <img src={src} alt={String(p.alt || "")} />
+              <button aria-label="Görseli kapat">×</button>
+            </div>
+          )}
+        </>
+      );
+    }
     case "button":
       return (
-        <a
-          className="block-button"
-          href={safeHref(p.href)}
-          target={p.targetBlank ? "_blank" : undefined}
-          rel={p.targetBlank ? "noopener noreferrer" : undefined}
-          onClick={editable ? (event) => event.preventDefault() : undefined}
-        >
-          {String(p.text)}
-        </a>
+        <>
+          <a
+            className="block-button"
+            href={safeHref(p.actionTarget || p.href)}
+            target={p.targetBlank ? "_blank" : undefined}
+            rel={p.targetBlank ? "noopener noreferrer" : undefined}
+            onClick={(event) => {
+              if (editable || (p.action && p.action !== "navigate")) {
+                event.preventDefault();
+                setActionError("");
+                void performAction(node, pageId, editable).catch(() =>
+                  setActionError(
+                    "Aksiyon tamamlanamadı. Tarayıcı izinlerini kontrol et.",
+                  ),
+                );
+              } else if (pageId && !studioContext.previewToken)
+                void fetch(`/api/public/pages/${pageId}/events`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  keepalive: true,
+                  body: JSON.stringify({ event: "click" }),
+                });
+            }}
+          >
+            {String(p.text)}
+          </a>
+          {actionError && <small role="alert">{actionError}</small>}
+        </>
       );
     case "input":
       return (
-        <input
-          className="block-input"
-          aria-label={String(p.placeholder || "Metin kutusu")}
-          type={
-            ["email", "text", "tel", "number"].includes(String(p.inputType))
-              ? String(p.inputType)
-              : "text"
-          }
-          placeholder={String(p.placeholder)}
-        />
+        <label className="builder-field">
+          {String(p.label || "")}
+          <input
+            className="block-input"
+            aria-label={String(p.placeholder || "Metin kutusu")}
+            type={
+              ["email", "text", "tel", "number"].includes(String(p.inputType))
+                ? String(p.inputType)
+                : "text"
+            }
+            placeholder={String(p.placeholder)}
+            name={String(p.fieldName || node.id)}
+            onInvalid={(e) => {
+              if (p.errorMessage)
+                e.currentTarget.setCustomValidity(String(p.errorMessage));
+            }}
+            onInput={(e) => e.currentTarget.setCustomValidity("")}
+            required={!!p.required}
+          />
+          <small>{String(p.helpText || "")}</small>
+        </label>
       );
     case "textarea":
       return (
-        <textarea
-          className="block-input"
-          aria-label={String(p.placeholder || "Metin alanı")}
-          placeholder={String(p.placeholder)}
-        />
+        <label className="builder-field">
+          {String(p.label || "")}
+          <textarea
+            className="block-input"
+            aria-label={String(p.placeholder || "Metin alanı")}
+            placeholder={String(p.placeholder)}
+            name={String(p.fieldName || node.id)}
+            onInvalid={(e) => {
+              if (p.errorMessage)
+                e.currentTarget.setCustomValidity(String(p.errorMessage));
+            }}
+            onInput={(e) => e.currentTarget.setCustomValidity("")}
+            required={!!p.required}
+          />
+          <small>{String(p.helpText || "")}</small>
+        </label>
       );
     case "divider":
       return <div className="block-divider" />;
@@ -202,6 +297,7 @@ export function BlockContent({
         </ul>
       );
     case "product":
+      if (p.productId) return <CommerceBlock node={node} editable={editable} />;
       return (
         <div className="product-content">
           <img src={String(p.src)} alt={String(p.title)} />
@@ -224,6 +320,12 @@ export function BlockContent({
           <p>{String(p.description)}</p>
         </details>
       );
+    default:
+      return (
+        <AdvancedContent node={node} editable={editable}>
+          {children}
+        </AdvancedContent>
+      );
   }
 }
 export function ReadOnlyBlock({
@@ -233,14 +335,39 @@ export function ReadOnlyBlock({
   node: Block;
   device: Device;
 }) {
+  const studio = useStudio();
   if (node.hidden[device]) return null;
+  let localized = node;
+  try {
+    localized = {
+      ...node,
+      props: {
+        ...node.props,
+        ...JSON.parse(String(node.props.translations || "{}"))[studio.language],
+      },
+    };
+  } catch {}
   return (
     <div
       className={`content-block animation-${String(node.props.animation ?? "none")}`}
-      id={String(node.props.cssId || "") || undefined}
-      style={effectiveStyle(node, device)}
+      id={
+        node.kind === "form"
+          ? undefined
+          : String(node.props.cssId || "") || undefined
+      }
+      data-block={node.id}
+      style={{
+        ...brandStyle(node, device),
+        ...effectiveStyle(node, device),
+        ...(node.props.backgroundSrc
+          ? {
+              backgroundImage: `linear-gradient(${String(node.props.backgroundOverlay || "#00000000")},${String(node.props.backgroundOverlay || "#00000000")}),url("${assetUrl(node.props.backgroundSrc, studio.previewToken)}")`,
+              backgroundSize: "cover",
+            }
+          : {}),
+      }}
     >
-      <BlockContent node={node}>
+      <BlockContent node={localized} device={device}>
         {node.children.map((child) => (
           <ReadOnlyBlock key={child.id} node={child} device={device} />
         ))}
@@ -255,11 +382,39 @@ export function PageRenderer({
   document: PageDocument;
   device: Device;
 }) {
+  const studio = useStudio();
+  useEffect(() => {
+    if (!studio.editable && !studio.previewToken && studio.pageId)
+      void fetch(`/api/public/pages/${studio.pageId}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: "view" }),
+      });
+  }, [studio.pageId, studio.editable, studio.previewToken]);
   return (
-    <div className="page-surface">
+    <div className="page-surface" data-device={device}>
+      {!!page.locales?.length && (
+        <label className="page-language">
+          Dil{" "}
+          <select
+            aria-label="Sayfa dili"
+            value={studio.language}
+            onChange={(e) => studio.setLanguage(e.target.value)}
+          >
+            {page.locales.map((l) => (
+              <option key={l}>{l}</option>
+            ))}
+          </select>
+        </label>
+      )}
       {page.nodes.map((node) => (
         <ReadOnlyBlock key={node.id} node={node} device={device} />
       ))}
+      {studio.nextStage && (
+        <a className="funnel-next" href={studio.nextStage}>
+          Sonraki adım →
+        </a>
+      )}
     </div>
   );
 }

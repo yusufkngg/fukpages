@@ -90,13 +90,14 @@ export function SectionLibrary({
   saved: SavedSection[];
   addPreset: (id: string) => void;
   addSaved: (section: Block) => void;
-  saveSelected: (name: string) => Promise<boolean>;
+  saveSelected: (name: string, synchronized?: boolean) => Promise<boolean>;
   selectedSection?: Block;
   removeSaved: (id: string) => Promise<void>;
 }) {
   const [tab, setTab] = useState("catalog"),
     [category, setCategory] = useState<SectionCategory>("all"),
     [search, setSearch] = useState("");
+  const [synchronized, setSynchronized] = useState(false);
   const [saveName, setSaveName] = useState(""),
     [naming, setNaming] = useState(false),
     [busy, setBusy] = useState(false);
@@ -170,6 +171,9 @@ export function SectionLibrary({
                     <span>
                       <b>{item.name}</b>
                       <small>
+                        {item.section.props.linkedSectionId
+                          ? "Senkron · "
+                          : "Bağımsız · "}
                         {item.section.children.length} alt öğe · tam
                         düzenlenebilir
                       </small>
@@ -203,7 +207,7 @@ export function SectionLibrary({
               event.preventDefault();
               setBusy(true);
               try {
-                if (await saveSelected(saveName)) {
+                if (await saveSelected(saveName, synchronized)) {
                   setNaming(false);
                   setTab("saved");
                 }
@@ -220,6 +224,15 @@ export function SectionLibrary({
               maxLength={100}
               required
             />
+            <label className="toggle-row">
+              <input
+                type="checkbox"
+                aria-label="Senkron bölüm olarak kaydet"
+                checked={synchronized}
+                onChange={(e) => setSynchronized(e.target.checked)}
+              />{" "}
+              Senkron bölüm
+            </label>
             <button type="submit" disabled={busy} title="Bölümü kaydet">
               <Check size={14} />
             </button>

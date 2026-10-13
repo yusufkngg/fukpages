@@ -3,9 +3,15 @@ import { DatabaseSync } from "node:sqlite";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import sanitizeHtml from "sanitize-html";
+import { createTeamService } from "./team.mjs";
 import { verifyPassword } from "./auth.mjs";
+import { registerSeo } from "./seo.mjs";
+import { registerGrowth } from "./growth.mjs";
+import { registerCatalog } from "./catalog.mjs";
+import { documentUses, registerStudio } from "./studio.mjs";
 import {
   createShopifyThemeService,
   normalizeShopDomain,
@@ -31,8 +37,45 @@ const kinds = new Set([
   "product",
   "countdown",
   "accordion",
+  "form",
+  "select",
+  "checkbox",
+  "radio",
+  "tabs",
+  "carousel",
+  "gallery",
+  "logos",
+  "rating",
+  "comparison",
+  "beforeAfter",
+  "coupon",
+  "shipping",
+  "popup",
+  "videoPopup",
+  "backToTop",
+  "breadcrumb",
+  "mobileMenu",
+  "blogList",
+  "customCode",
+  "appEmbed",
+  "productGallery",
+  "variantPicker",
+  "quantity",
+  "addToCart",
+  "stickyCart",
+  "collectionGrid",
+  "productField",
+  "bundle",
+  "sizeTable",
 ]);
-const containers = new Set(["section", "row", "column", "box"]);
+const containers = new Set([
+  "section",
+  "row",
+  "column",
+  "box",
+  "form",
+  "popup",
+]);
 const pageTypes = new Set([
   "landing",
   "home",
@@ -87,6 +130,17 @@ const styleKeys = new Set([
   "overflow",
   "objectFit",
   "gridTemplateColumns",
+  "order",
+  "flexBasis",
+  "flexGrow",
+  "aspectRatio",
+  "objectPosition",
+  "fontStyle",
+  "fontVariationSettings",
+  "textDecoration",
+  "transform",
+  "transition",
+  "cursor",
 ]);
 const cleanText = (value) => String(value ?? "").slice(0, 10000);
 const cleanRich = (value) =>
@@ -164,10 +218,83 @@ export function validateDocument(input) {
           "targetBlank",
           "sectionRole",
           "presetId",
+          "mobileSrc",
+          "backgroundSrc",
+          "backgroundOverlay",
+          "rotation",
+          "flipX",
+          "flipY",
+          "focusX",
+          "focusY",
+          "aspectRatio",
+          "lightbox",
+          "crop",
+          "action",
+          "actionTarget",
+          "productId",
+          "collectionId",
+          "field",
+          "metafield",
+          "label",
+          "fieldName",
+          "required",
+          "helpText",
+          "errorMessage",
+          "options",
+          "successMessage",
+          "redirect",
+          "destination",
+          "consent",
+          "code",
+          "caption",
+          "images",
+          "slides",
+          "columns",
+          "rows",
+          "rating",
+          "count",
+          "threshold",
+          "currency",
+          "popupId",
+          "trigger",
+          "couponCode",
+          "locked",
+          "group",
+          "globalStyle",
+          "globalDetached",
+          "linkedSectionId",
+          "buttonVariant",
+          "hoverStyles",
+          "focusStyles",
+          "linkedVersion",
+          "language",
+          "author",
+          "date",
+          "summary",
+          "sort",
+          "pageSize",
+          "showStock",
+          "quantity",
+          "fallbackFont",
+          "integration",
+          "translations",
+          "productIds",
+          "discountPercent",
+          "quantityOffers",
+          "variantMode",
+          "submitLabel",
+          "view",
+          "moving",
         ].includes(key)
       )
         continue;
-      props[key] = ["src", "href"].includes(key)
+      props[key] = [
+        "src",
+        "href",
+        "mobileSrc",
+        "backgroundSrc",
+        "redirect",
+      ].includes(key)
         ? safeUrl(value)
         : key === "html"
           ? cleanRich(value)
@@ -175,7 +302,77 @@ export function validateDocument(input) {
             ? value
             : cleanText(value);
     }
-    if (props.tag && !["h1", "h2", "h3", "h4", "p", "div"].includes(props.tag))
+    if (props.translations) {
+      let translated;
+      try {
+        translated = JSON.parse(props.translations);
+      } catch {
+        throw new Error("Geçersiz çeviri JSON’u.");
+      }
+      if (
+        !translated ||
+        Array.isArray(translated) ||
+        typeof translated !== "object" ||
+        Object.keys(translated).length > 12
+      )
+        throw new Error("Geçersiz çeviri listesi.");
+      const sanitized = {};
+      for (const [locale, fields] of Object.entries(translated)) {
+        if (
+          !/^[a-z]{2}(-[A-Z]{2})?$/.test(locale) ||
+          !fields ||
+          typeof fields !== "object" ||
+          Array.isArray(fields)
+        )
+          throw new Error("Geçersiz çeviri dili.");
+        sanitized[locale] = {};
+        for (const [key, value] of Object.entries(fields))
+          if (
+            [
+              "html",
+              "text",
+              "title",
+              "description",
+              "alt",
+              "placeholder",
+              "label",
+              "helpText",
+              "items",
+              "options",
+              "columns",
+              "rows",
+              "successMessage",
+              "errorMessage",
+              "submitLabel",
+            ].includes(key)
+          )
+            sanitized[locale][key] =
+              key === "html" ? cleanRich(value) : cleanText(value);
+      }
+      props.translations = JSON.stringify(sanitized);
+    }
+    for (const key of ["hoverStyles", "focusStyles"])
+      if (props[key]) {
+        let state;
+        try {
+          state = JSON.parse(props[key]);
+        } catch {
+          throw new Error("Geçersiz durum stili.");
+        }
+        for (const [k, v] of Object.entries(state))
+          if (
+            !styleKeys.has(k) ||
+            typeof v !== "string" ||
+            v.length > 240 ||
+            /[;{}]|url\s*\(|expression|@import/i.test(v)
+          )
+            throw new Error("Geçersiz durum stili.");
+        props[key] = JSON.stringify(state);
+      }
+    if (
+      props.tag &&
+      !["h1", "h2", "h3", "h4", "h5", "h6", "p", "div"].includes(props.tag)
+    )
       props.tag = "h2";
     return {
       id: node.id,
@@ -214,6 +411,29 @@ export function validateDocument(input) {
       useShell: input.themeLayout.useShell,
     };
   }
+  if (input.locales) {
+    if (
+      !Array.isArray(input.locales) ||
+      input.locales.length > 12 ||
+      input.locales.some((l) => !/^[a-z]{2}(-[A-Z]{2})?$/.test(l))
+    )
+      throw new Error("Geçersiz dil listesi.");
+    result.locales = [...new Set(input.locales)];
+    result.defaultLocale = result.locales.includes(input.defaultLocale)
+      ? input.defaultLocale
+      : result.locales[0];
+  }
+  if (input.seo)
+    result.seo = {
+      slug: cleanText(input.seo.slug)
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, "")
+        .slice(0, 100),
+      title: cleanText(input.seo.title).slice(0, 160),
+      description: cleanText(input.seo.description).slice(0, 320),
+      image: safeUrl(input.seo.image),
+      noindex: input.seo.noindex === true,
+    };
   return result;
 }
 
@@ -222,8 +442,16 @@ export function createApp({
   ownerHash = process.env.OWNER_PASSWORD_HASH,
   ownerLogin = process.env.OWNER_LOGIN ?? "owner",
   shopify = createShopifyThemeService(),
+  ai,
+  webhookFetch,
 } = {}) {
   mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+  const fontCacheRoot = resolve(tmpdir(), "fukpages-font-cache");
+  mkdirSync(resolve(fontCacheRoot, "fontconfig"), {
+    recursive: true,
+    mode: 0o700,
+  });
+  process.env.XDG_CACHE_HOME ??= fontCacheRoot;
   if (!ownerHash && existsSync(resolve(dataDir, "owner.hash")))
     ownerHash = readFileSync(resolve(dataDir, "owner.hash"), "utf8").trim();
   const db = new DatabaseSync(resolve(dataDir, "fukpages.sqlite"));
@@ -240,6 +468,7 @@ export function createApp({
       "INSERT INTO stores (id,name,client,domain,created) VALUES (?,?,?,?,?)",
     ).run("demo", "Aura Studio", "Demo çalışma alanı", "", Date.now());
   }
+  const team = createTeamService(db, ownerLogin);
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "1mb" }));
@@ -258,10 +487,14 @@ export function createApp({
       const session = db
         .prepare("SELECT * FROM sessions WHERE token=? AND expires>?")
         .get(digest, Date.now());
-      if (session) req.ownerSession = session;
+      if (session) {
+        req.access = team.access(session);
+        if (req.access) req.ownerSession = session;
+      }
     }
     next();
   });
+  app.use((req, res, next) => team.guard(req, res, next));
   const attempts = new Map();
   const auth = (req, res, next) =>
     req.ownerSession
@@ -292,6 +525,7 @@ export function createApp({
       configured: !!ownerHash,
       authenticated: !!req.ownerSession,
       csrf: req.ownerSession?.csrf,
+      role: req.access?.role,
     }),
   );
   app.post("/api/auth/login", (req, res) => {
@@ -323,11 +557,16 @@ export function createApp({
         .status(429)
         .json({ error: "Çok fazla deneme. 15 dakika sonra tekrar deneyin." });
     const password = req.body?.password;
+    const member =
+      typeof password === "string" && password.length <= 1024
+        ? team.match(req.body?.login, password)
+        : null;
     if (
       typeof password !== "string" ||
       password.length > 1024 ||
-      req.body?.login !== ownerLogin ||
-      !verifyPassword(password, ownerHash)
+      (!member &&
+        (req.body?.login !== ownerLogin ||
+          !verifyPassword(password, ownerHash)))
     ) {
       entry.count++;
       attempts.set(key, entry);
@@ -345,8 +584,13 @@ export function createApp({
       csrfToken,
       Date.now() + 8 * 3600_000,
     );
+    if (member) team.bind(digest, member);
     res.setHeader("Set-Cookie", cookie(token, 8 * 3600));
-    res.json({ authenticated: true, csrf: csrfToken });
+    res.json({
+      authenticated: true,
+      csrf: csrfToken,
+      role: member?.role || "owner",
+    });
   });
   app.post("/api/auth/logout", auth, csrf, (req, res) => {
     db.prepare("DELETE FROM sessions WHERE token=?").run(
@@ -355,11 +599,17 @@ export function createApp({
     res.setHeader("Set-Cookie", cookie("", 0));
     res.json({ ok: true });
   });
-  app.get("/api/stores", auth, (_req, res) =>
+  team.register({ app, auth, csrf });
+  app.get("/api/stores", auth, (req, res) =>
     res.json(
       db
         .prepare("SELECT * FROM stores ORDER BY created")
         .all()
+        .filter(
+          (s) =>
+            req.access?.role === "owner" ||
+            (req.access?.stores.includes(s.id) && s.status === "active"),
+        )
         .map((store) => ({
           ...store,
           connection: db
@@ -410,10 +660,17 @@ export function createApp({
         req.body.status,
         req.params.id,
       );
-      if (req.body.status === "suspended")
+      if (req.body.status === "suspended") {
         db.prepare(
           "UPDATE publications SET active=0 WHERE page_id IN (SELECT id FROM pages WHERE store_id=?)",
         ).run(req.params.id);
+        db.prepare(
+          "UPDATE schedules SET status='cancelled' WHERE page_id IN (SELECT id FROM pages WHERE store_id=?)",
+        ).run(req.params.id);
+        db.prepare(
+          "UPDATE webhook_jobs SET state='cancelled' WHERE submission_id IN (SELECT id FROM form_submissions WHERE store_id=?) AND state='pending'",
+        ).run(req.params.id);
+      }
       audit(
         req.params.id,
         req.body.status === "suspended"
@@ -499,6 +756,27 @@ export function createApp({
       )
     );
   };
+  const commerce = registerCatalog({ app, db, auth, csrf, activeStore });
+  const studio = registerStudio({
+    app,
+    db,
+    auth,
+    csrf,
+    activeStore,
+    dataDir,
+    validateDocument,
+    catalog: commerce.catalog,
+  });
+  const validAssetBinding = (document, storeId) => {
+    const refs = [
+      ...JSON.stringify(document).matchAll(/\/api\/assets\/([a-f0-9]{32})\//g),
+    ].map((m) => m[1]);
+    return refs.every((id) =>
+      db
+        .prepare("SELECT id FROM assets WHERE id=? AND store_id=?")
+        .get(id, storeId),
+    );
+  };
   app.patch("/api/stores/:id/shopify", auth, csrf, (req, res) => {
     if (!activeStore(req.params.id, res)) return;
     let domain;
@@ -549,12 +827,10 @@ export function createApp({
       const current = activeStore(store.id, res);
       if (!current) return;
       if (current.domain !== store.domain)
-        return res
-          .status(409)
-          .json({
-            error:
-              "Mağaza adresi değişti. Senkronizasyonu yeni adresle tekrar başlatın.",
-          });
+        return res.status(409).json({
+          error:
+            "Mağaza adresi değişti. Senkronizasyonu yeni adresle tekrar başlatın.",
+        });
       db.prepare(
         "INSERT INTO theme_snapshots (id,store_id,domain,template,snapshot,created) VALUES (?,?,?,?,?,?)",
       ).run(
@@ -582,7 +858,14 @@ export function createApp({
           "SELECT id,name,section,created FROM saved_sections WHERE store_id=? ORDER BY created DESC",
         )
         .all(req.params.id)
-        .map((row) => ({ ...row, section: JSON.parse(row.section) })),
+        .map((row) => ({
+          ...row,
+          section: JSON.parse(row.section),
+          linkedVersion:
+            db
+              .prepare("SELECT version FROM synced_sections WHERE id=?")
+              .get(row.id)?.version || 0,
+        })),
     );
   });
   app.post("/api/stores/:id/sections", auth, csrf, (req, res) => {
@@ -604,6 +887,14 @@ export function createApp({
       section.name = name;
       const id = randomBytes(12).toString("hex");
       const created = Date.now();
+      if (req.body.synchronized === true) {
+        section.props.linkedSectionId = id;
+        section.props.linkedVersion = "1";
+        db.prepare("INSERT INTO synced_sections VALUES(?,?,1)").run(
+          id,
+          req.params.id,
+        );
+      }
       db.prepare("INSERT INTO saved_sections VALUES (?,?,?,?,?)").run(
         id,
         req.params.id,
@@ -631,6 +922,10 @@ export function createApp({
     let document;
     try {
       document = validateDocument(req.body.document);
+      if (!validAssetBinding(document, req.params.id))
+        throw new Error(
+          "Medya bu mağazaya ait değil. Mağazalar arası aktarımda medyayı eşleştir.",
+        );
       if (!validThemeBinding(document, req.params.id))
         throw new Error(
           "Tema bağlantısı bu mağazaya ait değil veya güncel değil.",
@@ -643,6 +938,10 @@ export function createApp({
       "INSERT INTO pages (id,store_id,document,updated) VALUES (?,?,?,?)",
     ).run(id, req.params.id, JSON.stringify(document), Date.now());
     audit(req.params.id, `Taslak oluşturuldu: ${document.name}`);
+    studio.recordRevision(
+      { id, version: 1, document: JSON.stringify(document) },
+      "Oluşturuldu",
+    );
     res.status(201).json({ id, document, version: 1 });
   });
   app.get("/api/pages/:id", auth, (req, res) => {
@@ -679,6 +978,10 @@ export function createApp({
     let document;
     try {
       document = validateDocument(req.body.document);
+      if (!validAssetBinding(document, page.store_id))
+        throw new Error(
+          "Medya bu mağazaya ait değil. Mağazalar arası aktarımda medyayı eşleştir.",
+        );
       if (!validThemeBinding(document, page.store_id))
         throw new Error(
           "Tema bağlantısı bu mağazaya ait değil veya güncel değil.",
@@ -686,6 +989,7 @@ export function createApp({
     } catch (error) {
       return res.status(400).json({ error: error.message });
     }
+    studio.recordRevision(page);
     db.prepare(
       "UPDATE pages SET document=?,version=version+1,updated=? WHERE id=? AND version=?",
     ).run(JSON.stringify(document), Date.now(), page.id, page.version);
@@ -697,23 +1001,76 @@ export function createApp({
       .get(req.params.id);
     if (!page) return res.status(404).json({ error: "Sayfa bulunamadı." });
     if (!activeStore(page.store_id, res)) return;
+    const publishingDoc = JSON.parse(page.document),
+      slug = publishingDoc.seo?.slug;
+    if (
+      slug &&
+      db
+        .prepare(
+          "SELECT p.id FROM publications u JOIN pages p ON p.id=u.page_id WHERE p.store_id=? AND p.id<>? AND u.active=1 AND json_extract(u.document,'$.seo.slug')=?",
+        )
+        .get(page.store_id, page.id, slug)
+    )
+      return res
+        .status(409)
+        .json({ error: "Bu kısa adres başka bir yayında kullanılıyor." });
     db.prepare(
       "INSERT INTO publications (page_id,document,published) VALUES (?,?,?) ON CONFLICT(page_id) DO UPDATE SET document=excluded.document, active=1, published=excluded.published",
     ).run(page.id, page.document, Date.now());
     audit(page.store_id, "Yerel önizlemeye yayınlandı");
+    studio.recordPublication(page);
     res.json({ published: true, mode: "local" });
   });
   app.get("/api/public/pages/:id", (req, res) => {
+    studio.runSchedules();
     const page = db
       .prepare(
-        "SELECT publications.document FROM publications JOIN pages ON pages.id=publications.page_id JOIN stores ON stores.id=pages.store_id WHERE publications.page_id=? AND publications.active=1 AND stores.status='active'",
+        "SELECT publications.document,pages.store_id FROM publications JOIN pages ON pages.id=publications.page_id JOIN stores ON stores.id=pages.store_id WHERE publications.page_id=? AND publications.active=1 AND stores.status='active'",
       )
       .get(req.params.id);
     if (!page)
       return res.status(404).json({ error: "Bu sayfa yayında değil." });
-    res.json({ document: JSON.parse(page.document) });
+    const document = JSON.parse(page.document);
+    res.json({
+      document,
+      catalog: commerce.catalog(page.store_id),
+      formDestination: studio.destination(),
+      storeId: page.store_id,
+      pageId: req.params.id,
+      brand: studio.brand(page.store_id),
+      assets: studio
+        .assets(page.store_id, true)
+        .filter(
+          (a) =>
+            documentUses(document, a) ||
+            (a.type === "font" &&
+              JSON.stringify(studio.brand(page.store_id).fonts).includes(
+                a.family,
+              )),
+        ),
+    });
+  });
+  const growth = registerGrowth({
+    app,
+    db,
+    auth,
+    csrf,
+    activeStore,
+    validateDocument,
+    studio,
+    commerce,
+    dataDir,
+    ai,
+    webhookFetch,
   });
   const dist = resolve("dist");
+  registerSeo({
+    app,
+    db,
+    studio,
+    commerce,
+    dist: existsSync(dist) ? dist : null,
+  });
   if (existsSync(dist)) {
     app.use(express.static(dist));
     app.get("/{*splat}", (req, res) =>
@@ -724,19 +1081,38 @@ export function createApp({
   }
   app.use((error, _req, res, _next) => {
     res
-      .status(error.status === 413 ? 413 : error.status === 400 ? 400 : 500)
+      .status(
+        error.code?.startsWith("LIMIT_")
+          ? 400
+          : error.status === 413
+            ? 413
+            : error.status === 400
+              ? 400
+              : 500,
+      )
       .json({
         error:
-          error.status === 413 ? "Sayfa çok büyük." : "İşlem tamamlanamadı.",
+          error.code === "LIMIT_FILE_SIZE"
+            ? "Dosya 20 MB sınırını aşıyor."
+            : error.code === "LIMIT_FILE_COUNT" ||
+                error.code === "LIMIT_UNEXPECTED_FILE"
+              ? "Tek yüklemede en fazla 20 dosya seç."
+              : error.status === 413
+                ? "Sayfa çok büyük."
+                : "İşlem tamamlanamadı.",
       });
   });
-  return { app, db };
+  return { app, db, studio, growth };
 }
 if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(resolve(process.argv[1])).href
 ) {
-  const { app } = createApp();
+  const { app, studio, growth } = createApp();
+  setInterval(() => {
+    studio.runSchedules();
+    void growth.runWebhookJobs();
+  }, 15000).unref();
   app.listen(Number(process.env.PORT ?? 3001), "0.0.0.0", () =>
     console.log(
       "FukPages sunucusu hazır. Tema senkronizasyonu mağaza erişimiyle etkinleşir.",

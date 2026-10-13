@@ -1,4 +1,11 @@
-# FukPages — ürün ve geliştirme planı
+# FukPages 0.2 kapsam durumu
+
+Güncel özellik/kanıt tablosu [docs/FEATURE_AUDIT.md](docs/FEATURE_AUDIT.md) içindedir.
+Kullanıcının son kapsam kararı: Shopify bağlantısı bu aşamada yapılmayacak; AI/CRM sağlayıcısı henüz seçilmedi.
+Medya/font/marka, 49 öğe, 30 bölüm ailesi/60 düzen, yerel katalog/form/SEO/yayın geçmişi, A/B/huni, çeviri, isteğe bağlı hesap ve aktarım uygulandı.
+Aşağıdaki Shopify kabul koşulları sonraki bağlantı aşamasına aittir; tamamlandığı iddia edilmez.
+
+## Ürün ve sonraki bağlantı planı
 
 ## Amaç ve kabul edilen kapsam
 
@@ -6,8 +13,9 @@ Kullanıcının kendi Shopify mağazalarını ve hizmet verdiği müşterilerin
 mağazalarını tek bir şifre korumalı panelden yönetmesini sağlayacak, GemPages
 ile özellik eşdeğerliğini hedefleyen bir sayfa oluşturucu geliştirmek.
 
-- Uygulamanın tek kullanıcısı: uygulamanın sahibi. Müşterilerin mağazaları
-  bağlanabilir; müşterilere editör veya ana panel hesabı açılmayacak.
+- Başlangıçta tek kullanıcı uygulamanın sahibidir. Dosyadaki ajans rolü için
+  isteğe bağlı mağaza bazlı editor/viewer desteği vardır; owner hesap
+  oluşturmadıkça ek kullanıcı yoktur. Ana yönetim yetkisi owner’da kalır.
 - Sayfa kapsamı: tüm sayfa türleri; aşağıdaki Shopify sınırlamaları ayrıca geçerli.
 - İlk ürün: bağımsız, şifre korumalı ana yönetim paneli; mağaza başına Shopify
   uygulama bağlantısı; mağaza temasında çalışan yayınlama katmanı. Shopify
@@ -16,7 +24,7 @@ ile özellik eşdeğerliğini hedefleyen bir sayfa oluşturucu geliştirmek.
 - Depo: `/workspace/fukpages`; yerel geliştirme sürümü uygulanmıştır.
 - Şifre korumalı owner paneli, müşteri/mağaza çalışma alanları, ayrıntılı blok
   editörü, cihaz stilleri, taslak kaydı ve yerel yayın kaldırma geliştirilmiştir.
-  11 hazır bölüm, bölüm kaydı/kopyalama ve Shopify tema bölüm sırasını okuyan
+  60 hazır bölüm düzeni, bağımsız/senkron bölüm kaydı ve Shopify tema sırasını okuyan
   bağlantı altyapısı eklendi. Canlı mağaza erişimi, gerçek tema HTML/CSS
   önizlemesi/yayınlama ve doğrulanmış GemPages özellik eşdeğerliği henüz
   mevcut değildir. Kullanım: `README.md`.

@@ -8,12 +8,7 @@ import {
 } from "./model";
 
 export type SectionCategory =
-  | "all"
-  | "hero"
-  | "commerce"
-  | "content"
-  | "conversion"
-  | "layout";
+  "all" | "hero" | "commerce" | "content" | "conversion" | "layout";
 export const sectionCategories: [SectionCategory, string][] = [
   ["all", "Tümü"],
   ["hero", "Hero"],
@@ -214,7 +209,7 @@ export const sectionPresets: SectionPreset[] = [
     id: "newsletter",
     name: "E-posta kayıt alanı",
     category: "conversion",
-    description: "Başlık, form alanı ve düğme. Form servisi ayrıca bağlanır.",
+    description: "E-posta formu, pazarlama izni ve kalıcı gönderim kayıtları.",
     accent: "#dceabf",
     create: () =>
       section(
@@ -222,14 +217,21 @@ export const sectionPresets: SectionPreset[] = [
         [
           title("Güzel şeylerden ilk sen haberdar ol."),
           text(
-            "Form görünümü hazır; gönderim için e-posta hizmeti bağlantısı gerekir.",
+            "E-posta kaydı uygulamada tutulur; dış hizmet bağlantısı isteğe bağlıdır.",
           ),
-          block("row", {}, { maxWidth: "620px", gap: "10px" }, [
+          block("form", {}, { maxWidth: "620px", gap: "10px" }, [
             block("input", {
               placeholder: "E-posta adresin",
               inputType: "email",
+              fieldName: "email",
+              required: true,
             }),
-            button("Haberdar ol →"),
+            block("checkbox", {
+              label: "Pazarlama e-postalarına izin veriyorum",
+              fieldName: "marketingConsent",
+              consent: true,
+              required: true,
+            }),
           ]),
         ],
         "#eaf0da",
@@ -299,11 +301,350 @@ export const sectionPresets: SectionPreset[] = [
     },
   },
 ];
+const extendedFamilies: {
+  id: string;
+  name: string;
+  category: SectionCategory;
+  kind: Block["kind"];
+}[] = [
+  {
+    id: "purchase",
+    name: "Ürün satın alma",
+    category: "commerce",
+    kind: "productGallery",
+  },
+  { id: "steps", name: "Kullanım adımları", category: "content", kind: "list" },
+  {
+    id: "compare",
+    name: "Ürün karşılaştırma",
+    category: "commerce",
+    kind: "comparison",
+  },
+  {
+    id: "before-after",
+    name: "Önce ve sonra",
+    category: "content",
+    kind: "beforeAfter",
+  },
+  { id: "ugc", name: "UGC / video", category: "content", kind: "videoPopup" },
+  {
+    id: "bundle-offer",
+    name: "Paket teklif",
+    category: "commerce",
+    kind: "bundle",
+  },
+  {
+    id: "specifications",
+    name: "Teknik özellikler",
+    category: "content",
+    kind: "comparison",
+  },
+  {
+    id: "size-guide",
+    name: "Beden tablosu",
+    category: "content",
+    kind: "sizeTable",
+  },
+  {
+    id: "delivery-returns",
+    name: "Teslimat ve iade",
+    category: "content",
+    kind: "shipping",
+  },
+  {
+    id: "brand-logos",
+    name: "Marka logoları",
+    category: "content",
+    kind: "logos",
+  },
+  {
+    id: "related-products",
+    name: "İlgili ürünler",
+    category: "commerce",
+    kind: "collectionGrid",
+  },
+  {
+    id: "email-popup",
+    name: "E-posta popup",
+    category: "conversion",
+    kind: "popup",
+  },
+  {
+    id: "sticky-purchase",
+    name: "Sticky satın alma",
+    category: "commerce",
+    kind: "stickyCart",
+  },
+  {
+    id: "blog-selection",
+    name: "Blog seçkisi",
+    category: "content",
+    kind: "blogList",
+  },
+  {
+    id: "faq-split",
+    name: "İki kolonlu SSS",
+    category: "content",
+    kind: "accordion",
+  },
+  {
+    id: "contact-form",
+    name: "İletişim formu",
+    category: "conversion",
+    kind: "form",
+  },
+  {
+    id: "trust-band",
+    name: "Güven bandı",
+    category: "conversion",
+    kind: "list",
+  },
+  {
+    id: "collection-heading",
+    name: "Koleksiyon başlığı",
+    category: "commerce",
+    kind: "text",
+  },
+  {
+    id: "product-details",
+    name: "Ürün ayrıntı sekmeleri",
+    category: "commerce",
+    kind: "tabs",
+  },
+];
+for (const family of extendedFamilies)
+  sectionPresets.push({
+    id: family.id,
+    name: family.name,
+    category: family.category,
+    description: "Marka stillerine bağlı, mobil uyumlu ve düzenlenebilir.",
+    accent: "#e2e9d5",
+    create: () => {
+      const component = block(family.kind);
+      if (family.kind === "form") {
+        component.children = [
+          block("input", {
+            inputType: "email",
+            label: "E-posta",
+            fieldName: "email",
+            placeholder: "E-posta adresin",
+            required: true,
+          }),
+          block("textarea", {
+            label: "Mesaj",
+            fieldName: "message",
+            placeholder: "Mesajın",
+            required: true,
+          }),
+          block("checkbox", {
+            label: "İletişim için izin veriyorum",
+            fieldName: "consent",
+            consent: true,
+            required: true,
+          }),
+        ];
+      }
+      if (family.kind === "popup") {
+        component.props.trigger = "button";
+        component.props.text = "Bültene katıl";
+        component.children = [
+          block("heading", { html: "Haberlerden ilk sen haberdar ol." }),
+          block("form", {}, {}, [
+            block("input", {
+              inputType: "email",
+              fieldName: "email",
+              placeholder: "E-posta",
+              required: true,
+            }),
+            block("checkbox", {
+              label: "Pazarlama e-postalarına izin veriyorum",
+              fieldName: "marketingConsent",
+              consent: true,
+              required: true,
+            }),
+          ]),
+        ];
+      }
+      if (family.id === "steps")
+        component.props.items =
+          "1. Ürünü hazırla\n2. Kullanımını kişiselleştir\n3. Sonucun keyfini çıkar";
+      if (family.kind === "tabs")
+        component.props.items =
+          "Özellikler|Ürün özelliklerini ekle.\nKullanım|Kullanım açıklamasını ekle.\nTeslimat|Teslimat bilgilerini ekle.";
+      if (family.id === "email-popup")
+        component.children.unshift(block("image"));
+      const content =
+        family.id === "purchase"
+          ? [
+              block("row", {}, { alignItems: "center" }, [
+                block("column", {}, {}, [component]),
+                block("column", {}, {}, [
+                  block("productField", { field: "title" }),
+                  block("productField", { field: "price" }),
+                  block("variantPicker"),
+                  block("quantity"),
+                  block("addToCart"),
+                ]),
+              ]),
+            ]
+          : [component];
+      return section(family.name, [title(family.name), ...content]);
+    },
+  });
+const basePresets = [...sectionPresets];
+for (const base of basePresets)
+  sectionPresets.push({
+    ...base,
+    id: base.id + "-alternate",
+    name: base.name + " · Alternatif",
+    description:
+      "Alternatif yerleşim: kompakt, ters kolon veya ortalanmış içerik.",
+    create: () => {
+      const node = base.create();
+      if (base.id === "ugc")
+        node.children = [
+          title("UGC / Video grid"),
+          block("row", {}, {}, [
+            block("video"),
+            block("video"),
+            block("video"),
+          ]),
+        ];
+      if (base.id === "steps")
+        node.children = [
+          title("Görselli kullanım adımları"),
+          block(
+            "row",
+            {},
+            {},
+            [1, 2, 3].map((n) =>
+              block("column", {}, {}, [
+                block("image"),
+                title(`${n}. Adım`, "22px"),
+                text("Adım açıklamasını düzenle."),
+              ]),
+            ),
+          ),
+        ];
+      if (base.id === "specifications")
+        node.children = [
+          title("Teknik özellikler"),
+          block("row", {}, {}, [
+            card("Malzeme", "Malzeme bilgisini düzenle.", "✦"),
+            card("Boyut", "Ölçü bilgisini düzenle.", "↔"),
+            card("Garanti", "Garanti bilgisini düzenle.", "✓"),
+          ]),
+        ];
+      if (base.id === "size-guide")
+        node.children = [
+          title("Beden rehberi"),
+          block(
+            "popup",
+            { trigger: "button", text: "Beden tablosunu aç" },
+            {},
+            [block("sizeTable")],
+          ),
+        ];
+      if (base.id === "delivery-returns")
+        node.children = [
+          block("row", {}, {}, [
+            card("Teslimat", "Teslimat koşullarını ekle.", "→"),
+            card("İade", "İade koşullarını ekle.", "↩"),
+          ]),
+        ];
+      if (base.id === "email-popup") {
+        const popup = node.children.find((n) => n.kind === "popup");
+        if (popup)
+          popup.children = popup.children.filter((n) => n.kind !== "image");
+      }
+      const variantContent = (nodes: Block[]) =>
+        nodes.forEach((n) => {
+          if (n.kind === "logos") n.props.moving = true;
+          if (n.kind === "collectionGrid") n.props.view = "carousel";
+          if (n.kind === "blogList") n.props.view = "editorial";
+          variantContent(n.children);
+        });
+      variantContent(node.children);
+      node.styles.desktop.paddingTop = "32px";
+      node.styles.desktop.paddingBottom = "32px";
+      node.styles.desktop.alignItems = "center";
+      node.styles.desktop.textAlign = "center";
+      const walk = (nodes: Block[]) =>
+        nodes.forEach((n) => {
+          if (n.kind === "row") n.styles.desktop.flexDirection = "row-reverse";
+          if (n.kind === "gallery" || n.kind === "collectionGrid")
+            n.styles.desktop.display = "grid";
+          walk(n.children);
+        });
+      walk(node.children);
+      node.name = base.name + " · Alternatif";
+      return node;
+    },
+  });
+const omitted = sectionPresets.findIndex(
+  (p) => p.id === "collection-heading-alternate",
+);
+if (omitted >= 0) sectionPresets.splice(omitted, 1);
+sectionPresets.push({
+  id: "purchase-compact",
+  name: "Ürün satın alma · Kompakt",
+  category: "commerce",
+  description: "Galeri, varyant ve satın alma alanı; kompakt düzen.",
+  accent: "#e2e9d5",
+  create: () => {
+    const node = sectionPresets.find((p) => p.id === "purchase")!.create();
+    node.styles.desktop.paddingTop = "24px";
+    node.styles.desktop.paddingBottom = "24px";
+    node.children.forEach((n) => {
+      if (n.kind === "row") n.styles.desktop.flexDirection = "column";
+    });
+    node.name = "Ürün satın alma · Kompakt";
+    return node;
+  },
+});
+function applyPresetBrand(node: Block) {
+  node.props.globalStyle = "auto";
+  if (node.kind === "section") {
+    node.styles.desktop.paddingTop = "var(--brand-section-space)";
+    node.styles.desktop.paddingBottom = "var(--brand-section-space)";
+  }
+  if (node.kind === "box") {
+    node.styles.desktop.borderRadius = "var(--brand-radius)";
+    node.styles.desktop.boxShadow = "var(--brand-shadow)";
+  }
+  for (const key of ["color", "backgroundColor", "borderColor"]) {
+    if (node.styles.desktop[key])
+      node.styles.desktop[key] =
+        key === "color"
+          ? "var(--brand-text)"
+          : key === "borderColor"
+            ? "var(--brand-border)"
+            : "var(--brand-background)";
+  }
+  if (node.kind === "heading") {
+    node.styles.desktop.fontFamily = "var(--font-heading)";
+    node.styles.desktop.fontWeight = `var(--type-${node.props.tag || "h2"}Weight)`;
+    node.styles.desktop.lineHeight = "var(--heading-line-height)";
+    node.styles.desktop.fontSize = `var(--type-${node.props.tag || "h2"})`;
+    node.styles.tablet.fontSize = `var(--type-${node.props.tag || "h2"})`;
+    node.styles.mobile.fontSize = `var(--type-${node.props.tag || "h2"})`;
+  }
+  if (node.kind === "text") node.styles.desktop.fontFamily = "var(--font-body)";
+  if (node.kind === "button") {
+    node.styles.desktop.fontFamily = "var(--font-button)";
+    node.styles.desktop.backgroundColor = "var(--brand-primary)";
+    node.styles.desktop.color = "var(--brand-background)";
+    node.styles.desktop.borderRadius = "var(--brand-radius)";
+  }
+  node.children.forEach(applyPresetBrand);
+}
+
 export function createSectionPreset(id: string): Block | undefined {
   const preset = sectionPresets.find((item) => item.id === id);
   if (!preset) return;
   const node = preset.create();
   node.props.presetId = preset.id;
+  applyPresetBrand(node);
   return node;
 }
 export function enclosingSection(page: PageDocument, id: string | null) {

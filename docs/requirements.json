@@ -1,0 +1,1087 @@
+[
+  {
+    "id": "F001",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Bilgisayardan yükleme · Dosya seçerek veya sürükleyerek",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/MediaPanel.tsx; src/Renderer.tsx; tests/studio.test.mjs; tests/browser_studio.py"
+  },
+  {
+    "id": "F002",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Çoklu yükleme · Birden fazla görseli birlikte yükleme",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/MediaPanel.tsx; src/Renderer.tsx; tests/studio.test.mjs; tests/browser_studio.py"
+  },
+  {
+    "id": "F003",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Tuvale görsel bırakma · Boş alana bırakınca görsel öğesi oluşturma",
+    "status": "implemented_reviewed",
+    "evidence": "Boş tuvale native dosya bırakma kodu var; yükleme API ve ekleme akışı çalışır, OS dosya sürükleme senaryosu ayrıca test edilmedi."
+  },
+  {
+    "id": "F004",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Görsel değiştirme · Mevcut görselin stilini koruyarak değiştirme",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/MediaPanel.tsx; src/Renderer.tsx; tests/studio.test.mjs; tests/browser_studio.py"
+  },
+  {
+    "id": "F005",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Panodan yapıştırma · Kopyalanmış ekran görüntüsünü/görseli ekleme",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/MediaPanel.tsx; src/Renderer.tsx; tests/studio.test.mjs; tests/browser_studio.py"
+  },
+  {
+    "id": "F006",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "URL’den içe aktarma · Görseli kalıcı dosya olarak kaydetme",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/MediaPanel.tsx; src/Renderer.tsx; tests/studio.test.mjs; tests/browser_studio.py"
+  },
+  {
+    "id": "F007",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Shopify medyası · Bağlantı kurulduğunda mağazanın görsellerinden seçme",
+    "status": "deferred_shopify",
+    "evidence": "Kullanıcı 13 Ekim 2026: “şuanlık shopify bağlamadan yapacağız”. Canlı mağaza, gerçek tema HTML/Liquid, şablon atama, gerçek sepet/ödeme ve uzaktan yayın bu aşamada yapılmadı."
+  },
+  {
+    "id": "F008",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Kütüphane yönetimi · Arama, klasör/etiket, favori, yeniden adlandırma",
+    "status": "implemented_reviewed",
+    "evidence": "Arama, klasör, etiket, favori ve yeniden adlandırma kodu incelendi; her kombinasyon için ayrı tarayıcı testi yok."
+  },
+  {
+    "id": "F009",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Dosya bilgisi · Boyut, çözünürlük, format",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/MediaPanel.tsx; src/Renderer.tsx; tests/studio.test.mjs; tests/browser_studio.py"
+  },
+  {
+    "id": "F010",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Kullanıldığı yerler · Görselin hangi sayfalarda kullanıldığını gösterme",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/MediaPanel.tsx; src/Renderer.tsx; tests/studio.test.mjs; tests/browser_studio.py"
+  },
+  {
+    "id": "F011",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Silme kontrolü · Kullanılan görsel silinecekse etkilenen sayfaları gösterme",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/MediaPanel.tsx; src/Renderer.tsx; tests/studio.test.mjs; tests/browser_studio.py"
+  },
+  {
+    "id": "F012",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Yükleme durumları · İlerleme, başarısızlık, yeniden deneme",
+    "status": "implemented_reviewed",
+    "evidence": "XHR ilerleme, dosya bazlı hata ve yeniden deneme var; ağ kesintisi senaryosu ayrıca simüle edilmedi."
+  },
+  {
+    "id": "F013",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Mağaza ayrımı · Her mağazanın dosyalarını ayrı tutma",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/MediaPanel.tsx; src/Renderer.tsx; tests/studio.test.mjs; tests/browser_studio.py"
+  },
+  {
+    "id": "F014",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Kırpma, döndürme, yatay/dikey çevirme.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/MediaPanel.tsx; src/Renderer.tsx; tests/studio.test.mjs; tests/browser_studio.py"
+  },
+  {
+    "id": "F015",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "En-boy oranı seçimi.",
+    "status": "implemented_reviewed",
+    "evidence": "Görsel en-boy oranı kontrolü ve renderer CSS eşlemesi incelendi."
+  },
+  {
+    "id": "F016",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "`Contain / cover` davranışı.",
+    "status": "implemented_reviewed",
+    "evidence": "Contain / cover tasarım kontrolü ve renderer eşlemesi incelendi."
+  },
+  {
+    "id": "F017",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Odak noktası seçimi: kırpılırken yüzün veya ürünün korunması.",
+    "status": "implemented_reviewed",
+    "evidence": "Odak X/Y yüzde kontrolleri ve object-position eşlemesi incelendi."
+  },
+  {
+    "id": "F018",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Mobil için farklı görsel.",
+    "status": "implemented_reviewed",
+    "evidence": "Mobil görsel seçimi, asset URL/preview ve srcset eşlemesi incelendi."
+  },
+  {
+    "id": "F019",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Alternatif metin.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/MediaPanel.tsx; src/Renderer.tsx; tests/studio.test.mjs; tests/browser_studio.py"
+  },
+  {
+    "id": "F020",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Görsele bağlantı verme.",
+    "status": "implemented_reviewed",
+    "evidence": "Görsel bağlantısı güvenli URL ile render edilir; gerçek dış bağlantı açılması denenmedi."
+  },
+  {
+    "id": "F021",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Tıklayınca büyütme/lightbox.",
+    "status": "implemented_reviewed",
+    "evidence": "Lightbox aç/kapat kodu var; ayrı click senaryosu test edilmedi."
+  },
+  {
+    "id": "F022",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Arka plan görseli ve renk katmanı.",
+    "status": "implemented_reviewed",
+    "evidence": "Tuval ve ziyaretçi görünümünde arka plan görseli/katman kodu var; özel görsel/alpha kombinasyonu ayrıca denenmedi."
+  },
+  {
+    "id": "F023",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Otomatik sıkıştırma ve uygun boyut üretimi.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/MediaPanel.tsx; src/Renderer.tsx; tests/studio.test.mjs; tests/browser_studio.py"
+  },
+  {
+    "id": "F024",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "Ekran dışı görselleri geç yükleme.",
+    "status": "implemented_reviewed",
+    "evidence": "Native img loading=lazy kullanılır; ekran dışı ağ zamanlaması ayrıca ölçülmedi."
+  },
+  {
+    "id": "F025",
+    "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
+    "requirement": "PNG, JPEG, WebP, AVIF, GIF; SVG için doğrulama ve temizleme.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/MediaPanel.tsx; src/Renderer.tsx; tests/studio.test.mjs; tests/browser_studio.py"
+  },
+  {
+    "id": "F026",
+    "group": "2. Özel font yükleme — mutlaka",
+    "requirement": "Font yükleme · Öncelikle WOFF2 ve WOFF",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/BrandPanel.tsx; src/studio.tsx; src/NodeExtras.tsx; font dönüşüm ve Chromium kontrolleri"
+  },
+  {
+    "id": "F027",
+    "group": "2. Özel font yükleme — mutlaka",
+    "requirement": "Ek formatlar · TTF/OTF içe aktarma ve uygun dönüşüm",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/BrandPanel.tsx; src/studio.tsx; src/NodeExtras.tsx; font dönüşüm ve Chromium kontrolleri"
+  },
+  {
+    "id": "F028",
+    "group": "2. Özel font yükleme — mutlaka",
+    "requirement": "Font ailesi · Aynı fontun dosyalarını tek aile altında toplama",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/BrandPanel.tsx; src/studio.tsx; src/NodeExtras.tsx; font dönüşüm ve Chromium kontrolleri"
+  },
+  {
+    "id": "F029",
+    "group": "2. Özel font yükleme — mutlaka",
+    "requirement": "Kalınlık eşleştirme · Regular 400, Medium 500, Bold 700 gibi",
+    "status": "implemented_reviewed",
+    "evidence": "Kalınlık metadata/manuel eşleştirme/font-face tanımı var; tüm yüz/kalınlık kombinasyonları ayrı test edilmedi."
+  },
+  {
+    "id": "F030",
+    "group": "2. Özel font yükleme — mutlaka",
+    "requirement": "İtalik eşleştirme · Normal ve italik dosyalarını ayırma",
+    "status": "implemented_reviewed",
+    "evidence": "İtalik metadata ve font-face var; ayrı italik dosya tarayıcı senaryosu yok."
+  },
+  {
+    "id": "F031",
+    "group": "2. Özel font yükleme — mutlaka",
+    "requirement": "Değişken font · Desteklenen kalınlık aralığını kullanabilme",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/BrandPanel.tsx; src/studio.tsx; src/NodeExtras.tsx; font dönüşüm ve Chromium kontrolleri"
+  },
+  {
+    "id": "F032",
+    "group": "2. Özel font yükleme — mutlaka",
+    "requirement": "Canlı önizleme · Örnek metni fontla gösterme",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/BrandPanel.tsx; src/studio.tsx; src/NodeExtras.tsx; font dönüşüm ve Chromium kontrolleri"
+  },
+  {
+    "id": "F033",
+    "group": "2. Özel font yükleme — mutlaka",
+    "requirement": "Türkçe kontrolü · “İ ı Ş ş Ğ ğ Ç ç Ö ö Ü ü” önizlemesi",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/BrandPanel.tsx; src/studio.tsx; src/NodeExtras.tsx; font dönüşüm ve Chromium kontrolleri"
+  },
+  {
+    "id": "F034",
+    "group": "2. Özel font yükleme — mutlaka",
+    "requirement": "Hazır font kataloğu · Aranabilir, önizlemeli font seçimi",
+    "status": "implemented_reviewed",
+    "evidence": "Sistem fontları + yüklenen ailelerden aranabilir önizlemeli katalog. Uzak Google Fonts kataloğu yok."
+  },
+  {
+    "id": "F035",
+    "group": "2. Özel font yükleme — mutlaka",
+    "requirement": "Yedek font · Font yüklenemezse kullanılacak aile",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/BrandPanel.tsx; src/studio.tsx; src/NodeExtras.tsx; font dönüşüm ve Chromium kontrolleri"
+  },
+  {
+    "id": "F036",
+    "group": "2. Özel font yükleme — mutlaka",
+    "requirement": "Global atama · Başlık, gövde ve buton fontu seçme",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/BrandPanel.tsx; src/studio.tsx; src/NodeExtras.tsx; font dönüşüm ve Chromium kontrolleri"
+  },
+  {
+    "id": "F037",
+    "group": "2. Özel font yükleme — mutlaka",
+    "requirement": "Kullanım bilgisi · Hangi sayfalarda kullanıldığını gösterme",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/BrandPanel.tsx; src/studio.tsx; src/NodeExtras.tsx; font dönüşüm ve Chromium kontrolleri"
+  },
+  {
+    "id": "F038",
+    "group": "2. Özel font yükleme — mutlaka",
+    "requirement": "Performans · Yalnızca kullanılan aileleri ve kalınlıkları yükleme",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs; src/BrandPanel.tsx; src/studio.tsx; src/NodeExtras.tsx; font dönüşüm ve Chromium kontrolleri"
+  },
+  {
+    "id": "F039",
+    "group": "3. Marka kiti ve global stiller — mevcut stil panelinden farklı",
+    "requirement": "Ana renk, ikinci renk, vurgu rengi.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs cleanBrand; src/studio.tsx; src/BrandPanel.tsx; src/sections.ts"
+  },
+  {
+    "id": "F040",
+    "group": "3. Marka kiti ve global stiller — mevcut stil panelinden farklı",
+    "requirement": "Metin, arka plan ve kenarlık renkleri.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs cleanBrand; src/studio.tsx; src/BrandPanel.tsx; src/sections.ts"
+  },
+  {
+    "id": "F041",
+    "group": "3. Marka kiti ve global stiller — mevcut stil panelinden farklı",
+    "requirement": "H1–H6 başlık stilleri.",
+    "status": "implemented_reviewed",
+    "evidence": "H1–H6 boyut/kalınlık/line-height global değerleri ve CSS değişkenleri incelendi."
+  },
+  {
+    "id": "F042",
+    "group": "3. Marka kiti ve global stiller — mevcut stil panelinden farklı",
+    "requirement": "Gövde, küçük metin ve bağlantı stilleri.",
+    "status": "implemented_reviewed",
+    "evidence": "Gövde, küçük metin ve link font/ölçek stilleri incelendi."
+  },
+  {
+    "id": "F043",
+    "group": "3. Marka kiti ve global stiller — mevcut stil panelinden farklı",
+    "requirement": "Birincil, ikincil ve çerçeveli buton stilleri.",
+    "status": "implemented_reviewed",
+    "evidence": "Primary/secondary/outline seçimi stil değerlerini değiştirir; üç varyant ayrı görsel karşılaştırma testine alınmadı."
+  },
+  {
+    "id": "F044",
+    "group": "3. Marka kiti ve global stiller — mevcut stil panelinden farklı",
+    "requirement": "Varsayılan container genişliği.",
+    "status": "implemented_reviewed",
+    "evidence": "Global container max-width uygulanır."
+  },
+  {
+    "id": "F045",
+    "group": "3. Marka kiti ve global stiller — mevcut stil panelinden farklı",
+    "requirement": "Bölüm boşlukları.",
+    "status": "implemented_reviewed",
+    "evidence": "Hazır bölümlerde global bölüm boşluğu; mobil özel değerleri korunur."
+  },
+  {
+    "id": "F046",
+    "group": "3. Marka kiti ve global stiller — mevcut stil panelinden farklı",
+    "requirement": "Köşe yuvarlama ve gölge seçenekleri.",
+    "status": "implemented_reviewed",
+    "evidence": "Global köşe/gölge tokenları hazır bölümlerde uygulanır."
+  },
+  {
+    "id": "F047",
+    "group": "3. Marka kiti ve global stiller — mevcut stil panelinden farklı",
+    "requirement": "Masaüstü ve mobil tipografi ölçeği.",
+    "status": "implemented_reviewed",
+    "evidence": "Mobil tipografi ölçeği data-device CSS değişkenlerinde uygulanır."
+  },
+  {
+    "id": "F048",
+    "group": "3. Marka kiti ve global stiller — mevcut stil panelinden farklı",
+    "requirement": "“Bu öğeyi global stilden ayır” seçeneği.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs cleanBrand; src/studio.tsx; src/BrandPanel.tsx; src/sections.ts"
+  },
+  {
+    "id": "F049",
+    "group": "3. Marka kiti ve global stiller — mevcut stil panelinden farklı",
+    "requirement": "“Global stile geri dön” seçeneği.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs cleanBrand; src/studio.tsx; src/BrandPanel.tsx; src/sections.ts"
+  },
+  {
+    "id": "F050",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Stil kopyala/yapıştır · Aynı görünümü hızlı uygulama",
+    "status": "implemented_reviewed",
+    "evidence": "Kalıcı tarayıcı stil panosu ve UI komutları incelendi."
+  },
+  {
+    "id": "F051",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Sayfalar arası kopyalama · Tasarımları tekrar kullanma",
+    "status": "implemented_reviewed",
+    "evidence": "Öğe panosu ve JSON/mağazalar arası aktarım var; cross-page paste UI senaryosu ayrıca test edilmedi."
+  },
+  {
+    "id": "F052",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Çoklu seçim · Birkaç öğeyi birlikte düzenleme",
+    "status": "verified_local",
+    "evidence": "src/Editor.tsx; src/editorCommands.ts; src/SelectionTools.tsx; src/WorkflowPanel.tsx; tests/editor-commands.test.ts"
+  },
+  {
+    "id": "F053",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Gruplama ve grubu çözme · Karmaşık bölümleri yönetme",
+    "status": "verified_local",
+    "evidence": "src/Editor.tsx; src/editorCommands.ts; src/SelectionTools.tsx; src/WorkflowPanel.tsx; tests/editor-commands.test.ts"
+  },
+  {
+    "id": "F054",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Öğeyi kilitleme · Yanlışlıkla taşıma ve silmeyi önleme",
+    "status": "verified_local",
+    "evidence": "src/Editor.tsx; src/editorCommands.ts; src/SelectionTools.tsx; src/WorkflowPanel.tsx; tests/editor-commands.test.ts"
+  },
+  {
+    "id": "F055",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Katman adlandırma ve arama · Büyük sayfalarda gezinme",
+    "status": "implemented_reviewed",
+    "evidence": "Katman adlandırma ve arama kodu incelendi."
+  },
+  {
+    "id": "F056",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Üst öğeyi seçme · İç içe kutularda doğru öğeye ulaşma",
+    "status": "implemented_reviewed",
+    "evidence": "Üst öğeyi seç UI komutu incelendi."
+  },
+  {
+    "id": "F057",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Sağ tık menüsü · Hızlı işlemler",
+    "status": "implemented_reviewed",
+    "evidence": "Tuval sağ tık menüsü ve komut bağları incelendi."
+  },
+  {
+    "id": "F058",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Klavye ile taşıma · Sürüklemeye alternatif erişim",
+    "status": "implemented_reviewed",
+    "evidence": "ArrowUp/ArrowDown ile kardeş sırası değişir; özel klavye yeniden sıralama senaryosu ayrı test edilmedi."
+  },
+  {
+    "id": "F059",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Sütunları tutarak boyutlandırma · Daha hızlı yerleşim",
+    "status": "verified_local",
+    "evidence": "Gerçek Chromium pointer tutamacıyla kolon genişliği değişti; undo ile geri döndü. tests/browser_studio.py."
+  },
+  {
+    "id": "F060",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Mobil sıralama · Mobilde görsel ve metin sırasını değiştirme",
+    "status": "implemented_reviewed",
+    "evidence": "Cihaz bazlı order ve flex-direction stilleri incelendi."
+  },
+  {
+    "id": "F061",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Responsive değeri sıfırlama · Masaüstünden miras alınan değere dönme",
+    "status": "verified_local",
+    "evidence": "src/Editor.tsx; src/editorCommands.ts; src/SelectionTools.tsx; src/WorkflowPanel.tsx; tests/editor-commands.test.ts"
+  },
+  {
+    "id": "F062",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Esnek önizleme genişliği · Sadece üç sabit cihazla sınırlı kalmama",
+    "status": "verified_local",
+    "evidence": "src/Editor.tsx; src/editorCommands.ts; src/SelectionTools.tsx; src/WorkflowPanel.tsx; tests/editor-commands.test.ts"
+  },
+  {
+    "id": "F063",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Hover/focus durum düzenleme · Buton ve bağlantı durumları",
+    "status": "implemented_reviewed",
+    "evidence": "Hover/focus arka plan durumu kontrolleri ve CSS üretimi var; gelişmiş çok özellikli durum editörü yok."
+  },
+  {
+    "id": "F064",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Kaydetme hatası bildirimi · Değişiklik kaybolmasını önleme",
+    "status": "verified_local",
+    "evidence": "src/Editor.tsx; src/editorCommands.ts; src/SelectionTools.tsx; src/WorkflowPanel.tsx; tests/editor-commands.test.ts"
+  },
+  {
+    "id": "F065",
+    "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
+    "requirement": "Kalıcı sürüm geçmişi · Önceki günün tasarımına dönebilme",
+    "status": "verified_local",
+    "evidence": "src/Editor.tsx; src/editorCommands.ts; src/SelectionTools.tsx; src/WorkflowPanel.tsx; tests/editor-commands.test.ts"
+  },
+  {
+    "id": "F066",
+    "group": "5. Eksik sürükle-bırak öğeleri",
+    "requirement": "Ürün bilgisi · Dinamik ürün adı, açıklaması, fiyatı, indirim fiyatı",
+    "status": "verified_local",
+    "evidence": "server/catalog.mjs; src/Commerce.tsx; src/AdvancedContent.tsx; yerel katalog ve Chromium testleri"
+  },
+  {
+    "id": "F067",
+    "group": "5. Eksik sürükle-bırak öğeleri",
+    "requirement": "Ürün görselleri · Küçük önizlemeli galeri, yakınlaştırma, varyant görseli",
+    "status": "verified_local",
+    "evidence": "server/catalog.mjs; src/Commerce.tsx; src/AdvancedContent.tsx; yerel katalog ve Chromium testleri"
+  },
+  {
+    "id": "F068",
+    "group": "5. Eksik sürükle-bırak öğeleri",
+    "requirement": "Varyant · Renk, beden, dropdown ve buton seçenekleri",
+    "status": "verified_local",
+    "evidence": "server/catalog.mjs; src/Commerce.tsx; src/AdvancedContent.tsx; yerel katalog ve Chromium testleri"
+  },
+  {
+    "id": "F069",
+    "group": "5. Eksik sürükle-bırak öğeleri",
+    "requirement": "Satın alma · Adet seçici, sepete ekle, sticky sepete ekle",
+    "status": "verified_local",
+    "evidence": "server/catalog.mjs; src/Commerce.tsx; src/AdvancedContent.tsx; yerel katalog ve Chromium testleri"
+  },
+  {
+    "id": "F070",
+    "group": "5. Eksik sürükle-bırak öğeleri",
+    "requirement": "Ürün durumu · Stokta yok, seçilemeyen varyant, stok bilgisi",
+    "status": "verified_local",
+    "evidence": "server/catalog.mjs; src/Commerce.tsx; src/AdvancedContent.tsx; yerel katalog ve Chromium testleri"
+  },
+  {
+    "id": "F071",
+    "group": "5. Eksik sürükle-bırak öğeleri",
+    "requirement": "Ürün listesi · Koleksiyondan ürün grid’i, ilgili ürünler",
+    "status": "verified_local",
+    "evidence": "server/catalog.mjs; src/Commerce.tsx; src/AdvancedContent.tsx; yerel katalog ve Chromium testleri"
+  },
+  {
+    "id": "F072",
+    "group": "5. Eksik sürükle-bırak öğeleri",
+    "requirement": "Koleksiyon · Başlık, açıklama, görsel, sıralama, sayfalama",
+    "status": "verified_local",
+    "evidence": "server/catalog.mjs; src/Commerce.tsx; src/AdvancedContent.tsx; yerel katalog ve Chromium testleri"
+  },
+  {
+    "id": "F073",
+    "group": "5. Eksik sürükle-bırak öğeleri",
+    "requirement": "İçerik · Tabs, carousel, görsel galeri, kayan logo şeridi",
+    "status": "verified_local",
+    "evidence": "server/catalog.mjs; src/Commerce.tsx; src/AdvancedContent.tsx; yerel katalog ve Chromium testleri"
+  },
+  {
+    "id": "F074",
+    "group": "5. Eksik sürükle-bırak öğeleri",
+    "requirement": "Güven · Yorum özeti, yıldız puanı, yorum uygulaması alanı",
+    "status": "partial",
+    "evidence": "Düzenlenebilir puan/yorum sayısı ve hazır yorum bölümleri var. Gerçek yorum uygulaması bağlantısı yok."
+  },
+  {
+    "id": "F075",
+    "group": "5. Eksik sürükle-bırak öğeleri",
+    "requirement": "Karşılaştırma · Karşılaştırma tablosu, önce/sonra görseli",
+    "status": "verified_local",
+    "evidence": "server/catalog.mjs; src/Commerce.tsx; src/AdvancedContent.tsx; yerel katalog ve Chromium testleri"
+  },
+  {
+    "id": "F076",
+    "group": "5. Eksik sürükle-bırak öğeleri",
+    "requirement": "Kampanya · Kupon kopyalama, teslimat bilgisi, kargo eşiği",
+    "status": "implemented_reviewed",
+    "evidence": "Kupon kopyalama, teslimat metni ve yerel sepet kargo eşiği uygulanır; tüm aksiyonlar ayrı tarayıcı testine alınmadı."
+  },
+  {
+    "id": "F077",
+    "group": "5. Eksik sürükle-bırak öğeleri",
+    "requirement": "Etkileşim · Popup, video popup, yukarı dön",
+    "status": "verified_local",
+    "evidence": "server/catalog.mjs; src/Commerce.tsx; src/AdvancedContent.tsx; yerel katalog ve Chromium testleri"
+  },
+  {
+    "id": "F078",
+    "group": "5. Eksik sürükle-bırak öğeleri",
+    "requirement": "Navigasyon · Breadcrumb, mobil menü, bölüm bağlantıları",
+    "status": "implemented_reviewed",
+    "evidence": "Breadcrumb/mobil menü/section-scroll kodları incelendi."
+  },
+  {
+    "id": "F079",
+    "group": "5. Eksik sürükle-bırak öğeleri",
+    "requirement": "Blog · Yazı listesi, yazar, tarih, özet ve içerik",
+    "status": "implemented_reviewed",
+    "evidence": "Manuel blog kartları/yazar/tarih/özet/link düzenlenir. Canlı Shopify blog verisi ertelendi."
+  },
+  {
+    "id": "F080",
+    "group": "5. Eksik sürükle-bırak öğeleri",
+    "requirement": "Entegrasyon · Uygulama bileşeni, kontrollü özel kod alanı",
+    "status": "needs_provider",
+    "evidence": "Kontrollü HTML ve uygulama yer tutucusu var. Belirli üçüncü taraf uygulamanın SDK bileşeni henüz bağlanmadı."
+  },
+  {
+    "id": "F081",
+    "group": "6. Formlar — input ve textarea bulunması yetmez",
+    "requirement": "E-posta, telefon, metin ve uzun metin.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs form endpoints; src/AdvancedContent.tsx FormContent; server/growth.mjs webhook queue; tests/studio.test.mjs"
+  },
+  {
+    "id": "F082",
+    "group": "6. Formlar — input ve textarea bulunması yetmez",
+    "requirement": "Dropdown, checkbox, radio.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs form endpoints; src/AdvancedContent.tsx FormContent; server/growth.mjs webhook queue; tests/studio.test.mjs"
+  },
+  {
+    "id": "F083",
+    "group": "6. Formlar — input ve textarea bulunması yetmez",
+    "requirement": "Zorunlu alan ve doğrulama.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs form endpoints; src/AdvancedContent.tsx FormContent; server/growth.mjs webhook queue; tests/studio.test.mjs"
+  },
+  {
+    "id": "F084",
+    "group": "6. Formlar — input ve textarea bulunması yetmez",
+    "requirement": "Alan etiketi, açıklaması ve hata mesajı.",
+    "status": "implemented_reviewed",
+    "evidence": "Etiket, açıklama ve hata metni ayarları var; tüm özel hata/alan tipi kombinasyonları ayrıca denenmedi."
+  },
+  {
+    "id": "F085",
+    "group": "6. Formlar — input ve textarea bulunması yetmez",
+    "requirement": "Gönderiliyor, başarılı ve başarısız durumları.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs form endpoints; src/AdvancedContent.tsx FormContent; server/growth.mjs webhook queue; tests/studio.test.mjs"
+  },
+  {
+    "id": "F086",
+    "group": "6. Formlar — input ve textarea bulunması yetmez",
+    "requirement": "Başarılı gönderim sonrası yönlendirme.",
+    "status": "implemented_reviewed",
+    "evidence": "Başarılı gönderim URL yönlendirmesi incelendi; gerçek dış hedefe yönlendirme test edilmedi."
+  },
+  {
+    "id": "F087",
+    "group": "6. Formlar — input ve textarea bulunması yetmez",
+    "requirement": "Spam koruması.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs form endpoints; src/AdvancedContent.tsx FormContent; server/growth.mjs webhook queue; tests/studio.test.mjs"
+  },
+  {
+    "id": "F088",
+    "group": "6. Formlar — input ve textarea bulunması yetmez",
+    "requirement": "Gönderim kayıtları.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs form endpoints; src/AdvancedContent.tsx FormContent; server/growth.mjs webhook queue; tests/studio.test.mjs"
+  },
+  {
+    "id": "F089",
+    "group": "6. Formlar — input ve textarea bulunması yetmez",
+    "requirement": "E-posta/CRM/webhook hedefi.",
+    "status": "needs_provider",
+    "evidence": "Yerel form kayıtları çalışır. Opt-in HTTPS webhook kuyruğu, tekrar deneme ve idempotency test transportuyla doğrulandı; canlı e-posta/CRM sağlayıcısı seçilmedi."
+  },
+  {
+    "id": "F090",
+    "group": "6. Formlar — input ve textarea bulunması yetmez",
+    "requirement": "Newsletter için pazarlama izni alanı.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs form endpoints; src/AdvancedContent.tsx FormContent; server/growth.mjs webhook queue; tests/studio.test.mjs"
+  },
+  {
+    "id": "F091",
+    "group": "6. Formlar — input ve textarea bulunması yetmez",
+    "requirement": "Tekrar gönderimi önleme.",
+    "status": "verified_local",
+    "evidence": "server/studio.mjs form endpoints; src/AdvancedContent.tsx FormContent; server/growth.mjs webhook queue; tests/studio.test.mjs"
+  },
+  {
+    "id": "F092",
+    "group": "7. Butonların aksiyon sistemi",
+    "requirement": "Sayfaya git.",
+    "status": "implemented_reviewed",
+    "evidence": "src/AdvancedContent.tsx performAction; src/NodeExtras.tsx; src/Renderer.tsx; kod incelendi, dış uygulama/telefon/e-posta açılması canlı denenmedi."
+  },
+  {
+    "id": "F093",
+    "group": "7. Butonların aksiyon sistemi",
+    "requirement": "Ürüne veya koleksiyona git.",
+    "status": "partial",
+    "evidence": "URL ile ürün/koleksiyon sayfasına gitme aksiyonu var; Shopify canlı ürün/koleksiyon URL çözümlemesi ertelendi."
+  },
+  {
+    "id": "F094",
+    "group": "7. Butonların aksiyon sistemi",
+    "requirement": "Sayfadaki bölüme kaydır.",
+    "status": "implemented_reviewed",
+    "evidence": "src/AdvancedContent.tsx performAction; src/NodeExtras.tsx; src/Renderer.tsx; kod incelendi, dış uygulama/telefon/e-posta açılması canlı denenmedi."
+  },
+  {
+    "id": "F095",
+    "group": "7. Butonların aksiyon sistemi",
+    "requirement": "Popup aç/kapat.",
+    "status": "implemented_reviewed",
+    "evidence": "src/AdvancedContent.tsx performAction; src/NodeExtras.tsx; src/Renderer.tsx; kod incelendi, dış uygulama/telefon/e-posta açılması canlı denenmedi."
+  },
+  {
+    "id": "F096",
+    "group": "7. Butonların aksiyon sistemi",
+    "requirement": "Sepete ekle.",
+    "status": "implemented_reviewed",
+    "evidence": "src/AdvancedContent.tsx performAction; src/NodeExtras.tsx; src/Renderer.tsx; kod incelendi, dış uygulama/telefon/e-posta açılması canlı denenmedi."
+  },
+  {
+    "id": "F097",
+    "group": "7. Butonların aksiyon sistemi",
+    "requirement": "Sepeti aç.",
+    "status": "implemented_reviewed",
+    "evidence": "src/AdvancedContent.tsx performAction; src/NodeExtras.tsx; src/Renderer.tsx; kod incelendi, dış uygulama/telefon/e-posta açılması canlı denenmedi."
+  },
+  {
+    "id": "F098",
+    "group": "7. Butonların aksiyon sistemi",
+    "requirement": "Form gönder.",
+    "status": "implemented_reviewed",
+    "evidence": "src/AdvancedContent.tsx performAction; src/NodeExtras.tsx; src/Renderer.tsx; kod incelendi, dış uygulama/telefon/e-posta açılması canlı denenmedi."
+  },
+  {
+    "id": "F099",
+    "group": "7. Butonların aksiyon sistemi",
+    "requirement": "Kupon kodunu kopyala.",
+    "status": "implemented_reviewed",
+    "evidence": "src/AdvancedContent.tsx performAction; src/NodeExtras.tsx; src/Renderer.tsx; kod incelendi, dış uygulama/telefon/e-posta açılması canlı denenmedi."
+  },
+  {
+    "id": "F100",
+    "group": "7. Butonların aksiyon sistemi",
+    "requirement": "Telefon, e-posta veya WhatsApp bağlantısı aç.",
+    "status": "implemented_reviewed",
+    "evidence": "src/AdvancedContent.tsx performAction; src/NodeExtras.tsx; src/Renderer.tsx; kod incelendi, dış uygulama/telefon/e-posta açılması canlı denenmedi."
+  },
+  {
+    "id": "F101",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "Gerçek ürün satın alma · Galeri solda, galeri sağda, kompakt",
+    "status": "verified_local",
+    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+  },
+  {
+    "id": "F102",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "Ürün kullanım adımları · Üç adım, görselli adımlar",
+    "status": "implemented_reviewed",
+    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+  },
+  {
+    "id": "F103",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "Karşılaştırma · İki ürün, özellik tablosu",
+    "status": "implemented_reviewed",
+    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+  },
+  {
+    "id": "F104",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "Önce/sonra · Kaydırılabilir karşılaştırma",
+    "status": "verified_local",
+    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+  },
+  {
+    "id": "F105",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "UGC/video · Video grid’i, tek büyük video",
+    "status": "implemented_reviewed",
+    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+  },
+  {
+    "id": "F106",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "Paket teklif · İkili/üçlü ürün paketi",
+    "status": "implemented_reviewed",
+    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+  },
+  {
+    "id": "F107",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "Teknik özellikler · Tablo, ikonlu özellik listesi",
+    "status": "implemented_reviewed",
+    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+  },
+  {
+    "id": "F108",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "Beden tablosu · Açılır pencere, tablo",
+    "status": "verified_local",
+    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+  },
+  {
+    "id": "F109",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "Teslimat ve iade · İkonlu bant, detaylı açıklama",
+    "status": "implemented_reviewed",
+    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+  },
+  {
+    "id": "F110",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "Marka/logolar · Sabit sıra, kayan şerit",
+    "status": "implemented_reviewed",
+    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+  },
+  {
+    "id": "F111",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "İlgili ürünler · Grid, carousel",
+    "status": "implemented_reviewed",
+    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+  },
+  {
+    "id": "F112",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "E-posta toplama popup’ı · Görselli, minimal",
+    "status": "implemented_reviewed",
+    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+  },
+  {
+    "id": "F113",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "Sticky satın alma · Mobil ve masaüstü",
+    "status": "implemented_reviewed",
+    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+  },
+  {
+    "id": "F114",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "Blog seçkisi · Üç kart, editoryal yerleşim",
+    "status": "implemented_reviewed",
+    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+  },
+  {
+    "id": "F115",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "**Kayıtlı kopya:** Her sayfada bağımsız düzenlenir.",
+    "status": "verified_local",
+    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+  },
+  {
+    "id": "F116",
+    "group": "8. Hazır section kütüphanesinde neler eksik?",
+    "requirement": "**Senkron section:** Bir değişiklik, bağlı tüm sayfalara uygulanır.",
+    "status": "verified_local",
+    "evidence": "Senkron bölüm güncelle komutu bütün bağlı taslakları atomik günceller; yayınlar tekrar yayınlanana kadar korunur. Otomatik arka plan Shopify senkronu değildir."
+  },
+  {
+    "id": "F117",
+    "group": "9. Shopify tarafında tamamlanması gerekenler",
+    "requirement": "Mağaza başına bağlantı ve bağlantı durumu.",
+    "status": "deferred_shopify",
+    "evidence": "Kullanıcı 13 Ekim 2026: “şuanlık shopify bağlamadan yapacağız”. Canlı mağaza, gerçek tema HTML/Liquid, şablon atama, gerçek sepet/ödeme ve uzaktan yayın bu aşamada yapılmadı."
+  },
+  {
+    "id": "F118",
+    "group": "9. Shopify tarafında tamamlanması gerekenler",
+    "requirement": "Canlı ürün/koleksiyon seçicisi.",
+    "status": "deferred_shopify",
+    "evidence": "Kullanıcı 13 Ekim 2026: “şuanlık shopify bağlamadan yapacağız”. Canlı mağaza, gerçek tema HTML/Liquid, şablon atama, gerçek sepet/ödeme ve uzaktan yayın bu aşamada yapılmadı."
+  },
+  {
+    "id": "F119",
+    "group": "9. Shopify tarafında tamamlanması gerekenler",
+    "requirement": "Dinamik alan bağlama.",
+    "status": "deferred_shopify",
+    "evidence": "Kullanıcı 13 Ekim 2026: “şuanlık shopify bağlamadan yapacağız”. Canlı mağaza, gerçek tema HTML/Liquid, şablon atama, gerçek sepet/ödeme ve uzaktan yayın bu aşamada yapılmadı."
+  },
+  {
+    "id": "F120",
+    "group": "9. Shopify tarafında tamamlanması gerekenler",
+    "requirement": "Metafield desteği.",
+    "status": "deferred_shopify",
+    "evidence": "Kullanıcı 13 Ekim 2026: “şuanlık shopify bağlamadan yapacağız”. Canlı mağaza, gerçek tema HTML/Liquid, şablon atama, gerçek sepet/ödeme ve uzaktan yayın bu aşamada yapılmadı."
+  },
+  {
+    "id": "F121",
+    "group": "9. Shopify tarafında tamamlanması gerekenler",
+    "requirement": "Varyant–fiyat–görsel–stok senkronizasyonu.",
+    "status": "deferred_shopify",
+    "evidence": "Kullanıcı 13 Ekim 2026: “şuanlık shopify bağlamadan yapacağız”. Canlı mağaza, gerçek tema HTML/Liquid, şablon atama, gerçek sepet/ödeme ve uzaktan yayın bu aşamada yapılmadı."
+  },
+  {
+    "id": "F122",
+    "group": "9. Shopify tarafında tamamlanması gerekenler",
+    "requirement": "Gerçek sepete ekleme ve hata yönetimi.",
+    "status": "deferred_shopify",
+    "evidence": "Kullanıcı 13 Ekim 2026: “şuanlık shopify bağlamadan yapacağız”. Canlı mağaza, gerçek tema HTML/Liquid, şablon atama, gerçek sepet/ödeme ve uzaktan yayın bu aşamada yapılmadı."
+  },
+  {
+    "id": "F123",
+    "group": "9. Shopify tarafında tamamlanması gerekenler",
+    "requirement": "Shopify’a yayınlama/yayından kaldırma.",
+    "status": "deferred_shopify",
+    "evidence": "Kullanıcı 13 Ekim 2026: “şuanlık shopify bağlamadan yapacağız”. Canlı mağaza, gerçek tema HTML/Liquid, şablon atama, gerçek sepet/ödeme ve uzaktan yayın bu aşamada yapılmadı."
+  },
+  {
+    "id": "F124",
+    "group": "9. Shopify tarafında tamamlanması gerekenler",
+    "requirement": "Ürünlere ve koleksiyonlara şablon atama.",
+    "status": "deferred_shopify",
+    "evidence": "Kullanıcı 13 Ekim 2026: “şuanlık shopify bağlamadan yapacağız”. Canlı mağaza, gerçek tema HTML/Liquid, şablon atama, gerçek sepet/ödeme ve uzaktan yayın bu aşamada yapılmadı."
+  },
+  {
+    "id": "F125",
+    "group": "9. Shopify tarafında tamamlanması gerekenler",
+    "requirement": "Mevcut temayla gerçek önizleme.",
+    "status": "deferred_shopify",
+    "evidence": "Kullanıcı 13 Ekim 2026: “şuanlık shopify bağlamadan yapacağız”. Canlı mağaza, gerçek tema HTML/Liquid, şablon atama, gerçek sepet/ödeme ve uzaktan yayın bu aşamada yapılmadı."
+  },
+  {
+    "id": "F126",
+    "group": "9. Shopify tarafında tamamlanması gerekenler",
+    "requirement": "Tema değişikliği algılama.",
+    "status": "deferred_shopify",
+    "evidence": "Kullanıcı 13 Ekim 2026: “şuanlık shopify bağlamadan yapacağız”. Canlı mağaza, gerçek tema HTML/Liquid, şablon atama, gerçek sepet/ödeme ve uzaktan yayın bu aşamada yapılmadı."
+  },
+  {
+    "id": "F127",
+    "group": "9. Shopify tarafında tamamlanması gerekenler",
+    "requirement": "Yayınlanan sürümün kaydı.",
+    "status": "verified_local",
+    "evidence": "Yerel yayın geçmişi/geri dönüş/devre dışı bırakma test edildi. Shopify üzerindeki karşılığı ertelendi."
+  },
+  {
+    "id": "F128",
+    "group": "9. Shopify tarafında tamamlanması gerekenler",
+    "requirement": "Önceki başarılı yayına dönüş.",
+    "status": "verified_local",
+    "evidence": "Yerel yayın geçmişi/geri dönüş/devre dışı bırakma test edildi. Shopify üzerindeki karşılığı ertelendi."
+  },
+  {
+    "id": "F129",
+    "group": "9. Shopify tarafında tamamlanması gerekenler",
+    "requirement": "Bağlantı koptuğunda ve mağaza devre dışı bırakıldığında açık davranış.",
+    "status": "verified_local",
+    "evidence": "Yerel yayın geçmişi/geri dönüş/devre dışı bırakma test edildi. Shopify üzerindeki karşılığı ertelendi."
+  },
+  {
+    "id": "F130",
+    "group": "10. Yayın, SEO ve kalite özellikleri",
+    "requirement": "Sayfa URL’si ve SEO başlığı.",
+    "status": "verified_local",
+    "evidence": "server/seo.mjs; server/studio.mjs; src/WorkflowPanel.tsx; tests/studio.test.mjs"
+  },
+  {
+    "id": "F131",
+    "group": "10. Yayın, SEO ve kalite özellikleri",
+    "requirement": "Meta açıklama ve sosyal paylaşım görseli.",
+    "status": "verified_local",
+    "evidence": "server/seo.mjs; server/studio.mjs; src/WorkflowPanel.tsx; tests/studio.test.mjs"
+  },
+  {
+    "id": "F132",
+    "group": "10. Yayın, SEO ve kalite özellikleri",
+    "requirement": "İndeksleme ayarı.",
+    "status": "verified_local",
+    "evidence": "server/seo.mjs; server/studio.mjs; src/WorkflowPanel.tsx; tests/studio.test.mjs"
+  },
+  {
+    "id": "F133",
+    "group": "10. Yayın, SEO ve kalite özellikleri",
+    "requirement": "Taslak–canlı sürüm ayrımı.",
+    "status": "verified_local",
+    "evidence": "server/seo.mjs; server/studio.mjs; src/WorkflowPanel.tsx; tests/studio.test.mjs"
+  },
+  {
+    "id": "F134",
+    "group": "10. Yayın, SEO ve kalite özellikleri",
+    "requirement": "Paylaşılabilir önizleme bağlantısı.",
+    "status": "verified_local",
+    "evidence": "server/seo.mjs; server/studio.mjs; src/WorkflowPanel.tsx; tests/studio.test.mjs"
+  },
+  {
+    "id": "F135",
+    "group": "10. Yayın, SEO ve kalite özellikleri",
+    "requirement": "Zamanlanmış yayın ve yayından kaldırma.",
+    "status": "verified_local",
+    "evidence": "server/seo.mjs; server/studio.mjs; src/WorkflowPanel.tsx; tests/studio.test.mjs"
+  },
+  {
+    "id": "F136",
+    "group": "10. Yayın, SEO ve kalite özellikleri",
+    "requirement": "Boş bağlantı ve eksik görsel kontrolü.",
+    "status": "verified_local",
+    "evidence": "server/seo.mjs; server/studio.mjs; src/WorkflowPanel.tsx; tests/studio.test.mjs"
+  },
+  {
+    "id": "F137",
+    "group": "10. Yayın, SEO ve kalite özellikleri",
+    "requirement": "Eksik ürün bağlantısı kontrolü.",
+    "status": "verified_local",
+    "evidence": "server/seo.mjs; server/studio.mjs; src/WorkflowPanel.tsx; tests/studio.test.mjs"
+  },
+  {
+    "id": "F138",
+    "group": "10. Yayın, SEO ve kalite özellikleri",
+    "requirement": "Mobil yatay taşma kontrolü.",
+    "status": "implemented_reviewed",
+    "evidence": "server/seo.mjs; server/studio.mjs; src/WorkflowPanel.tsx; tests/studio.test.mjs"
+  },
+  {
+    "id": "F139",
+    "group": "10. Yayın, SEO ve kalite özellikleri",
+    "requirement": "Görsellerin sayfa hızına etkisini gösterme.",
+    "status": "verified_local",
+    "evidence": "Dosya byte yükü, native Resource Timing süre/transfer/önbellek bilgileri, varyantlar ve lazy loading vardır; gerçek Chromium panel kontrolü geçti. Lighthouse/Core Web Vitals puanı değildir."
+  },
+  {
+    "id": "F140",
+    "group": "10. Yayın, SEO ve kalite özellikleri",
+    "requirement": "Başlık hiyerarşisi ve alternatif metin uyarıları.",
+    "status": "verified_local",
+    "evidence": "server/seo.mjs; server/studio.mjs; src/WorkflowPanel.tsx; tests/studio.test.mjs"
+  },
+  {
+    "id": "F141",
+    "group": "10. Yayın, SEO ve kalite özellikleri",
+    "requirement": "Yayınlama hatasının anlaşılır açıklaması.",
+    "status": "verified_local",
+    "evidence": "server/seo.mjs; server/studio.mjs; src/WorkflowPanel.tsx; tests/studio.test.mjs"
+  },
+  {
+    "id": "F142",
+    "group": "10. Yayın, SEO ve kalite özellikleri",
+    "requirement": "Gerçek sayfada temel tıklama ve sepete ekleme ölçümü.",
+    "status": "verified_local",
+    "evidence": "server/seo.mjs; server/studio.mjs; src/WorkflowPanel.tsx; tests/studio.test.mjs"
+  },
+  {
+    "id": "F143",
+    "group": "11. Daha sonra eklenecek GemPages düzeyindeki genişleme alanları",
+    "requirement": "Yorum, e-posta pazarlama ve abonelik uygulaması entegrasyonları.",
+    "status": "needs_provider",
+    "evidence": "Yorum, pazarlama ve abonelik uygulaması sağlayıcıları seçilmedi; özel SDK bağlayıcıları ve gerçek abonelik işlemleri tamamlanmadı."
+  },
+  {
+    "id": "F144",
+    "group": "11. Daha sonra eklenecek GemPages düzeyindeki genişleme alanları",
+    "requirement": "Çok dil ve çeviri yönetimi.",
+    "status": "verified_local",
+    "evidence": "src/GrowthPanel.tsx; server/growth.mjs; src/TransferPanel.tsx; server/team.mjs; tests/studio.test.mjs"
+  },
+  {
+    "id": "F145",
+    "group": "11. Daha sonra eklenecek GemPages düzeyindeki genişleme alanları",
+    "requirement": "Bundle ve adet bazlı teklifler.",
+    "status": "verified_local",
+    "evidence": "src/GrowthPanel.tsx; server/growth.mjs; src/TransferPanel.tsx; server/team.mjs; tests/studio.test.mjs"
+  },
+  {
+    "id": "F146",
+    "group": "11. Daha sonra eklenecek GemPages düzeyindeki genişleme alanları",
+    "requirement": "AI ile section/sayfa üretimi.",
+    "status": "needs_provider",
+    "evidence": "OpenAI JSON/vision tasarım adaptörü ve editör akışı var. Geçerli/geçersiz sonuçlar test transportuyla doğrulandı. Canlı sağlayıcı/anahtar bulunmadığı için gerçek AI üretimi doğrulanmadı."
+  },
+  {
+    "id": "F147",
+    "group": "11. Daha sonra eklenecek GemPages düzeyindeki genişleme alanları",
+    "requirement": "Görselden düzenlenebilir tasarım.",
+    "status": "needs_provider",
+    "evidence": "OpenAI JSON/vision tasarım adaptörü ve editör akışı var. Geçerli/geçersiz sonuçlar test transportuyla doğrulandı. Canlı sağlayıcı/anahtar bulunmadığı için gerçek AI üretimi doğrulanmadı."
+  },
+  {
+    "id": "F148",
+    "group": "11. Daha sonra eklenecek GemPages düzeyindeki genişleme alanları",
+    "requirement": "A/B testleri.",
+    "status": "verified_local",
+    "evidence": "src/GrowthPanel.tsx; server/growth.mjs; src/TransferPanel.tsx; server/team.mjs; tests/studio.test.mjs"
+  },
+  {
+    "id": "F149",
+    "group": "11. Daha sonra eklenecek GemPages düzeyindeki genişleme alanları",
+    "requirement": "Satış hunileri ve satın alma sonrası teklifler.",
+    "status": "partial",
+    "evidence": "2–10 adımlı yerel sayfa hunisi ve sonraki adım çalışır. Shopify ödeme/satın alma sonrası teklifleri ertelendi."
+  },
+  {
+    "id": "F150",
+    "group": "11. Daha sonra eklenecek GemPages düzeyindeki genişleme alanları",
+    "requirement": "Ajans rolleri ve müşteri önizleme/onay akışı.",
+    "status": "verified_local",
+    "evidence": "src/GrowthPanel.tsx; server/growth.mjs; src/TransferPanel.tsx; server/team.mjs; tests/studio.test.mjs"
+  },
+  {
+    "id": "F151",
+    "group": "11. Daha sonra eklenecek GemPages düzeyindeki genişleme alanları",
+    "requirement": "Mağazalar arası şablon aktarımında ürün ve medya eşleştirme.",
+    "status": "verified_local",
+    "evidence": "src/GrowthPanel.tsx; server/growth.mjs; src/TransferPanel.tsx; server/team.mjs; tests/studio.test.mjs"
+  },
+  {
+    "id": "F152",
+    "group": "Tamamlanma ölçütleri",
+    "requirement": "Medya yüklemesi yeniden açma, farklı ziyaretçi oturumu ve yerel yayında kalıcı olmalı.",
+    "status": "verified_local",
+    "evidence": "tests/studio.test.mjs; tests/browser_studio.py"
+  },
+  {
+    "id": "F153",
+    "group": "Tamamlanma ölçütleri",
+    "requirement": "Özel font editörde, önizlemede ve yerel yayında aynı dosyadan yüklenmeli.",
+    "status": "verified_local",
+    "evidence": "tests/browser_studio.py; src/studio.tsx"
+  },
+  {
+    "id": "F154",
+    "group": "Tamamlanma ölçütleri",
+    "requirement": "25–30 bölüm ailesi ve 50–60 düzen hedefi.",
+    "status": "verified_local",
+    "evidence": "30 aile / 60 düzen; tests/editor-commands.test.ts ve Chromium bütün düzenleri açar."
+  },
+  {
+    "id": "F155",
+    "group": "Tamamlanma ölçütleri",
+    "requirement": "Yeni bölümler marka renk/fontlarını kullanmalı ve mobil düzen içermeli.",
+    "status": "verified_local",
+    "evidence": "src/sections.ts; tests/editor-commands.test.ts; responsive Chromium testleri."
+  }
+]
