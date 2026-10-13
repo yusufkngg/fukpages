@@ -1,8 +1,15 @@
-# FukPages 0.2 kapsam durumu
+# FukPages 0.3 kapsam durumu
 
 Güncel özellik/kanıt tablosu [docs/FEATURE_AUDIT.md](docs/FEATURE_AUDIT.md) içindedir.
 Kullanıcının son kapsam kararı: Shopify bağlantısı bu aşamada yapılmayacak; AI/CRM sağlayıcısı henüz seçilmedi.
 Medya/font/marka, 49 öğe, 30 bölüm ailesi/60 düzen, yerel katalog/form/SEO/yayın geçmişi, A/B/huni, çeviri, isteğe bağlı hesap ve aktarım uygulandı.
+0.3: kayıt kurtarma/çakışma birleştirme, güvenli upload tekrar denemesi,
+hover/focus, erişilebilir dialog, marka/font aktarımı, A/B sonuçları,
+içeriği koruyan bölüm düzeni, kart yönetimi ve gerçek bölüm önizlemesi eklendi.
+41 otomatik test ve 720 bölüm/ekran kontrolü geçti. 155 maddeden 113'ü yerel
+testle, 23'ü kod incelemesiyle kontrol edildi; ertelenen/sınırlı maddeler raporda.
+Şifreli panel ve örnek mağaza için Netlify Functions/Blobs kurulumu hazır;
+canlı Netlify hesabına deploy henüz doğrulanmadı. [Kurulum](docs/NETLIFY_DEMO.md).
 Aşağıdaki Shopify kabul koşulları sonraki bağlantı aşamasına aittir; tamamlandığı iddia edilmez.
 
 ## Ürün ve sonraki bağlantı planı

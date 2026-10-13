@@ -17,8 +17,8 @@
     "id": "F003",
     "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
     "requirement": "Tuvale görsel bırakma · Boş alana bırakınca görsel öğesi oluşturma",
-    "status": "implemented_reviewed",
-    "evidence": "Boş tuvale native dosya bırakma kodu var; yükleme API ve ekleme akışı çalışır, OS dosya sürükleme senaryosu ayrıca test edilmedi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Chromium DataTransfer ile dosya bırakma, gerçek yükleme ve yeni görsel bloğunun kalıcı kaydı geçti. Fiziksel OS fare sürüklemesi ayrıca test edilmedi."
   },
   {
     "id": "F004",
@@ -52,8 +52,8 @@
     "id": "F008",
     "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
     "requirement": "Kütüphane yönetimi · Arama, klasör/etiket, favori, yeniden adlandırma",
-    "status": "implemented_reviewed",
-    "evidence": "Arama, klasör, etiket, favori ve yeniden adlandırma kodu incelendi; her kombinasyon için ayrı tarayıcı testi yok."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Chromium: yeniden adlandırma, klasör, etiket, favori ve arama geçti."
   },
   {
     "id": "F009",
@@ -80,8 +80,8 @@
     "id": "F012",
     "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
     "requirement": "Yükleme durumları · İlerleme, başarısızlık, yeniden deneme",
-    "status": "implemented_reviewed",
-    "evidence": "XHR ilerleme, dosya bazlı hata ve yeniden deneme var; ağ kesintisi senaryosu ayrıca simüle edilmedi."
+    "status": "verified_local",
+    "evidence": "tests/browser_reliability.py; tests/studio.test.mjs: sunucuda tamamlanan yüklemenin cevabı kesildi; aynı dosya tekrarlandığında tek medya kaydı ve aynı asset ID korundu, yeniden başlatma da geçti. UI ilerleme/hata/yeniden deneme kontrol edildi."
   },
   {
     "id": "F013",
@@ -101,29 +101,29 @@
     "id": "F015",
     "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
     "requirement": "En-boy oranı seçimi.",
-    "status": "implemented_reviewed",
-    "evidence": "Görsel en-boy oranı kontrolü ve renderer CSS eşlemesi incelendi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F016",
     "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
     "requirement": "`Contain / cover` davranışı.",
-    "status": "implemented_reviewed",
-    "evidence": "Contain / cover tasarım kontrolü ve renderer eşlemesi incelendi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F017",
     "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
     "requirement": "Odak noktası seçimi: kırpılırken yüzün veya ürünün korunması.",
-    "status": "implemented_reviewed",
-    "evidence": "Odak X/Y yüzde kontrolleri ve object-position eşlemesi incelendi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F018",
     "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
     "requirement": "Mobil için farklı görsel.",
-    "status": "implemented_reviewed",
-    "evidence": "Mobil görsel seçimi, asset URL/preview ve srcset eşlemesi incelendi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F019",
@@ -143,15 +143,15 @@
     "id": "F021",
     "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
     "requirement": "Tıklayınca büyütme/lightbox.",
-    "status": "implemented_reviewed",
-    "evidence": "Lightbox aç/kapat kodu var; ayrı click senaryosu test edilmedi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F022",
     "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
     "requirement": "Arka plan görseli ve renk katmanı.",
-    "status": "implemented_reviewed",
-    "evidence": "Tuval ve ziyaretçi görünümünde arka plan görseli/katman kodu var; özel görsel/alpha kombinasyonu ayrıca denenmedi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F023",
@@ -164,8 +164,8 @@
     "id": "F024",
     "group": "1. Görsel yükleme ve medya kütüphanesi — ilk yapılacaklardan",
     "requirement": "Ekran dışı görselleri geç yükleme.",
-    "status": "implemented_reviewed",
-    "evidence": "Native img loading=lazy kullanılır; ekran dışı ağ zamanlaması ayrıca ölçülmedi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; 16000 px aşağıdaki görsel, kaydırma öncesi istek göndermez; kaydırınca gerçek dosyayı yükler."
   },
   {
     "id": "F025",
@@ -199,15 +199,15 @@
     "id": "F029",
     "group": "2. Özel font yükleme — mutlaka",
     "requirement": "Kalınlık eşleştirme · Regular 400, Medium 500, Bold 700 gibi",
-    "status": "implemented_reviewed",
-    "evidence": "Kalınlık metadata/manuel eşleştirme/font-face tanımı var; tüm yüz/kalınlık kombinasyonları ayrı test edilmedi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Regular 400 ve Bold 700 ayrı gerçek font dosyaları ile yüklenir; aktarımda iki yüz de korunur."
   },
   {
     "id": "F030",
     "group": "2. Özel font yükleme — mutlaka",
     "requirement": "İtalik eşleştirme · Normal ve italik dosyalarını ayırma",
-    "status": "implemented_reviewed",
-    "evidence": "İtalik metadata ve font-face var; ayrı italik dosya tarayıcı senaryosu yok."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Normal ve italic ayrı font dosyaları, metadata ve document.fonts üzerinden doğrulandı."
   },
   {
     "id": "F031",
@@ -234,8 +234,8 @@
     "id": "F034",
     "group": "2. Özel font yükleme — mutlaka",
     "requirement": "Hazır font kataloğu · Aranabilir, önizlemeli font seçimi",
-    "status": "implemented_reviewed",
-    "evidence": "Sistem fontları + yüklenen ailelerden aranabilir önizlemeli katalog. Uzak Google Fonts kataloğu yok."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Sistem fontları ve yüklenmiş ailelerin arama/önizleme kataloğu test edildi. Uzak Google Fonts kataloğu yok."
   },
   {
     "id": "F035",
@@ -283,22 +283,22 @@
     "id": "F041",
     "group": "3. Marka kiti ve global stiller — mevcut stil panelinden farklı",
     "requirement": "H1–H6 başlık stilleri.",
-    "status": "implemented_reviewed",
-    "evidence": "H1–H6 boyut/kalınlık/line-height global değerleri ve CSS değişkenleri incelendi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F042",
     "group": "3. Marka kiti ve global stiller — mevcut stil panelinden farklı",
     "requirement": "Gövde, küçük metin ve bağlantı stilleri.",
-    "status": "implemented_reviewed",
-    "evidence": "Gövde, küçük metin ve link font/ölçek stilleri incelendi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F043",
     "group": "3. Marka kiti ve global stiller — mevcut stil panelinden farklı",
     "requirement": "Birincil, ikincil ve çerçeveli buton stilleri.",
-    "status": "implemented_reviewed",
-    "evidence": "Primary/secondary/outline seçimi stil değerlerini değiştirir; üç varyant ayrı görsel karşılaştırma testine alınmadı."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Birincil, ikincil ve çerçeveli stiller tarayıcıda ölçüldü; outline kenarlığı düzeltildi."
   },
   {
     "id": "F044",
@@ -325,8 +325,8 @@
     "id": "F047",
     "group": "3. Marka kiti ve global stiller — mevcut stil panelinden farklı",
     "requirement": "Masaüstü ve mobil tipografi ölçeği.",
-    "status": "implemented_reviewed",
-    "evidence": "Mobil tipografi ölçeği data-device CSS değişkenlerinde uygulanır."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F048",
@@ -346,15 +346,15 @@
     "id": "F050",
     "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
     "requirement": "Stil kopyala/yapıştır · Aynı görünümü hızlı uygulama",
-    "status": "implemented_reviewed",
-    "evidence": "Kalıcı tarayıcı stil panosu ve UI komutları incelendi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F051",
     "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
     "requirement": "Sayfalar arası kopyalama · Tasarımları tekrar kullanma",
-    "status": "implemented_reviewed",
-    "evidence": "Öğe panosu ve JSON/mağazalar arası aktarım var; cross-page paste UI senaryosu ayrıca test edilmedi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F052",
@@ -381,29 +381,29 @@
     "id": "F055",
     "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
     "requirement": "Katman adlandırma ve arama · Büyük sayfalarda gezinme",
-    "status": "implemented_reviewed",
-    "evidence": "Katman adlandırma ve arama kodu incelendi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F056",
     "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
     "requirement": "Üst öğeyi seçme · İç içe kutularda doğru öğeye ulaşma",
-    "status": "implemented_reviewed",
-    "evidence": "Üst öğeyi seç UI komutu incelendi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F057",
     "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
     "requirement": "Sağ tık menüsü · Hızlı işlemler",
-    "status": "implemented_reviewed",
-    "evidence": "Tuval sağ tık menüsü ve komut bağları incelendi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F058",
     "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
     "requirement": "Klavye ile taşıma · Sürüklemeye alternatif erişim",
-    "status": "implemented_reviewed",
-    "evidence": "ArrowUp/ArrowDown ile kardeş sırası değişir; özel klavye yeniden sıralama senaryosu ayrı test edilmedi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F059",
@@ -437,8 +437,8 @@
     "id": "F063",
     "group": "4. Editörde eklenmesi veya kontrol edilmesi gereken özellikler",
     "requirement": "Hover/focus durum düzenleme · Buton ve bağlantı durumları",
-    "status": "implemented_reviewed",
-    "evidence": "Hover/focus arka plan durumu kontrolleri ve CSS üretimi var; gelişmiş çok özellikli durum editörü yok."
+    "status": "verified_local",
+    "evidence": "src/StateStyles.tsx; src/studio.tsx; tests/browser_reliability.py: gerçek ziyaretçi hover ve klavye focus renkleri uygulandı."
   },
   {
     "id": "F064",
@@ -542,15 +542,15 @@
     "id": "F078",
     "group": "5. Eksik sürükle-bırak öğeleri",
     "requirement": "Navigasyon · Breadcrumb, mobil menü, bölüm bağlantıları",
-    "status": "implemented_reviewed",
-    "evidence": "Breadcrumb/mobil menü/section-scroll kodları incelendi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F079",
     "group": "5. Eksik sürükle-bırak öğeleri",
     "requirement": "Blog · Yazı listesi, yazar, tarih, özet ve içerik",
-    "status": "implemented_reviewed",
-    "evidence": "Manuel blog kartları/yazar/tarih/özet/link düzenlenir. Canlı Shopify blog verisi ertelendi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F080",
@@ -584,8 +584,8 @@
     "id": "F084",
     "group": "6. Formlar — input ve textarea bulunması yetmez",
     "requirement": "Alan etiketi, açıklaması ve hata mesajı.",
-    "status": "implemented_reviewed",
-    "evidence": "Etiket, açıklama ve hata metni ayarları var; tüm özel hata/alan tipi kombinasyonları ayrıca denenmedi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F085",
@@ -598,8 +598,8 @@
     "id": "F086",
     "group": "6. Formlar — input ve textarea bulunması yetmez",
     "requirement": "Başarılı gönderim sonrası yönlendirme.",
-    "status": "implemented_reviewed",
-    "evidence": "Başarılı gönderim URL yönlendirmesi incelendi; gerçek dış hedefe yönlendirme test edilmedi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F087",
@@ -654,8 +654,8 @@
     "id": "F094",
     "group": "7. Butonların aksiyon sistemi",
     "requirement": "Sayfadaki bölüme kaydır.",
-    "status": "implemented_reviewed",
-    "evidence": "src/AdvancedContent.tsx performAction; src/NodeExtras.tsx; src/Renderer.tsx; kod incelendi, dış uygulama/telefon/e-posta açılması canlı denenmedi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F095",
@@ -682,15 +682,15 @@
     "id": "F098",
     "group": "7. Butonların aksiyon sistemi",
     "requirement": "Form gönder.",
-    "status": "implemented_reviewed",
-    "evidence": "src/AdvancedContent.tsx performAction; src/NodeExtras.tsx; src/Renderer.tsx; kod incelendi, dış uygulama/telefon/e-posta açılması canlı denenmedi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F099",
     "group": "7. Butonların aksiyon sistemi",
     "requirement": "Kupon kodunu kopyala.",
-    "status": "implemented_reviewed",
-    "evidence": "src/AdvancedContent.tsx performAction; src/NodeExtras.tsx; src/Renderer.tsx; kod incelendi, dış uygulama/telefon/e-posta açılması canlı denenmedi."
+    "status": "verified_local",
+    "evidence": "tests/browser_critical.py; Gerçek Chromium birleşik içerik/düzenleme/yayın akışında kontrol edildi."
   },
   {
     "id": "F100",
@@ -704,7 +704,8 @@
     "group": "8. Hazır section kütüphanesinde neler eksik?",
     "requirement": "Gerçek ürün satın alma · Galeri solda, galeri sağda, kompakt",
     "status": "verified_local",
-    "evidence": "src/sections.ts; src/SectionLibrary.tsx; tests/editor-commands.test.ts; Chromium 60 düzen; senkron bölüm HTTP/SQLite testi"
+    "evidence": "Yerel ürün/varyant/stok/sepet Chromium kontrolleri geçti. Gerçek Shopify siparişi veya ödeme yok; kullanıcının kararıyla ertelendi.",
+    "displayLabel": "Yerel katalogla ürün satın alma bölümü · Galeri solda, sağda, kompakt"
   },
   {
     "id": "F102",
@@ -809,7 +810,7 @@
     "group": "8. Hazır section kütüphanesinde neler eksik?",
     "requirement": "**Senkron section:** Bir değişiklik, bağlı tüm sayfalara uygulanır.",
     "status": "verified_local",
-    "evidence": "Senkron bölüm güncelle komutu bütün bağlı taslakları atomik günceller; yayınlar tekrar yayınlanana kadar korunur. Otomatik arka plan Shopify senkronu değildir."
+    "evidence": "server/studio.mjs; tests/studio.test.mjs: senkron bölüm değişikliği bağlı taslaklara sürümlü kaydedilir. Canlı yayın değişmez; yeniden yayın gerekir. Bağımsız bölüm kopyası önceki sayfaları değiştirmez."
   },
   {
     "id": "F117",
@@ -1012,7 +1013,8 @@
     "group": "11. Daha sonra eklenecek GemPages düzeyindeki genişleme alanları",
     "requirement": "Bundle ve adet bazlı teklifler.",
     "status": "verified_local",
-    "evidence": "src/GrowthPanel.tsx; server/growth.mjs; src/TransferPanel.tsx; server/team.mjs; tests/studio.test.mjs"
+    "evidence": "src/Commerce.tsx; tests/browser_studio.py; tests/studio.test.mjs: yerel paket/adet fiyat ve stok hesabı. Shopify ödeme, gerçek indirim ve sipariş henüz yok.",
+    "displayLabel": "Yerel sepet için bundle ve adet bazlı teklifler"
   },
   {
     "id": "F146",
@@ -1033,7 +1035,7 @@
     "group": "11. Daha sonra eklenecek GemPages düzeyindeki genişleme alanları",
     "requirement": "A/B testleri.",
     "status": "verified_local",
-    "evidence": "src/GrowthPanel.tsx; server/growth.mjs; src/TransferPanel.tsx; server/team.mjs; tests/studio.test.mjs"
+    "evidence": "server/metrics.mjs; src/ExperimentResults.tsx; tests/studio.test.mjs; tests/browser_critical.py: ziyaretçi bazlı kalıcı atama, olay ID dedup, tekil sepete ekleme dönüşümü, A/B sonuçları, oran ve %95 Wilson aralığı. Ölçüt yerel sepete eklemedir; satın alma ve otomatik kazanan iddiası yok."
   },
   {
     "id": "F149",
@@ -1054,7 +1056,7 @@
     "group": "11. Daha sonra eklenecek GemPages düzeyindeki genişleme alanları",
     "requirement": "Mağazalar arası şablon aktarımında ürün ve medya eşleştirme.",
     "status": "verified_local",
-    "evidence": "src/GrowthPanel.tsx; server/growth.mjs; src/TransferPanel.tsx; server/team.mjs; tests/studio.test.mjs"
+    "evidence": "tests/studio.test.mjs; tests/browser_critical.py: ürün/medya eşleştirme, kaynaktan kalıtılan marka stilleri ve tüm kullanılan font yüzleri korunarak aktarım; hedef marka değişmez. Hedef markayı kullanma ayrıca seçilebilir."
   },
   {
     "id": "F152",
@@ -1075,13 +1077,13 @@
     "group": "Tamamlanma ölçütleri",
     "requirement": "25–30 bölüm ailesi ve 50–60 düzen hedefi.",
     "status": "verified_local",
-    "evidence": "30 aile / 60 düzen; tests/editor-commands.test.ts ve Chromium bütün düzenleri açar."
+    "evidence": "tests/browser_sections_quality.py: 60 düzen × 3 içerik durumu (normal/uzun Türkçe + ek kart/eksik görsel + alternatif font) × 4 genişlik (1440/820/390/320) = 720 kontrol; yatay taşma ve pageerror yok. Bu test bütün etkileşimler için ayrı test iddiası değildir."
   },
   {
     "id": "F155",
     "group": "Tamamlanma ölçütleri",
     "requirement": "Yeni bölümler marka renk/fontlarını kullanmalı ve mobil düzen içermeli.",
     "status": "verified_local",
-    "evidence": "src/sections.ts; tests/editor-commands.test.ts; responsive Chromium testleri."
+    "evidence": "tests/browser_sections_quality.py: 60 düzen × 3 içerik durumu (normal/uzun Türkçe + ek kart/eksik görsel + alternatif font) × 4 genişlik (1440/820/390/320) = 720 kontrol; yatay taşma ve pageerror yok. Bu test bütün etkileşimler için ayrı test iddiası değildir."
   }
 ]

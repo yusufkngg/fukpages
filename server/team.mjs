@@ -47,12 +47,17 @@ export function createTeamService(db, ownerLogin) {
       const binding = db
         .prepare("SELECT account_id FROM team_sessions WHERE token=?")
         .get(session.token);
-      if (!binding) return { role: "owner", stores: [] };
+      if (!binding)
+        return { role: "owner", stores: [], identity: "owner:" + ownerLogin };
       const account = db
         .prepare("SELECT * FROM team_accounts WHERE id=? AND active=1")
         .get(binding.account_id);
       return account
-        ? { role: account.role, stores: JSON.parse(account.stores) }
+        ? {
+            role: account.role,
+            stores: JSON.parse(account.stores),
+            identity: account.id,
+          }
         : null;
     },
     guard(req, res, next) {

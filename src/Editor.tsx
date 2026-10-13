@@ -1,3 +1,13 @@
+import { SectionDesign } from "./SectionDesign";
+import { ConflictDialog, type DraftConflict } from "./ConflictDialog";
+import {
+  draftKey,
+  readDraft,
+  writeDraft,
+  downloadDocument,
+  type LocalDraft,
+} from "./draftRecovery";
+import { Dialog, scrollBehavior } from "./Dialog";
 import { TeamPanel } from "./TeamPanel";
 import { GrowthPanel } from "./GrowthPanel";
 import { CatalogPanel, type Catalog } from "./Commerce";
@@ -51,7 +61,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import { api, json, uploadFiles } from "./api";
+import { ApiError, api, json, uploadFiles } from "./api";
 import { MediaPanel } from "./MediaPanel";
 import { BrandPanel } from "./BrandPanel";
 import {
@@ -242,6 +252,11 @@ function CanvasNode({
       data-node-id={node.id}
       data-kind={node.kind}
       data-block={node.id}
+      tabIndex={selected === node.id ? 0 : -1}
+      aria-label={`${node.name} · ${labels[node.kind]}`}
+      onFocus={(event) => {
+        if (event.target === event.currentTarget) select(node.id);
+      }}
       className={`content-block editor-block ${selected === node.id ? "selected" : ""} ${drag.isDragging ? "moving" : ""} ${drop.isOver ? "drop-inside" : ""}`}
       style={style}
       onClick={(event) => {
@@ -387,6 +402,7 @@ function Layer({
   selected,
   select,
   dragging,
+  search = "",
 }: {
   node: Block;
   parent?: string | null;
@@ -395,8 +411,10 @@ function Layer({
   selected: string | null;
   select: (id: string, multi?: boolean) => void;
   dragging: boolean;
+  search?: string;
 }) {
   const [open, setOpen] = useState(depth > 0);
+  const expanded = open || Boolean(search.trim());
   const drag = useDraggable({
     id: `layer:${node.id}`,
     data: { nodeId: node.id },
@@ -434,10 +452,11 @@ function Layer({
         <button
           className="layer-toggle"
           aria-label="Katmanı aç veya kapat"
+          aria-expanded={expanded}
           onClick={() => setOpen(!open)}
         >
           {isContainer(node.kind) ? (
-            open ? (
+            expanded ? (
               <ChevronDown size={12} />
             ) : (
               <ChevronRight size={12} />
@@ -463,19 +482,28 @@ function Layer({
           {node.hidden.mobile && "M̸"}
         </span>
       </div>
-      {open &&
-        node.children.map((child, index) => (
-          <Layer
-            key={child.id}
-            node={child}
-            parent={node.id}
-            index={index}
-            depth={depth + 1}
-            selected={selected}
-            select={select}
-            dragging={dragging}
-          />
-        ))}
+      {expanded &&
+        node.children
+          .filter(
+            (child) =>
+              !search ||
+              JSON.stringify(child)
+                .toLocaleLowerCase("tr")
+                .includes(search.toLocaleLowerCase("tr")),
+          )
+          .map((child) => (
+            <Layer
+              key={child.id}
+              node={child}
+              parent={node.id}
+              index={node.children.indexOf(child)}
+              depth={depth + 1}
+              selected={selected}
+              select={select}
+              dragging={dragging}
+              search={search}
+            />
+          ))}
     </>
   );
 }
@@ -586,6 +614,20 @@ export function Editor({
   const version = useRef(1);
   const savingRef = useRef(false);
   const [saveError, setSaveError] = useState("");
+  const recoveryKey = useRef("");
+  const [recovery, setRecovery] = useState<LocalDraft | null>(null);
+  const [conflict, setConflict] = useState<DraftConflict | null>(null),
+    [conflictOpen, setConflictOpen] = useState(false);
+  const [recoveryWritable, setRecoveryWritable] = useState(true);
+  const persistRecovery = useCallback((document: PageDocument) => {
+    if (!recoveryKey.current || !savedRef.current) return true;
+    return writeDraft(recoveryKey.current, {
+      document,
+      base: JSON.parse(savedRef.current),
+      version: version.current,
+      updated: Date.now(),
+    });
+  }, []);
   const [tick, setTick] = useState(0);
   const [preview, setPreview] = useState(false);
   const [published, setPublished] = useState(false);
@@ -605,8 +647,11 @@ export function Editor({
   );
   useEffect(() => {
     let current = true;
-    api<PageResponse>(`/pages/${pageId}`)
-      .then((result) => {
+    Promise.all([
+      api<PageResponse>(`/pages/${pageId}`),
+      api<{ draftScope: string }>("/auth/status"),
+    ])
+      .then(([result, status]) => {
         if (!current) return;
         pageRef.current = result.document;
         setPage(result.document);
@@ -614,7 +659,20 @@ export function Editor({
         const value = JSON.stringify(result.document);
         savedRef.current = value;
         setSaved(value);
-        setSelected(firstHeading(result.document.nodes));
+        try {
+          recoveryKey.current = draftKey(status.draftScope, store.id, pageId);
+          const local = readDraft(recoveryKey.current);
+          if (local && JSON.stringify(local.document) !== value)
+            setRecovery(local);
+          else localStorage.removeItem(recoveryKey.current);
+        } catch {
+          setRecoveryWritable(false);
+        }
+        setSelected(
+          firstHeading(result.document.nodes) ||
+            result.document.nodes[0]?.id ||
+            null,
+        );
         setBoundSnapshot(result.themeSnapshot ?? null);
       })
       .catch((error) => notify(error.message, true));
@@ -675,14 +733,24 @@ export function Editor({
       lastChange.current = { key, at: now };
       pageRef.current = next;
       setPage(next);
+      setRecoveryWritable(persistRecovery(next));
       setSaveError("");
       setHistoryTick((value) => value + 1);
     },
-    [],
+    [persistRecovery],
   );
   const save = useCallback(async () => {
     const current = pageRef.current;
     if (!current) return false;
+    if (recovery) {
+      notify("Önce kurtarılabilir yerel kopyayı seç.", true);
+      return false;
+    }
+    if (conflict) {
+      setConflict({ ...conflict, local: structuredClone(current) });
+      setConflictOpen(true);
+      return false;
+    }
     if (savingRef.current) return false;
     const snapshot = JSON.stringify(current);
     if (snapshot === savedRef.current) return true;
@@ -708,6 +776,21 @@ export function Editor({
       return true;
     } catch (error) {
       setSaveError((error as Error).message);
+      setRecoveryWritable(persistRecovery(pageRef.current || current));
+      if (error instanceof ApiError && error.status === 409) {
+        try {
+          const remote = await api<PageResponse>(`/pages/${pageId}`);
+          setConflict({
+            base: JSON.parse(savedRef.current),
+            local: structuredClone(pageRef.current || current),
+            remote: remote.document,
+            version: remote.version,
+          });
+          setConflictOpen(true);
+        } catch {
+          /* Preserve the local copy while offline. */
+        }
+      }
       notify((error as Error).message, true);
       return false;
     } finally {
@@ -715,14 +798,45 @@ export function Editor({
       setSaving(false);
       setTick((value) => value + 1);
     }
-  }, [pageId, notify]);
+  }, [pageId, notify, recovery, conflict, persistRecovery]);
   useEffect(() => {
-    if (!page || JSON.stringify(page) === saved || saveError) return;
+    if (
+      !page ||
+      JSON.stringify(page) === saved ||
+      saveError ||
+      recovery ||
+      conflict
+    )
+      return;
     const timer = setTimeout(() => {
       void save();
     }, 1300);
     return () => clearTimeout(timer);
-  }, [page, saved, save, tick, saveError]);
+  }, [page, saved, save, tick, saveError, recovery, conflict]);
+  useEffect(() => {
+    if (!page || recovery) return;
+    if (JSON.stringify(page) !== saved)
+      setRecoveryWritable(persistRecovery(page));
+    else if (recoveryKey.current) {
+      try {
+        localStorage.removeItem(recoveryKey.current);
+      } catch {
+        /* disabled storage */
+      }
+    }
+  }, [page, saved, recovery, persistRecovery]);
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      const current = pageRef.current;
+      if (current && JSON.stringify(current) !== savedRef.current) {
+        persistRecovery(current);
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [persistRecovery]);
   const undo = useCallback(() => {
     if (!past.current.length || !pageRef.current) return;
     future.current.unshift(structuredClone(pageRef.current));
@@ -1188,7 +1302,11 @@ export function Editor({
         { method: "POST", body: json({ document: input }) },
       );
       commit(() => result.document);
-      setSelected(firstHeading(result.document.nodes));
+      setSelected(
+        firstHeading(result.document.nodes) ||
+          result.document.nodes[0]?.id ||
+          null,
+      );
       notify("Tasarım içe aktarıldı");
     } catch (error) {
       notify((error as Error).message, true);
@@ -1216,6 +1334,27 @@ export function Editor({
         <Loader2 className="spin" /> Editör hazırlanıyor…
       </div>
     );
+  const restoreRecovery = async () => {
+    if (!recovery) return;
+    try {
+      const validated = await api<{ document: PageDocument }>(
+        "/documents/validate",
+        { method: "POST", body: json({ document: recovery.document }) },
+      );
+      if (JSON.stringify(recovery.base) !== savedRef.current) {
+        setConflict({
+          base: recovery.base,
+          local: validated.document,
+          remote: JSON.parse(savedRef.current),
+          version: version.current,
+        });
+        setConflictOpen(true);
+      } else commit(() => validated.document);
+      setRecovery(null);
+    } catch (error) {
+      notify((error as Error).message, true);
+    }
+  };
   const selectedNode = findBlock(page.nodes, selected);
   const themeSnapshot = page.themeLayout
     ? boundSnapshot?.id === page.themeLayout.snapshotId
@@ -1389,7 +1528,7 @@ export function Editor({
     selectMany(id);
     document
       .querySelector(`[data-node-id="${id}"]`)
-      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      ?.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
   };
   const collision: typeof pointerWithin = (args) => {
     if (!args.pointerCoordinates) return closestCenter(args);
@@ -1592,6 +1731,131 @@ export function Editor({
               </div>
             </div>
           </header>
+          {(recovery || conflict || saveError || !recoveryWritable) && (
+            <div className="recovery-banner" role="status" data-recovery-banner>
+              {!recoveryWritable && (
+                <span>
+                  Tarayıcı kopyası kaydedilemiyor. Değişikliklerini JSON olarak
+                  indir.
+                </span>
+              )}
+              {recovery && (
+                <>
+                  <span>
+                    {new Date(recovery.updated).toLocaleString("tr-TR")} tarihli
+                    kaydedilmemiş taslak bulundu.
+                  </span>
+                  <button onClick={() => void restoreRecovery()}>
+                    Taslağı kurtar
+                  </button>
+                  <button
+                    onClick={() =>
+                      downloadDocument(recovery.document, "kurtarma")
+                    }
+                  >
+                    Kurtarma kopyasını indir
+                  </button>
+                  <button
+                    onClick={() => {
+                      try {
+                        localStorage.removeItem(recoveryKey.current);
+                      } catch {
+                        /* unavailable */
+                      }
+                      setRecovery(null);
+                    }}
+                  >
+                    Sunucu sürümüyle devam et
+                  </button>
+                </>
+              )}
+              {conflict && (
+                <button onClick={() => setConflictOpen(true)}>
+                  Kayıt çakışmasını çöz
+                </button>
+              )}
+              {saveError && !conflict && (
+                <>
+                  <span>
+                    {saveError} ·{" "}
+                    {recoveryWritable
+                      ? "Yerel kopyan bu tarayıcıda korunuyor."
+                      : "Tarayıcı kopyası kullanılamıyor."}
+                  </span>
+                  <button onClick={() => void save()}>Kaydı tekrar dene</button>
+                </>
+              )}
+              {page && (
+                <button onClick={() => downloadDocument(page, "yerel")}>
+                  Yerel kopyayı indir
+                </button>
+              )}
+            </div>
+          )}
+          {recovery && (
+            <Dialog
+              open
+              label="Kaydedilmemiş taslağı kurtar"
+              onClose={() => {}}
+              dismissible={false}
+            >
+              <h2>Kaydedilmemiş taslağın korunuyor</h2>
+              <p>
+                Bu tarayıcıda{" "}
+                {new Date(recovery.updated).toLocaleString("tr-TR")} tarihli bir
+                kopya var. Düzenlemeye devam etmek için kullanacağın sürümü seç.
+              </p>
+              <button onClick={() => void restoreRecovery()}>
+                Taslağı kurtar
+              </button>
+              <button
+                onClick={() => downloadDocument(recovery.document, "kurtarma")}
+              >
+                Kurtarma kopyasını indir
+              </button>
+              <button
+                onClick={() => {
+                  try {
+                    localStorage.removeItem(recoveryKey.current);
+                  } catch {
+                    /* unavailable */
+                  }
+                  setRecovery(null);
+                }}
+              >
+                Sunucu sürümüyle devam et
+              </button>
+            </Dialog>
+          )}
+          {conflict && (
+            <ConflictDialog
+              key={conflict.version}
+              value={conflict}
+              open={conflictOpen}
+              onClose={() => setConflictOpen(false)}
+              apply={async (candidate) => {
+                try {
+                  const validated = await api<{ document: PageDocument }>(
+                    "/documents/validate",
+                    { method: "POST", body: json({ document: candidate }) },
+                  );
+                  version.current = conflict.version;
+                  savedRef.current = JSON.stringify(conflict.remote);
+                  setSaved(savedRef.current);
+                  commit(() => validated.document);
+                  setConflict(null);
+                  setConflictOpen(false);
+                  setRecovery(null);
+                  setSaveError("");
+                  notify(
+                    "Seçimlerin birleştirildi. Güncel sürüme kaydediliyor.",
+                  );
+                } catch (error) {
+                  notify((error as Error).message, true);
+                }
+              }}
+            />
+          )}
           <div className="studio-workspace">
             <nav className="tool-rail">
               <div>
@@ -1855,6 +2119,7 @@ export function Editor({
                         selected={selected}
                         select={selectLayer}
                         dragging={!!dragging}
+                        search={search}
                       />
                     ))}
                   {useThemeShell &&
@@ -2126,6 +2391,18 @@ export function Editor({
               </footer>
             </main>
             <div className="inspector-container">
+              {enclosingSection(page, selected) && !selectedThemeSection && (
+                <SectionDesign
+                  key={enclosingSection(page, selected)!.id}
+                  section={enclosingSection(page, selected)!}
+                  update={(section) =>
+                    commit((d) => ({
+                      ...d,
+                      nodes: mapBlock(d.nodes, section.id, () => section),
+                    }))
+                  }
+                />
+              )}
               <SelectionTools
                 node={selectedNode}
                 count={

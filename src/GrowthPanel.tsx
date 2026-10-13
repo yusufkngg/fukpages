@@ -1,3 +1,4 @@
+import { ExperimentResults } from "./ExperimentResults";
 import { TransferPanel } from "./TransferPanel";
 import { useState, useEffect } from "react";
 import { api, json } from "./api";
@@ -246,6 +247,11 @@ export function GrowthPanel({
       >
         İki adımlı huni oluştur
       </button>
+      <ExperimentResults
+        storeId={storeId}
+        refreshKey={links.length}
+        notify={notify}
+      />
       {links.map((l) => (
         <a href={l} key={l} target="_blank" rel="noreferrer">
           {new URL(l, window.location.origin).href}

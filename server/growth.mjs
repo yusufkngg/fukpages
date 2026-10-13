@@ -50,7 +50,8 @@ export function registerGrowth({
     res.json(
       db
         .prepare("SELECT * FROM experiments WHERE store_id=?")
-        .all(req.params.id),
+        .all(req.params.id)
+        .map((e) => ({ ...e, results: studio.analytics.results(e.id) })),
     ),
   );
   app.post("/api/stores/:id/experiments", auth, csrf, (req, res) => {
@@ -109,20 +110,10 @@ export function registerGrowth({
       .get(req.params.id);
     if (!experiment)
       return res.status(404).json({ error: "A/B testi aktif değil." });
-    const key = "fp_ab_" + experiment.id;
-    const prior = req.headers.cookie
-      ?.split(";")
-      .map((s) => s.trim())
-      .find((s) => s.startsWith(key + "="))
-      ?.split("=")[1];
-    const chosen = ["a", "b"].includes(prior)
-      ? prior
-      : (randomBytes(4).readUInt32BE() / 0x100000000) * 100 < experiment.split
-        ? "a"
-        : "b";
-    res.setHeader(
+    const chosen = studio.analytics.assign(req, res, experiment);
+    res.append(
       "Set-Cookie",
-      `${key}=${chosen}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${process.env.NODE_ENV === "production" ? "; Secure" : ""}`,
+      `fp_ab_${experiment.id}=${chosen}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${process.env.NODE_ENV === "production" ? "; Secure" : ""}`,
     );
     const row = publicPage(experiment[chosen]);
     if (!row)

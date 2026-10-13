@@ -1,0 +1,39 @@
+[build]
+  command = "npm run build:netlify"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "24"
+  AWS_LAMBDA_JS_RUNTIME = "nodejs24.x"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["sharp", "fontkit", "wawoff2"]
+  included_files = ["dist/index.html", "!**/.local/**", "!**/.env*", "!**/*.sqlite*", "!**/*.hash", "!.netlify/**", "!.git/**", "!.agents/**", "!.codex/**", "!tests/**", "!docs/**", "!scripts/**"]
+
+[template.environment]
+  FUKPAGES_DEMO_PASSWORD = "Demo paneli şifresi: en az 12 karakter. Yalnızca Netlify ortam ayarına yaz."
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/p/*"
+  to = "/.netlify/functions/api/p/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "same-origin"

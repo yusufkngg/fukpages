@@ -1056,3 +1056,186 @@ test("webhook forms queue only opted-in submissions, retry with stable idempoten
   );
   assert.deepEqual(keys, [remote, remote]);
 });
+
+test("interrupted upload retries share one persisted asset, including concurrent retries and process restart", async (t) => {
+  const f = await fixture(t);
+  const bytes = await sharp({
+    create: { width: 60, height: 30, channels: 4, background: "red" },
+  })
+    .png()
+    .toBuffer();
+  const retry = async (payload = bytes) => {
+    const data = new FormData();
+    data.append("type", "image");
+    data.append("uploadIds", JSON.stringify(["retry-upload-identity-001"]));
+    data.append("files", new Blob([payload]), "retry.png");
+    return f.request("/stores/demo/assets", "POST", data);
+  };
+  const first = await retry().then((r) => r.json());
+  const responses = await Promise.all([retry(), retry()]);
+  for (const r of responses)
+    assert.equal(
+      (await r.json()).results[0].asset.id,
+      first.results[0].asset.id,
+    );
+  await f.restart();
+  assert.equal(
+    (await retry().then((r) => r.json())).results[0].asset.id,
+    first.results[0].asset.id,
+  );
+  assert.equal(
+    (await f.request("/stores/demo/assets").then((r) => r.json())).length,
+    1,
+  );
+  assert.equal((await retry(Buffer.from("different"))).status, 400);
+});
+
+test("store transfer freezes inherited brand fonts, copies every family face and preserves the target brand", async (t) => {
+  const f = await fixture(t);
+  const fontBytes = readFileSync(
+    new URL("./fixtures/ABeeZee-Regular.ttf", import.meta.url),
+  );
+  for (const weight of [400, 700]) {
+    const data = new FormData();
+    data.append("type", "font");
+    data.append("weight", String(weight));
+    data.append("files", new Blob([fontBytes]), `face-${weight}.ttf`);
+    assert.equal(
+      (await f.request("/stores/demo/assets", "POST", data)).status,
+      201,
+    );
+  }
+  const brand = structuredClone(defaultBrand);
+  brand.fonts.heading = "ABeeZee, Arial, sans-serif";
+  brand.colors.primary = "#ff6600";
+  await f.request("/stores/demo/brand", "PUT", { brand, version: 0 });
+  const heading = block("heading", "h", { html: "Turkish İ ı Ş ş", tag: "h1" });
+  const source = await f
+    .request("/stores/demo/pages", "POST", {
+      document: doc([
+        heading,
+        block("button", "b", { text: "CTA", href: "/page" }),
+      ]),
+    })
+    .then((r) => r.json());
+  const target = await f
+    .request("/stores", "POST", { name: "Target font" })
+    .then((r) => r.json());
+  const copied = await f
+    .request(`/pages/${source.id}/transfer`, "POST", {
+      targetStoreId: target.id,
+    })
+    .then((r) => r.json());
+  assert.equal(
+    copied.document.nodes[0].styles.desktop.fontFamily,
+    "ABeeZee, Arial, sans-serif",
+  );
+  assert.equal(copied.document.nodes[0].styles.mobile.fontSize, "39px");
+  assert.equal(
+    copied.document.nodes[1].styles.desktop.backgroundColor,
+    "#ff6600",
+  );
+  const fonts = await f
+    .request(`/stores/${target.id}/assets`)
+    .then((r) => r.json());
+  assert.deepEqual(
+    fonts
+      .filter((a) => a.type === "font")
+      .map((a) => a.weight)
+      .sort(),
+    [400, 700],
+  );
+  assert.equal(new Set(fonts.map((a) => a.family)).size, 1);
+  assert.deepEqual(
+    (await f.request(`/stores/${target.id}/brand`).then((r) => r.json())).brand,
+    defaultBrand,
+  );
+  await f.request(`/pages/${copied.id}/publish`, "POST", {});
+  for (const font of fonts)
+    assert.equal(
+      (await f.request(font.url.replace("/api", ""), "GET", undefined, false))
+        .status,
+      200,
+    );
+  const adapted = await f
+    .request(`/pages/${source.id}/transfer`, "POST", {
+      targetStoreId: target.id,
+      preserveBrand: false,
+    })
+    .then((r) => r.json());
+  assert.equal(adapted.document.nodes[0].props.globalDetached, undefined);
+});
+
+test("A/B events deduplicate retries and count one conversion per assigned visitor, rejecting wrong-page attribution", async (t) => {
+  const f = await fixture(t),
+    pages = [];
+  for (const value of ["A", "B"]) {
+    const p = await f
+      .request("/stores/demo/pages", "POST", {
+        document: doc([block("text", value, { html: value })]),
+      })
+      .then((r) => r.json());
+    await f.request(`/pages/${p.id}/publish`, "POST", {});
+    pages.push(p.id);
+  }
+  const experiment = await f
+    .request("/stores/demo/experiments", "POST", {
+      a: pages[0],
+      b: pages[1],
+      split: 50,
+    })
+    .then((r) => r.json());
+  const response = await f.request(
+    `/public/experiments/${experiment.id}`,
+    "GET",
+    undefined,
+    false,
+  );
+  const cookie = response.headers.get("set-cookie").split(";")[0],
+    assigned = await response.json();
+  const send = (eventId, page = assigned.pageId) =>
+    f.request(
+      `/public/pages/${page}/events`,
+      "POST",
+      { event: "add_to_cart", eventId, experimentId: experiment.id },
+      false,
+      { Cookie: cookie },
+    );
+  assert.equal((await send("idempotent-ab-event-001")).status, 204);
+  assert.equal((await send("idempotent-ab-event-001")).status, 204);
+  assert.equal((await send("idempotent-ab-event-002")).status, 204);
+  assert.equal(
+    (
+      await send(
+        "idempotent-ab-event-003",
+        pages.find((p) => p !== assigned.pageId),
+      )
+    ).status,
+    400,
+  );
+  await f.request(
+    `/public/experiments/${experiment.id}`,
+    "GET",
+    undefined,
+    false,
+    { Cookie: cookie },
+  );
+  const experiments = await f
+    .request("/stores/demo/experiments")
+    .then((r) => r.json());
+  const result = experiments[0].results.variants.find(
+    (v) => v.variant === assigned.variant,
+  );
+  assert.equal(result.visitors, 1);
+  assert.equal(result.carts, 1);
+  assert.equal(result.cartRate, 1);
+  assert.ok(result.interval[0] > 0 && result.interval[1] <= 1);
+  assert.equal(
+    (
+      await f.request(`/pages/${assigned.pageId}/metrics`).then((r) => r.json())
+    )[0].count,
+    2,
+  );
+  await f.restart();
+  assert.equal((await send("idempotent-ab-event-001")).status, 204);
+});

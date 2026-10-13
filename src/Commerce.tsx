@@ -1,3 +1,5 @@
+import { Dialog } from "./Dialog";
+import { trackEvent } from "./metrics";
 import {
   createContext,
   useContext,
@@ -112,6 +114,7 @@ export function CommerceProvider({
     } catch {}
   }, [storeId, catalog]);
   const add = (productId: string, offers = "") => {
+    const eventId = crypto.randomUUID();
     const product = catalog.products.find((p) => p.id === productId),
       v = product?.variants.find(
         (v) => v.id === (selected[productId] || product.variants[0]?.id),
@@ -149,12 +152,7 @@ export function CommerceProvider({
       ];
       localStorage.setItem("fp-cart-" + storeId, JSON.stringify(next));
       setMessage("Yerel sepete eklendi. Shopify ödeme bağlantısı kapalı.");
-      if (pageId)
-        void fetch(`/api/public/pages/${pageId}/events`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ event: "add_to_cart" }),
-        });
+      trackEvent(pageId, "add_to_cart", eventId);
       return next;
     });
   };
@@ -170,6 +168,7 @@ export function CommerceProvider({
     };
   });
   const addBundle = (ids: string[], discount: number) => {
+    const eventId = crypto.randomUUID();
     const unique = [...new Set(ids)];
     if (!unique.length) return;
     setCart((old) => {
@@ -218,6 +217,7 @@ export function CommerceProvider({
       }
       localStorage.setItem("fp-cart-" + storeId, JSON.stringify(next));
       setMessage("Paket yerel sepete eklendi. Ödeme bağlantısı kapalı.");
+      trackEvent(pageId, "add_to_cart", eventId);
       return next;
     });
   };
@@ -253,38 +253,28 @@ export function CommerceProvider({
           <button onClick={() => setMessage("")}>Kapat</button>
         </div>
       )}
-      {open && (
-        <div
-          className="builder-modal"
-          role="dialog"
-          aria-label="Yerel sepet"
-          onClick={() => setOpen(false)}
-        >
-          <div onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setOpen(false)}>Kapat</button>
-            <h2>Yerel sepet önizlemesi</h2>
-            {cart.map((i) => (
-              <p key={i.productId + i.variantId}>
-                {catalog.products.find((p) => p.id === i.productId)?.title} ·{" "}
-                {i.quantity} adet
-                <button
-                  onClick={() => {
-                    const next = cart.filter((c) => c !== i);
-                    setCart(next);
-                    localStorage.setItem(
-                      "fp-cart-" + storeId,
-                      JSON.stringify(next),
-                    );
-                  }}
-                >
-                  Kaldır
-                </button>
-              </p>
-            ))}
-            <p>Ödeme işlemi Shopify bağlantısıyla sonraki aşamada açılacak.</p>
-          </div>
-        </div>
-      )}
+      <Dialog open={open} onClose={() => setOpen(false)} label="Yerel sepet">
+        <h2>Yerel sepet önizlemesi</h2>
+        {cart.map((i) => (
+          <p key={i.productId + i.variantId}>
+            {catalog.products.find((p) => p.id === i.productId)?.title} ·{" "}
+            {i.quantity} adet
+            <button
+              onClick={() => {
+                const next = cart.filter((c) => c !== i);
+                setCart(next);
+                localStorage.setItem(
+                  "fp-cart-" + storeId,
+                  JSON.stringify(next),
+                );
+              }}
+            >
+              Kaldır
+            </button>
+          </p>
+        ))}
+        <p>Ödeme işlemi Shopify bağlantısıyla sonraki aşamada açılacak.</p>
+      </Dialog>
     </CatalogContext.Provider>
   );
 }
@@ -465,25 +455,22 @@ export function CommerceBlock({
               </button>
             ))}
           </div>
-          {zoom && !editable && (
-            <div
-              className="builder-modal"
-              role="dialog"
-              aria-label="Ürün yakınlaştırma"
-              onClick={() => setZoom(false)}
-            >
-              <img
-                src={assetUrl(images[active % images.length], previewToken)}
-                alt={product.title}
-              />
-            </div>
-          )}
+          <Dialog
+            open={zoom && !editable}
+            onClose={() => setZoom(false)}
+            label="Ürün yakınlaştırma"
+          >
+            <img
+              src={assetUrl(images[active % images.length], previewToken)}
+              alt={product.title}
+            />
+          </Dialog>
         </div>
       );
     }
     case "variantPicker":
       return (
-        <label>
+        <label className="builder-variant-picker">
           Varyant
           {p.variantMode === "buttons" ? (
             <span>
@@ -522,7 +509,7 @@ export function CommerceBlock({
       );
     case "quantity":
       return (
-        <label>
+        <label className="builder-quantity-picker">
           Adet
           <input
             aria-label="Ürün adedi"
@@ -546,7 +533,7 @@ export function CommerceBlock({
     case "stickyCart":
       return (
         <div
-          className={node.kind === "stickyCart" ? "builder-sticky-cart" : ""}
+          className={`builder-purchase-controls ${node.kind === "stickyCart" ? "builder-sticky-cart" : ""}`}
         >
           <b>
             {product.title} · {money(variant?.price || 0, product.currency)}

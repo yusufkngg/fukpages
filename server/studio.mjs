@@ -1,8 +1,10 @@
+import { freezeBrandDocument } from "./transfer-brand.mjs";
+import { createAnalytics } from "./metrics.mjs";
 import multer from "multer";
 import sharp from "sharp";
 import * as fontkit from "fontkit";
 import wawoff2 from "wawoff2";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { lookup } from "node:dns/promises";
@@ -206,6 +208,11 @@ export function registerStudio({
   db.exec(
     "CREATE TABLE IF NOT EXISTS synced_sections(id TEXT PRIMARY KEY,store_id TEXT NOT NULL,version INTEGER NOT NULL DEFAULT 1);",
   );
+  db.exec(
+    "CREATE TABLE IF NOT EXISTS upload_receipts(store_id TEXT NOT NULL,upload_id TEXT NOT NULL,asset_id TEXT NOT NULL,digest TEXT NOT NULL,PRIMARY KEY(store_id,upload_id));",
+  );
+  const pendingUploads = new Map();
+  const analytics = createAnalytics(db);
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 20 * 1024 * 1024, files: 20 },
@@ -300,6 +307,47 @@ export function registerStudio({
     return [...found.values()];
   };
   async function saveAsset(store, file, kind, options = {}) {
+    if (!options.uploadId) return persistAsset(store, file, kind, options);
+    if (!/^[\w-]{16,100}$/.test(options.uploadId))
+      throw new Error("Geçersiz yükleme kimliği.");
+    const digest = createHash("sha256")
+      .update(file.buffer)
+      .update(
+        JSON.stringify([
+          kind,
+          file.originalname,
+          options.family,
+          options.weight,
+          options.italic,
+        ]),
+      )
+      .digest("hex");
+    const receipt = db
+      .prepare(
+        "SELECT r.digest,a.data FROM upload_receipts r JOIN assets a ON a.id=r.asset_id WHERE r.store_id=? AND r.upload_id=?",
+      )
+      .get(store, options.uploadId);
+    if (receipt) {
+      if (receipt.digest !== digest)
+        throw new Error("Yükleme kimliği farklı bir dosya için kullanılmış.");
+      return JSON.parse(receipt.data);
+    }
+    const key = store + ":" + options.uploadId;
+    const pending = pendingUploads.get(key);
+    if (pending) {
+      if (pending.digest !== digest)
+        throw new Error("Yükleme kimliği farklı bir dosya için kullanılmış.");
+      return pending.promise;
+    }
+    const promise = persistAsset(store, file, kind, { ...options, digest });
+    pendingUploads.set(key, { digest, promise });
+    try {
+      return await promise;
+    } finally {
+      pendingUploads.delete(key);
+    }
+  }
+  async function persistAsset(store, file, kind, options = {}) {
     const assetId = id(),
       dir = resolve(assetRoot, assetId);
     mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -429,9 +477,23 @@ export function registerStudio({
       "active"
     )
       throw new Error("Mağaza devre dışı bırakıldı. Dosya kaydedilmedi.");
-    db.prepare(
-      "INSERT INTO assets(id,store_id,type,data,created) VALUES(?,?,?,?,?)",
-    ).run(assetId, store, kind, JSON.stringify(result), Date.now());
+    db.exec("BEGIN");
+    try {
+      db.prepare(
+        "INSERT INTO assets(id,store_id,type,data,created) VALUES(?,?,?,?,?)",
+      ).run(assetId, store, kind, JSON.stringify(result), Date.now());
+      if (options.uploadId)
+        db.prepare("INSERT INTO upload_receipts VALUES(?,?,?,?)").run(
+          store,
+          options.uploadId,
+          assetId,
+          options.digest,
+        );
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
     return result;
   }
   app.get("/api/stores/:id/assets", auth, (req, res) => {
@@ -450,7 +512,20 @@ export function registerStudio({
     },
     async (req, res) => {
       const results = [];
-      for (const file of req.files || []) {
+      let uploadIds;
+      try {
+        uploadIds = req.body.uploadIds ? JSON.parse(req.body.uploadIds) : [];
+      } catch {
+        return res.status(400).json({ error: "Yükleme kimlikleri okunamadı." });
+      }
+      if (
+        !Array.isArray(uploadIds) ||
+        (uploadIds.length && uploadIds.length !== (req.files || []).length)
+      )
+        return res
+          .status(400)
+          .json({ error: "Dosyalar ve yükleme kimlikleri eşleşmiyor." });
+      for (const [index, file] of (req.files || []).entries()) {
         try {
           results.push({
             ok: true,
@@ -458,7 +533,7 @@ export function registerStudio({
               req.params.id,
               file,
               req.body.type === "font" ? "font" : "image",
-              req.body,
+              { ...req.body, uploadId: uploadIds[index] },
             ),
           });
         } catch (error) {
@@ -675,7 +750,13 @@ export function registerStudio({
     if (!target) return;
     if (source.store_id === target.id)
       return res.status(400).json({ error: "Farklı bir hedef mağaza seç." });
-    const document = JSON.parse(source.document),
+    const document =
+        req.body.preserveBrand === false
+          ? JSON.parse(source.document)
+          : freezeBrandDocument(
+              JSON.parse(source.document),
+              brand(source.store_id),
+            ),
       products = catalog(target.id).products,
       collections = catalog(target.id).collections;
     const productMap = req.body.productMap || {},
@@ -707,7 +788,8 @@ export function registerStudio({
         missing: [...new Set(missing)],
       });
     try {
-      const mediaMap = {};
+      const mediaMap = {},
+        fontMap = {};
       for (const asset of assets(source.store_id, true).filter(
         (a) =>
           documentUses(document, a) ||
@@ -716,12 +798,20 @@ export function registerStudio({
         const bytes = readFileSync(
           resolve(assetRoot, asset.id, asset.url.split("/").pop()),
         );
+        const family =
+          asset.type === "font"
+            ? fontMap[asset.family] ||
+              (assets(target.id, true).some((a) => a.family === asset.family)
+                ? `${asset.family} Transfer ${id().slice(0, 8)}`
+                : asset.family)
+            : undefined;
+        if (asset.type === "font") fontMap[asset.family] = family;
         const copy = await saveAsset(
           target.id,
           { buffer: bytes, originalname: asset.name },
           asset.type,
           {
-            family: asset.family,
+            family,
             weight: asset.weight,
             italic: String(asset.italic),
           },
@@ -736,9 +826,40 @@ export function registerStudio({
         );
       const copied = JSON.parse(serialized);
       delete copied.themeLayout;
+      const nodeIds = {};
+      const collectIds = (nodes) =>
+        nodes.forEach((n) => {
+          nodeIds[n.id] = id();
+          collectIds(n.children);
+        });
+      collectIds(copied.nodes);
       const transform = (nodes) =>
         nodes.forEach((n) => {
-          n.id = id();
+          n.id = nodeIds[n.id];
+          const actionId = String(n.props.actionTarget || "").replace(/^#/, "");
+          if (nodeIds[actionId])
+            n.props.actionTarget =
+              (String(n.props.actionTarget).startsWith("#") ? "#" : "") +
+              nodeIds[actionId];
+          const mapFont = (value) =>
+            String(value)
+              .split(",")
+              .map(
+                (name) =>
+                  fontMap[name.trim().replace(/^["']|["']$/g, "")] ||
+                  name.trim(),
+              )
+              .join(", ");
+          for (const styles of Object.values(n.styles))
+            if (typeof styles.fontFamily === "string")
+              styles.fontFamily = mapFont(styles.fontFamily);
+          for (const key of ["hoverStyles", "focusStyles"])
+            if (n.props[key]) {
+              const state = JSON.parse(n.props[key]);
+              if (state.fontFamily)
+                state.fontFamily = mapFont(state.fontFamily);
+              n.props[key] = JSON.stringify(state);
+            }
           delete n.props.linkedSectionId;
           delete n.props.linkedVersion;
           if (n.props.productId)
@@ -1122,11 +1243,7 @@ export function registerStudio({
       )
       .get(req.params.id);
     if (!row) return res.status(404).end();
-    const day = new Date().toISOString().slice(0, 10);
-    db.prepare(
-      "INSERT INTO metrics VALUES(?,?,?,1) ON CONFLICT(page_id,event,day) DO UPDATE SET count=count+1",
-    ).run(req.params.id, req.body.event, day);
-    res.status(204).end();
+    analytics.record(req, res, req.params.id);
   });
   app.get("/api/pages/:id/metrics", auth, (req, res) =>
     res.json(
@@ -1138,6 +1255,7 @@ export function registerStudio({
     ),
   );
   return {
+    analytics,
     brand,
     assets,
     destination,

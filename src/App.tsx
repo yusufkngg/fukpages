@@ -36,9 +36,11 @@ import {
 function Login({
   configured,
   onLogin,
+  demo = false,
 }: {
   configured: boolean;
   onLogin: (csrf: string) => void;
+  demo?: boolean;
 }) {
   const [login, setLogin] = useState("owner"),
     [password, setPassword] = useState("");
@@ -117,6 +119,13 @@ function Login({
           <span className="eyebrow">SAHİP ERİŞİMİ</span>
           <h2>Stüdyona hoş geldin.</h2>
           <p>Mağazalarını ve tasarımlarını yönetmek için giriş yap.</p>
+          {demo && (
+            <p>
+              <a href="/p/demo/demo-store" target="_blank" rel="noreferrer">
+                Demo mağazayı aç ↗
+              </a>
+            </p>
+          )}
           <form onSubmit={(event) => void submit(event)}>
             <label>
               Kullanıcı adı
@@ -179,11 +188,13 @@ function MouseMark() {
 }
 function Dashboard({
   role = "owner",
+  demo = false,
   openPage,
   logout,
   notify,
 }: {
   role?: "owner" | "editor" | "viewer";
+  demo?: boolean;
   openPage: (id: string, store: Store) => void;
   logout: () => void;
   notify: (message: string, error?: boolean) => void;
@@ -320,6 +331,16 @@ function Dashboard({
         <button className="active" onClick={() => setSelected(null)}>
           <StoreIcon size={18} /> Mağazalarım
         </button>
+        {demo && (
+          <a
+            className="demo-store-link"
+            href="/p/demo/demo-store"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <StoreIcon size={18} /> Demo mağazayı aç ↗
+          </a>
+        )}
         <div className="dashboard-nav-bottom">
           <div>
             <ShieldCheck size={16} />
@@ -346,8 +367,9 @@ function Dashboard({
           <div className="local-notice">
             <CircleAlert size={15} />
             <span>
-              Shopify tema bölümleri eşleştirilebilir. Sayfa yayınları şu an
-              yerel önizlemede çalışır.
+              {demo
+                ? "Demo çalışma alanı · Shopify bağlantısı yok. Sepet ve formlar örnek verilerle çalışır; ödeme alınmaz. Medya yüklemelerini 4 MB altında tut."
+                : "Shopify tema bölümleri eşleştirilebilir. Sayfa yayınları şu an yerel önizlemede çalışır."}
             </span>
           </div>
           {!selected ? (
@@ -677,6 +699,7 @@ export function App() {
     authenticated: boolean;
     configured: boolean;
     role?: "owner" | "editor" | "viewer";
+    demo?: boolean;
   } | null>(null);
   const [editing, setEditing] = useState<{ id: string; store: Store } | null>(
     null,
@@ -802,7 +825,7 @@ export function App() {
       await api("/auth/logout", { method: "POST", body: "{}" });
       setEditing(null);
       setCsrf("");
-      setStatus({ authenticated: false, configured: true });
+      setStatus({ authenticated: false, configured: true, demo: status?.demo });
     } catch (error) {
       notify((error as Error).message, true);
     }
@@ -825,6 +848,7 @@ export function App() {
       ) : !status.authenticated ? (
         <Login
           configured={status.configured}
+          demo={status.demo}
           onLogin={(csrf) => {
             setCsrf(csrf);
             api<{
@@ -854,6 +878,7 @@ export function App() {
       ) : (
         <Dashboard
           role={status.role || "owner"}
+          demo={status.demo}
           openPage={(id, store) => setEditing({ id, store })}
           logout={() => void logout()}
           notify={notify}

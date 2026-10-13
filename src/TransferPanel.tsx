@@ -15,6 +15,7 @@ export function TransferPanel({
   save: () => Promise<boolean>;
   notify: (m: string, e?: boolean) => void;
 }) {
+  const [preserveBrand, setPreserveBrand] = useState(true);
   const [stores, setStores] = useState<Store[]>([]),
     [target, setTarget] = useState(""),
     [catalog, setCatalog] = useState<Catalog>({
@@ -100,6 +101,17 @@ export function TransferPanel({
           </select>
         </label>
       ))}
+      <label>
+        Aktarımda görünüm
+        <select
+          aria-label="Aktarımda marka görünümü"
+          value={preserveBrand ? "source" : "target"}
+          onChange={(e) => setPreserveBrand(e.target.value === "source")}
+        >
+          <option value="source">Kaynak görünümünü koru</option>
+          <option value="target">Hedef mağazanın markasını kullan</option>
+        </select>
+      </label>
       <p>
         Görseller ve kullanılan özel fontlar hedef mağazaya kopyalanıp eşlenir.
         Senkron bölüm ve tema bağlantısı bağımsız taslağa dönüşür.
@@ -111,7 +123,12 @@ export function TransferPanel({
             if (!(await save())) return;
             await api(`/pages/${pageId}/transfer`, {
               method: "POST",
-              body: json({ targetStoreId: target, productMap, collectionMap }),
+              body: json({
+                targetStoreId: target,
+                productMap,
+                collectionMap,
+                preserveBrand,
+              }),
             });
             notify("Tasarım hedef mağazada yeni taslak olarak oluşturuldu.");
           } catch (e) {

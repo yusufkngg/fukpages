@@ -1,0 +1,48 @@
+# Netlify demo kurulumu
+
+Bu prototip, şifreli paneli ve örnek mağazayı aynı Netlify projesinde sunar. Shopify bağlantısı yoktur. Ürün, stok ve sepet örnek veridir; ödeme veya gerçek sipariş oluşturulmaz.
+
+## Yeni proje
+
+1. [Netlify proje ekleme ekranını aç](https://app.netlify.com/start). **Import an existing project → GitHub** seç.
+2. GitHub hesabını bağla; Netlify'a **yusufkngg/fukpages** deposunu görme izni ver. Depoyu ve **main** dalını seç. Böylece bu depoya yapılan her push aynı projeyi günceller.
+3. Netlify `netlify.toml` dosyasını okur: build `npm run build:netlify`, publish `dist`, functions `netlify/functions`, Node 24. Base directory boş kalır; depo kökü kullanılır.
+4. Deploy öncesi **Environment variables** alanına `FUKPAGES_DEMO_PASSWORD` ekle. Değerini en az 12 karakterlik kendi şifren yap. Kapsam **Functions** veya **All scopes**, bağlam **Production** olmalı. Şifreyi GitHub'a veya sohbete yazma. `VITE_` öneki ekleme.
+5. Deploy'u başlat. Şifreyi sonradan eklersen/değiştirirsen **Deploys → Trigger deploy** ile yeni deploy başlat.
+6. Verilen `https://…netlify.app` adresini aç. Kullanıcı adı **owner**, şifre 4. adımda belirlediğin değer.
+
+| Adres | Kullanım |
+| --- | --- |
+| `/` | Şifreli yönetim paneli; demo sayfayı seçip düzenle |
+| `/p/demo/demo-store` | Ziyaretçilere açık örnek mağaza |
+| `/api/health` | Sunucu sağlık yanıtı |
+
+Panelde **Demo mağazayı aç** bağlantısı bulunur. Sayfayı düzenleyip **Yerel yayın** ile yayınla; bu adım Netlify üzerindeki demo mağazayı günceller. **Kaydet** taslağı saklar, yayınlanan sürümü ayrıca değiştirmen gerekir.
+
+## Sonraki güncellemeler
+
+GitHub `main` dalına push yapıldığında Netlify yeni deploy'u otomatik oluşturur. Kaynak kodunun GitHub'a gönderilmesi ve deploy'un başarılı olması ayrı aşamalardır; Netlify **Deploys** ekranında durum görünür. Projeyi doğrudan mevcut depodan içe aktar; bağımsız bir depo kopyasının güncellemeleri bu depoyu takip etmez.
+
+Ana deploy'da kalıcı store adı `fukpages-demo-production` olur. Yeni deploy, taslakları/sürümleri/form kayıtlarını ve yüklenen medya/fontları yeniden tohumlamaz. Demo başlangıç verisi sadece ilk kurulumda oluşturulur. Önizleme deploy'ları build anındaki deploy kimliğiyle ayrı depolama kullanır; ana projenin kayıtlarına veya oturumlarına erişmez.
+
+## Depolama ve prototip sınırları
+
+Netlify Blobs, SQLite ve medyanın sıkıştırılmış anlık görüntüsünü saklar. Her istek geçici bir çalışma dizininde çalışır; değişiklik yalnızca güçlü tutarlılık ve ETag koşullu yazımı başarıyla tamamlandıktan sonra başarılı yanıt verir. Yarışan istek güncel veriden tekrar değerlendirilir; eski sayfa sürümü 409 alır. Scrypt şifre doğrulaması, HTTPS/HttpOnly/SameSite cookie ve CSRF kontrolü sunucudadır. Başarısız girişler soğuk başlangıçlarda da korunur; şifre değişikliği oturumları iptal eder. Şifre yoksa yönetim kapalıdır.
+
+- Tek isteğin medya/form-data toplamı **4 MB altında** olmalı. Netlify'ın istek/yanıt ve çalışma süresi limitleri ayrıca geçerlidir.
+- Snapshot için **32 MB sıkıştırılmış / 64 MB açılmış JSON** üst sınırı vardır; base64 nedeniyle gerçek medya kapasitesi daha düşüktür. Sınır aşılırsa başarılı kayıt yanıtı verilmez; panelde yerel taslağı dışa aktarabilirsin.
+- Depolama her istekte indirilir; küçük, tek sahipli demo içindir. Büyük medya arşivi veya gerçek müşteri trafiği için kalıcı veritabanı ve ayrı nesne depolama gerekir.
+- Zamanlı yayınlar istek geldiğinde kontrol edilir; kesintisiz zamanlayıcı bu Netlify demosunda yoktur. Express sunucusunda 15 saniyelik zamanlayıcı devam eder.
+- AI ve e-posta/CRM sağlayıcısı yapılandırılmaz. Yerel formlar uygulamada saklanır. Shopify yayını, gerçek ödeme ve sipariş ölçümü bu aşamada yoktur.
+
+## Doğrulama ve sorun giderme
+
+`npm run build:netlify`, `npm test`, `npm run test:netlify` ve `npm run test:browser` kullanılır. Paket testi resmi Netlify paketleyicisini, resmi **yerel** Blobs sunucusunu ve gerçek native medya/font dönüşümünü çalıştırır; özel `.local`, `.env`, SQLite ve hash dosyalarının pakete girmediğini kontrol eder. Tarayıcı testi şifreli paneli, demo mağazayı, sepeti ve kalıcı düzenlemeyi doğrular.
+
+Bu kontroller canlı Netlify hesabına deploy yapıldığını göstermez. Hesap bağlandıktan sonra canlı URL'de giriş, kayıt, yeniden açma ve demo mağaza ayrıca kontrol edilmelidir.
+
+- “Yönetici hesabı henüz yapılandırılmadı”: `FUKPAGES_DEMO_PASSWORD` adını, en az 12 karakteri ve Functions/Production kapsamını kontrol edip tekrar deploy et.
+- `/api/health` JSON yerine HTML dönüyorsa Functions/redirect ayarlarını ve `netlify.toml` dosyasının depo kökünde olduğunu kontrol et.
+- `node:sqlite` hatasında Functions runtime **nodejs24.x** olmalı. Dosyada Node 24 build/runtime ayarları bulunur.
+- Blobs hatasında Netlify Function loglarını kontrol et; projenin Blobs erişiminin etkin ve paketlenmiş function'ın mevcut olduğunu doğrula. Erişim anahtarını veya şifreyi loglama.
+- Demo mağazayı durdurursan yayın kapanır; yeniden etkinleştirme eski yayını kendiliğinden açmaz. Panelden tekrar yayınla.

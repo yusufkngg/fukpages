@@ -8,6 +8,35 @@ Shopify OAuth, ürün API'si, tema yayınlama ve gerçek mağazada yayından kal
 henüz uygulanmadı. Shopify tema bölümlerini okuyan bağlantı altyapısı eklendi;
 canlı mağaza erişimi bu ortamda henüz yapılandırılmadı.
 
+## Netlify demo
+
+Yeni Netlify projesini GitHub **yusufkngg/fukpages → main** dalından içe aktar.
+`netlify.toml` build, Functions, Node 24 ve yönlendirmeleri hazırlar.
+Netlify ortam ayarına en az 12 karakterlik `FUKPAGES_DEMO_PASSWORD` ekle;
+kullanıcı adı `owner`. Panel `/`, demo mağaza `/p/demo/demo-store` adresindedir.
+`main` güncellemeleri otomatik deploy edilir; taslaklar ve medya Netlify Blobs'ta
+korunur. [Adım adım kurulum ve prototip sınırları](docs/NETLIFY_DEMO.md).
+Canlı Netlify hesabı bu ortamda bağlı değildir; canlı yayın doğrulaması bekler.
+
+## 0.3 geliştirmeleri
+
+- Bağlantı kaybında tarayıcıda yerel taslak saklama ve kurtarma; iki sekmenin
+  çakışmasını karşılaştırıp alan bazında birleştirme ve iki JSON'u indirme.
+- Yükleme tamamlanıp cevap kaybolursa tekrar denemede aynı medya kaydı; yükleme
+  ilerleme/hata gösterimi ve açık tekrar deneme.
+- Hover/focus renk, kenarlık, gölge ve hareket stilleri; popup/lightbox/sepet
+  için Tab/Shift+Tab, Escape ve önceki odağa dönüş.
+- Kaynak markayı ve kalıtılan özel font yüzlerini koruyan aktarım; istenirse
+  hedef markayı kullanma seçeneği.
+- İçeriği/kimlikleri koruyan uyumlu bölüm düzeni değiştirme; tekrar eden kart
+  metinlerini düzenleme, sıralama, çoğaltma ve kaldırma.
+- Bölümleri gerçek renderer ile marka/font ve üç cihazda önizleme.
+- Ziyaretçi/olay bazında tekrar saymayı engelleyen A/B sonuç tablosu, tekil
+  sepete ekleme oranı ve %95 güven aralığı; gerçek satın alma ölçümü değildir.
+- **41 otomatik test**, **720 bölüm/ekran kontrolü**, **113 yerel olarak
+  doğrulanmış madde**. 23 madde kod incelemesi seviyesindedir; 11 Shopify,
+  5 sağlayıcı ve 3 kısmi madde için sınırlar raporda korunur.
+
 ## Gereksinimler ve kurulum
 
 Node.js 24.5 veya üzeri ve npm gerekir. Mevcut checkout'u kullanın; bu bulut görevi
@@ -223,7 +252,9 @@ Yeniden etkinleştirme kendiliğinden eski yayınları açmaz.
 Akışlar panelinde içerik çevirileri ve dil seçimi, yerel A/B testi (kalıcı ziyaretçi
 ataması), sayfa hunisi, preview/onay kayıtları ve mağazalar arası aktarım vardır.
 Aktarım ürün/koleksiyon eşleştirmesi ister; dosyalar hedef mağazaya kopyalanır.
-Global marka tokenları hedef kitini kullanır; doğrudan atanmış özel fontlar kopyalanır.
+Aktarım varsayılan olarak kaynak marka görünümünü somut stillere çevirir;
+kalıtılan fontlar dahil kullanılan tüm font yüzleri kopyalanır. Hedef mağazanın
+marka kiti değişmez. İstenirse hedef markayı kullanma seçeneği seçilebilir.
 Huni ödeme/satın alma sonrası Shopify teklifi değildir. Ölçüm yerel view/click/add
 olaylarını toplar; gerçek Shopify satış ölçümü değildir.
 

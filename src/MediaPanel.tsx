@@ -88,7 +88,10 @@ export function MediaPanel({
         type="file"
         multiple
         accept="image/png,image/jpeg,image/webp,image/avif,image/gif,image/svg+xml"
-        onChange={(e) => void upload([...(e.target.files || [])])}
+        onChange={(e) => {
+          void upload([...(e.target.files || [])]);
+          e.target.value = "";
+        }}
       />
       {progress >= 0 && (
         <div role="status">

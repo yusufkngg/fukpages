@@ -444,6 +444,8 @@ export function createApp({
   shopify = createShopifyThemeService(),
   ai,
   webhookFetch,
+  demoMode = false,
+  secureCookies = process.env.NODE_ENV === "production",
 } = {}) {
   mkdirSync(dataDir, { recursive: true, mode: 0o700 });
   const fontCacheRoot = resolve(tmpdir(), "fukpages-font-cache");
@@ -457,6 +459,7 @@ export function createApp({
   const db = new DatabaseSync(resolve(dataDir, "fukpages.sqlite"));
   db.exec(`PRAGMA journal_mode=WAL;
     CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, csrf TEXT NOT NULL, expires INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS login_attempts (key TEXT PRIMARY KEY, count INTEGER NOT NULL, until INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS stores (id TEXT PRIMARY KEY, name TEXT NOT NULL, client TEXT NOT NULL, domain TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', created INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS pages (id TEXT PRIMARY KEY, store_id TEXT NOT NULL, document TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, updated INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS publications (page_id TEXT PRIMARY KEY, document TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, published INTEGER NOT NULL);
@@ -495,7 +498,6 @@ export function createApp({
     next();
   });
   app.use((req, res, next) => team.guard(req, res, next));
-  const attempts = new Map();
   const auth = (req, res, next) =>
     req.ownerSession
       ? next()
@@ -514,7 +516,7 @@ export function createApp({
     next();
   };
   const cookie = (token, age) =>
-    `fp_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${process.env.NODE_ENV === "production" ? "; Secure" : ""}`;
+    `fp_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${secureCookies ? "; Secure" : ""}`;
   const audit = (id, action) =>
     db
       .prepare("INSERT INTO audit (store_id,action,created) VALUES (?,?,?)")
@@ -523,9 +525,16 @@ export function createApp({
   app.get("/api/auth/status", (req, res) =>
     res.json({
       configured: !!ownerHash,
+      demo: demoMode,
       authenticated: !!req.ownerSession,
       csrf: req.ownerSession?.csrf,
       role: req.access?.role,
+      draftScope: req.access
+        ? createHash("sha256")
+            .update(req.access.identity)
+            .digest("hex")
+            .slice(0, 24)
+        : undefined,
     }),
   );
   app.post("/api/auth/login", (req, res) => {
@@ -546,8 +555,13 @@ export function createApp({
       return res
         .status(503)
         .json({ error: "Yönetici hesabı henüz yapılandırılmadı." });
-    const key = req.socket.remoteAddress;
-    const current = attempts.get(key);
+    const key = createHash("sha256")
+      .update(req.socket.remoteAddress || "unknown")
+      .digest("hex");
+    db.prepare("DELETE FROM login_attempts WHERE until<=?").run(Date.now());
+    const current = db
+      .prepare("SELECT count,until FROM login_attempts WHERE key=?")
+      .get(key);
     const entry =
       current && current.until > Date.now()
         ? current
@@ -569,12 +583,14 @@ export function createApp({
           !verifyPassword(password, ownerHash)))
     ) {
       entry.count++;
-      attempts.set(key, entry);
+      db.prepare(
+        "INSERT INTO login_attempts VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET count=excluded.count,until=excluded.until",
+      ).run(key, entry.count, entry.until);
       return res
         .status(401)
         .json({ error: "Kullanıcı adı veya şifre hatalı." });
     }
-    attempts.delete(key);
+    db.prepare("DELETE FROM login_attempts WHERE key=?").run(key);
     const token = randomBytes(32).toString("hex");
     const csrfToken = randomBytes(24).toString("hex");
     const digest = createHash("sha256").update(token).digest("hex");

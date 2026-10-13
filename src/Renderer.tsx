@@ -5,6 +5,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Dialog } from "./Dialog";
+import { trackEvent } from "./metrics";
 import DOMPurify from "dompurify";
 import { CommerceBlock } from "./Commerce";
 import { AdvancedContent, performAction } from "./AdvancedContent";
@@ -122,6 +124,7 @@ export function BlockContent({
   const { previewToken, pageId, assets } = useStudio();
   const [lightbox, setLightbox] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [failedSrc, setFailedSrc] = useState("");
   if (["section", "row", "column", "box"].includes(node.kind))
     return <>{children}</>;
   switch (node.kind) {
@@ -143,53 +146,68 @@ export function BlockContent({
         device === "mobile" && p.mobileSrc ? p.mobileSrc : p.src,
         previewToken,
       );
-      const image = (
-        <img
-          className="block-image"
-          src={src}
-          srcSet={assets
-            .find(
-              (a) =>
-                String(
-                  device === "mobile" && p.mobileSrc ? p.mobileSrc : p.src,
-                ).includes(a.id) && a.format !== "gif",
-            )
-            ?.variants?.map(
-              (v) => `${assetUrl(v.url, previewToken)} ${v.width}w`,
-            )
-            .join(",")}
-          sizes="(max-width:600px) 100vw, 50vw"
-          alt={String(p.alt ?? "")}
-          loading="lazy"
-          style={{
-            objectFit: "inherit",
-            objectPosition: `${Number(p.focusX ?? 50)}% ${Number(p.focusY ?? 50)}%`,
-            aspectRatio: String(p.aspectRatio || "auto"),
-            transform: `rotate(${Number(p.rotation || 0)}deg) scale(${p.flipX ? -1 : 1},${p.flipY ? -1 : 1})`,
-          }}
-          draggable={false}
-          onClick={
-            !editable && p.lightbox ? () => setLightbox(true) : undefined
-          }
-          onError={(event) => {
-            event.currentTarget.style.opacity = "0.35";
-          }}
-        />
-      );
+      const image =
+        !src || failedSrc === src ? (
+          <div
+            className="missing-media"
+            role="img"
+            aria-label={String(p.alt || "Görsel")}
+          >
+            {editable ? "Görsel seç" : String(p.alt || "Görsel")}
+          </div>
+        ) : (
+          <img
+            className="block-image"
+            src={src}
+            srcSet={assets
+              .find(
+                (a) =>
+                  String(
+                    device === "mobile" && p.mobileSrc ? p.mobileSrc : p.src,
+                  ).includes(a.id) && a.format !== "gif",
+              )
+              ?.variants?.map(
+                (v) => `${assetUrl(v.url, previewToken)} ${v.width}w`,
+              )
+              .join(",")}
+            sizes="(max-width:600px) 100vw, 50vw"
+            alt={String(p.alt ?? "")}
+            loading="lazy"
+            style={{
+              objectFit: "inherit",
+              objectPosition: `${Number(p.focusX ?? 50)}% ${Number(p.focusY ?? 50)}%`,
+              aspectRatio: String(p.aspectRatio || "auto"),
+              transform: `rotate(${Number(p.rotation || 0)}deg) scale(${p.flipX ? -1 : 1},${p.flipY ? -1 : 1})`,
+            }}
+            draggable={false}
+            role={!editable && p.lightbox ? "button" : undefined}
+            tabIndex={!editable && p.lightbox ? 0 : undefined}
+            onKeyDown={(event) => {
+              if (
+                !editable &&
+                p.lightbox &&
+                ["Enter", " "].includes(event.key)
+              ) {
+                event.preventDefault();
+                setLightbox(true);
+              }
+            }}
+            onClick={
+              !editable && p.lightbox ? () => setLightbox(true) : undefined
+            }
+            onError={() => setFailedSrc(src)}
+          />
+        );
       return (
         <>
           {p.href && !editable ? <a href={safeHref(p.href)}>{image}</a> : image}
-          {lightbox && (
-            <div
-              className="builder-modal"
-              role="dialog"
-              aria-label="Görseli büyüt"
-              onClick={() => setLightbox(false)}
-            >
-              <img src={src} alt={String(p.alt || "")} />
-              <button aria-label="Görseli kapat">×</button>
-            </div>
-          )}
+          <Dialog
+            open={lightbox}
+            onClose={() => setLightbox(false)}
+            label="Görseli büyüt"
+          >
+            <img src={src} alt={String(p.alt || "")} />
+          </Dialog>
         </>
       );
     }
@@ -211,12 +229,7 @@ export function BlockContent({
                   ),
                 );
               } else if (pageId && !studioContext.previewToken)
-                void fetch(`/api/public/pages/${pageId}/events`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  keepalive: true,
-                  body: JSON.stringify({ event: "click" }),
-                });
+                trackEvent(pageId, "click");
             }}
           >
             {String(p.text)}
@@ -383,13 +396,10 @@ export function PageRenderer({
   device: Device;
 }) {
   const studio = useStudio();
+  const viewId = useRef(crypto.randomUUID());
   useEffect(() => {
     if (!studio.editable && !studio.previewToken && studio.pageId)
-      void fetch(`/api/public/pages/${studio.pageId}/events`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event: "view" }),
-      });
+      trackEvent(studio.pageId, "view", viewId.current);
   }, [studio.pageId, studio.editable, studio.previewToken]);
   return (
     <div className="page-surface" data-device={device}>

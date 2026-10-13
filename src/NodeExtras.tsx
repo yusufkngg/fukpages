@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { StateStyles } from "./StateStyles";
 import { effectiveStyle, type Block, type Device } from "./model";
 import { freezeGlobalStyle, useStudio, type Asset } from "./studio";
 import { api, json } from "./api";
@@ -45,8 +46,7 @@ export function NodeExtras({
   );
   const [crop, setCrop] = useState({ x: 0, y: 0, width: 100, height: 100 }),
     [error, setError] = useState("");
-  const [state, setState] = useState("hover"),
-    [stateColor, setStateColor] = useState("#ffffff");
+
   const prop = (k: string, v: string | boolean) =>
     update((n) => {
       if (k === "productId" && n.kind === "section") {
@@ -539,34 +539,7 @@ export function NodeExtras({
               />
             </label>
           ))}
-        <label className="control">
-          Durum
-          <select value={state} onChange={(e) => setState(e.target.value)}>
-            <option value="hover">Hover</option>
-            <option value="focus">Focus</option>
-          </select>
-        </label>
-        <label className="control">
-          Durum arka plan rengi
-          <input
-            type="color"
-            value={stateColor}
-            onChange={(e) => {
-              setStateColor(e.target.value);
-              let old = {};
-              try {
-                old = JSON.parse(String(node.props[state + "Styles"] || "{}"));
-              } catch {}
-              prop(
-                state + "Styles",
-                JSON.stringify({ ...old, backgroundColor: e.target.value }),
-              );
-            }}
-          />
-        </label>
-        <button onClick={() => prop(state + "Styles", "{}")}>
-          Durum stilini sıfırla
-        </button>
+        <StateStyles node={node} update={update} />
       </div>
     </details>
   );

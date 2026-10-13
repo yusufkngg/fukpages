@@ -1,3 +1,5 @@
+import { SectionPreview } from "./SectionPreview";
+import { createSectionPreset } from "./sections";
 import { useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import {
@@ -21,62 +23,73 @@ import type { Block } from "./model";
 function PresetCard({
   preset,
   add,
+  preview,
 }: {
   preset: SectionPreset;
   add: () => void;
+  preview: () => void;
 }) {
   const drag = useDraggable({
     id: `section-preset:${preset.id}`,
     data: { sectionPresetId: preset.id },
   });
   return (
-    <button
-      ref={drag.setNodeRef}
-      {...drag.attributes}
-      {...drag.listeners}
-      onClick={add}
-      className={`section-preset-card ${drag.isDragging ? "dragging" : ""}`}
-      data-section-preset={preset.id}
-    >
-      <div
-        className={`section-thumb ${preset.category} ${preset.id}`}
-        style={{ backgroundColor: preset.accent }}
+    <div className="preset-entry">
+      <button
+        ref={drag.setNodeRef}
+        {...drag.attributes}
+        {...drag.listeners}
+        onClick={add}
+        className={`section-preset-card ${drag.isDragging ? "dragging" : ""}`}
+        data-section-preset={preset.id}
       >
-        <span className="mini-brand">fukpages / sections</span>
-        <div className="mini-section-title">
-          {preset.category === "hero" ? (
-            <>
-              MAKE IT
-              <br />
-              YOUR OWN.
-            </>
-          ) : preset.category === "layout" ? (
-            "Your brand."
-          ) : preset.category === "conversion" ? (
-            "A little more."
-          ) : (
-            "Designed for you."
-          )}
-        </div>
-        {preset.id === "product-hero" || preset.id === "image-story" ? (
-          <img src="/assets/headphones.svg" alt="" />
-        ) : (
-          <div className="mini-section-grid">
-            <i />
-            <i />
-            <i />
+        <div
+          className={`section-thumb ${preset.category} ${preset.id}`}
+          style={{ backgroundColor: preset.accent }}
+        >
+          <span className="mini-brand">fukpages / sections</span>
+          <div className="mini-section-title">
+            {preset.category === "hero" ? (
+              <>
+                MAKE IT
+                <br />
+                YOUR OWN.
+              </>
+            ) : preset.category === "layout" ? (
+              "Your brand."
+            ) : preset.category === "conversion" ? (
+              "A little more."
+            ) : (
+              "Designed for you."
+            )}
           </div>
-        )}
-        <span className="mini-cta" />
-      </div>
-      <div className="section-card-title">
-        <b>{preset.name}</b>
-        <span>
-          <Plus size={12} />
-        </span>
-      </div>
-      <p>{preset.description}</p>
-    </button>
+          {preset.id === "product-hero" || preset.id === "image-story" ? (
+            <img src="/assets/headphones.svg" alt="" />
+          ) : (
+            <div className="mini-section-grid">
+              <i />
+              <i />
+              <i />
+            </div>
+          )}
+          <span className="mini-cta" />
+        </div>
+        <div className="section-card-title">
+          <b>{preset.name}</b>
+          <span>
+            <Plus size={12} />
+          </span>
+        </div>
+        <p>{preset.description}</p>
+      </button>
+      <button
+        className="preset-preview-button"
+        onClick={preview}
+        aria-label={`${preset.name} önizle`}
+      >
+        Önizle
+      </button>
+    </div>
   );
 }
 export function SectionLibrary({
@@ -97,6 +110,8 @@ export function SectionLibrary({
   const [tab, setTab] = useState("catalog"),
     [category, setCategory] = useState<SectionCategory>("all"),
     [search, setSearch] = useState("");
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const previewSection = previewId ? createSectionPreset(previewId) : undefined;
   const [synchronized, setSynchronized] = useState(false);
   const [saveName, setSaveName] = useState(""),
     [naming, setNaming] = useState(false),
@@ -153,6 +168,7 @@ export function SectionLibrary({
                 key={preset.id}
                 preset={preset}
                 add={() => addPreset(preset.id)}
+                preview={() => setPreviewId(preset.id)}
               />
             ))
           : saved
@@ -200,6 +216,16 @@ export function SectionLibrary({
           </div>
         )}
       </div>
+      {previewSection && (
+        <SectionPreview
+          section={previewSection}
+          onClose={() => setPreviewId(null)}
+          apply={() => {
+            addPreset(previewId!);
+            setPreviewId(null);
+          }}
+        />
+      )}
       <div className="save-section-bar">
         {naming ? (
           <form

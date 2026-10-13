@@ -6,6 +6,8 @@ dist/
 !.env.example
 *.log
 __pycache__/
+.netlify/
+netlify/.deployment-context.json
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm

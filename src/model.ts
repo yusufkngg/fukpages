@@ -727,11 +727,30 @@ export function locateBlock(
   }
 }
 export function cloneBlock(node: Block): Block {
-  return {
-    ...structuredClone(node),
-    id: uid(),
-    children: node.children.map(cloneBlock),
+  const ids = new Map<string, string>();
+  const copy = structuredClone(node);
+  const assign = (n: Block) => {
+    ids.set(n.id, uid());
+    if (n.props.cssId) ids.set(String(n.props.cssId), uid());
+    if (n.props.popupId) ids.set(String(n.props.popupId), uid());
+    n.children.forEach(assign);
   };
+  assign(copy);
+  const remap = (n: Block) => {
+    n.id = ids.get(n.id)!;
+    for (const key of ["cssId", "popupId"])
+      if (n.props[key]) n.props[key] = ids.get(String(n.props[key]))!;
+    const target = String(n.props.actionTarget || ""),
+      id = target.replace(/^#/, "");
+    if (ids.has(id))
+      n.props.actionTarget = (target.startsWith("#") ? "#" : "") + ids.get(id)!;
+    const href = String(n.props.href || "");
+    if (href.startsWith("#") && ids.has(href.slice(1)))
+      n.props.href = "#" + ids.get(href.slice(1));
+    n.children.forEach(remap);
+  };
+  remap(copy);
+  return copy;
 }
 export function moveBlock(
   nodes: Block[],

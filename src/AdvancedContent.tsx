@@ -1,4 +1,6 @@
 import { useState, useEffect, type ReactNode } from "react";
+import { Dialog, scrollBehavior } from "./Dialog";
+import { trackEvent } from "./metrics";
 import { CommerceBlock } from "./Commerce";
 import DOMPurify from "dompurify";
 import { api, json } from "./api";
@@ -17,18 +19,12 @@ export async function performAction(
   const p = node.props,
     target = String(p.actionTarget || p.href || ""),
     action = String(p.action || "navigate");
-  if (pageId)
-    void fetch(`/api/public/pages/${pageId}/events`, {
-      method: "POST",
-      keepalive: true,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event: "click" }),
-    });
+  trackEvent(pageId, "click");
   switch (action) {
     case "scroll":
       document
         .getElementById(target.replace(/^#/, ""))
-        ?.scrollIntoView({ behavior: "smooth" });
+        ?.scrollIntoView({ behavior: scrollBehavior() });
       break;
     case "popupOpen":
     case "popupClose":
@@ -176,22 +172,13 @@ function Popup({
           {String(node.props.text || "Aç")}
         </button>
       )}
-      {open && (
-        <div
-          className="builder-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-label={String(node.props.title)}
-          onClick={() => setOpen(false)}
-        >
-          <div onClick={(e) => e.stopPropagation()}>
-            <button aria-label="Popup kapat" onClick={() => setOpen(false)}>
-              ×
-            </button>
-            {children}
-          </div>
-        </div>
-      )}
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        label={String(node.props.title || "Popup")}
+      >
+        {children}
+      </Dialog>
     </>
   );
 }
@@ -287,13 +274,40 @@ export function AdvancedContent({
                 key={n}
                 role="tab"
                 aria-selected={active === n}
+                id={`${node.id}-tab-${n}`}
+                aria-controls={`${node.id}-panel`}
+                tabIndex={active === n ? 0 : -1}
+                onKeyDown={(event) => {
+                  if (
+                    !["ArrowLeft", "ArrowRight", "Home", "End"].includes(
+                      event.key,
+                    )
+                  )
+                    return;
+                  event.preventDefault();
+                  const next =
+                    event.key === "Home"
+                      ? 0
+                      : event.key === "End"
+                        ? items.length - 1
+                        : (n +
+                            (event.key === "ArrowRight" ? 1 : -1) +
+                            items.length) %
+                          items.length;
+                  setActive(next);
+                  document.getElementById(`${node.id}-tab-${next}`)?.focus();
+                }}
                 onClick={() => setActive(n)}
               >
                 {i.split("|")[0]}
               </button>
             ))}
           </div>
-          <div role="tabpanel">
+          <div
+            role="tabpanel"
+            id={`${node.id}-panel`}
+            aria-labelledby={`${node.id}-tab-${active}`}
+          >
             {items[active]?.split("|").slice(1).join("|") ||
               String(p.description || "Sekme içeriği")}
           </div>
@@ -357,17 +371,13 @@ export function AdvancedContent({
               </button>
             ))}
           </div>
-          {open && !editable && (
-            <div
-              className="builder-modal"
-              role="dialog"
-              aria-label="Görseli büyüt"
-              onClick={() => setOpen(false)}
-            >
-              <img src={images[active]} alt={String(p.alt || "")} />
-              <button aria-label="Görseli kapat">×</button>
-            </div>
-          )}
+          <Dialog
+            open={open && !editable}
+            onClose={() => setOpen(false)}
+            label="Görseli büyüt"
+          >
+            <img src={images[active]} alt={String(p.alt || "")} />
+          </Dialog>
         </div>
       );
     case "rating":
@@ -455,17 +465,13 @@ export function AdvancedContent({
           <button onClick={() => setOpen(true)}>
             {String(p.text || "Videoyu izle")}
           </button>
-          {open && (
-            <div
-              className="builder-modal"
-              role="dialog"
-              aria-label="Video"
-              onClick={() => setOpen(false)}
-            >
-              <video src={assetUrl(p.src, previewToken)} controls autoPlay />
-              <button>×</button>
-            </div>
-          )}
+          <Dialog
+            open={open && !editable}
+            onClose={() => setOpen(false)}
+            label="Video"
+          >
+            <video src={assetUrl(p.src, previewToken)} controls autoPlay />
+          </Dialog>
         </>
       );
     case "backToTop":
@@ -473,7 +479,7 @@ export function AdvancedContent({
         <button
           aria-label="Yukarı dön"
           onClick={() =>
-            !editable && window.scrollTo({ top: 0, behavior: "smooth" })
+            !editable && window.scrollTo({ top: 0, behavior: scrollBehavior() })
           }
         >
           {String(p.text || "↑ Yukarı dön")}

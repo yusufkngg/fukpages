@@ -205,8 +205,11 @@ export function StudioProvider({
             const vals = JSON.parse(String(n.props[state + "Styles"] || "{}"));
             const toCss = (k: string) =>
               k.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase());
-            css += `[data-block="${n.id}"]:${state}{${Object.entries(vals)
-              .map(([k, v]) => `${toCss(k)}:${v}`)
+            const selector =
+              `.page-surface [data-block="${n.id}"]` +
+              (state === "focus" ? ":focus-within" : ":hover");
+            css += `${selector}{${Object.entries(vals)
+              .map(([k, v]) => `${toCss(k)}:${v} !important`)
               .join(";")}}`;
           } catch {
             /* invalid states rejected by server */
@@ -255,6 +258,13 @@ export function brandStyle(
       color:
         variant === "primary" ? "var(--brand-background)" : "var(--brand-text)",
       borderRadius: "var(--brand-radius)",
+      ...(variant === "outline"
+        ? {
+            borderWidth: "1px",
+            borderStyle: "solid",
+            borderColor: "var(--brand-primary)",
+          }
+        : {}),
     };
   if (node.kind === "section")
     return {
