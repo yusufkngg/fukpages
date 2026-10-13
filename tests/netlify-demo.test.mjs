@@ -35,6 +35,50 @@ function memoryStore() {
     },
   };
 }
+test("Invalid Netlify owner configuration keeps public demo available, blocks admin and revokes existing sessions", async () => {
+  for (const invalid of [
+    { password: "short" },
+    { ownerHash: "invalid-hash" },
+  ]) {
+    const store = memoryStore(),
+      password = randomBytes(24).toString("hex");
+    const valid = createDemoHandler({ store, password });
+    const headers = await session(valid, password);
+    const broken = createDemoHandler({ store, ...invalid });
+    const status = await broken(request("/api/auth/status"));
+    assert.equal(status.statusCode, 200);
+    const auth = JSON.parse(status.body);
+    assert.equal(auth.configured, false);
+    assert.match(auth.setupError, /Netlify/);
+    assert.equal(
+      (await broken(request("/api/stores", "GET", "", headers))).statusCode,
+      401,
+    );
+    assert.equal(
+      (await broken(request("/api/public/stores/demo/pages/demo-store")))
+        .statusCode,
+      200,
+    );
+    assert.equal(
+      (
+        await broken(
+          request(
+            "/api/auth/login",
+            "POST",
+            { login: "owner", password },
+            { "content-type": "application/json" },
+          ),
+        )
+      ).statusCode,
+      503,
+    );
+    assert.equal(
+      (await valid(request("/api/stores", "GET", "", headers))).statusCode,
+      401,
+    );
+    assert.equal((await valid(request("/api/health"))).statusCode, 200);
+  }
+});
 function request(path, method = "GET", body = "", headers = {}) {
   return {
     httpMethod: method,

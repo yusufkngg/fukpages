@@ -75,16 +75,23 @@ function credential(db, { password, ownerHash, ownerLogin = "owner" }) {
       .get()?.value || "";
   const previous = old ? JSON.parse(old) : { hash: "", login: "" };
   let hash = "";
+  let setupError = "";
   if (ownerHash) {
     if (!/^scrypt:[a-f0-9]{32}:[a-f0-9]{128}$/.test(ownerHash))
-      throw new Error("Invalid owner hash");
-    hash = ownerHash;
+      setupError =
+        "Netlify’daki OWNER_PASSWORD_HASH geçerli bir şifre özeti değil. Bu değişkeni düzelt veya kaldırıp FUKPAGES_DEMO_PASSWORD kullan.";
+    else hash = ownerHash;
   } else if (password) {
     if (password.length < 12 || password.length > 1024)
-      throw new Error("Invalid demo password");
-    hash = verifyPassword(password, previous.hash)
-      ? previous.hash
-      : hashPassword(password);
+      setupError =
+        "Netlify’daki FUKPAGES_DEMO_PASSWORD en az 12, en fazla 1024 karakter olmalı. Değeri ortam ayarlarında değiştirip yeniden deploy et.";
+    else
+      hash = verifyPassword(password, previous.hash)
+        ? previous.hash
+        : hashPassword(password);
+  } else {
+    setupError =
+      "Netlify ortam ayarlarına FUKPAGES_DEMO_PASSWORD ekle: en az 12 karakter, Functions veya All scopes ve Production bağlamı. Ardından yeniden deploy et.";
   }
   if (hash !== previous.hash || ownerLogin !== previous.login) {
     db.prepare("DELETE FROM sessions").run();
@@ -92,7 +99,7 @@ function credential(db, { password, ownerHash, ownerLogin = "owner" }) {
       "INSERT INTO demo_settings VALUES('owner-credential',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
     ).run(JSON.stringify({ hash, login: ownerLogin }));
   }
-  return hash;
+  return { hash, setupError };
 }
 // Every invocation uses an isolated SQLite database. A strong-consistency,
 // conditional write commits DB + media together before returning success.
@@ -158,7 +165,11 @@ export function createDemoHandler({
         stage = "demo_seed";
         seedDemo(db);
         stage = "owner_config";
-        const hash = credential(db, { password, ownerHash, ownerLogin });
+        const { hash, setupError } = credential(db, {
+          password,
+          ownerHash,
+          ownerLogin,
+        });
         db.close();
         db = null;
         stage = "service_init";
@@ -168,6 +179,7 @@ export function createDemoHandler({
           ownerLogin,
           demoMode: true,
           secureCookies,
+          authSetupError: setupError,
         });
         db = service.db;
         service.studio.runSchedules();

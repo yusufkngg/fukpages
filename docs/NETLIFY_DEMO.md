@@ -37,6 +37,13 @@ Netlify Blobs, SQLite ve medyanın sıkıştırılmış anlık görüntüsünü 
 
 ## Doğrulama ve sorun giderme
 
+0.3.2, geçersiz yönetici şifre ayarının bütün demo uçlarını 503 ile kapatmasını
+giderir. Şifre ayarı geçersizse yönetim erişimi kapalıdır, önceki oturumlar
+iptal edilir; demo mağaza ve giriş ekranı açılır. Giriş ekranı düzeltilecek
+değişkeni ve gerekli biçimi açıklar. Değeri yalnızca Netlify ortam ayarlarında
+değiştir; sohbete yazma. Gerekirse geçersiz `OWNER_PASSWORD_HASH` değişkenini
+kaldırıp en az 12 karakterlik `FUKPAGES_DEMO_PASSWORD` kullan.
+
 0.3.1, Netlify/Lambda'da `require(ESM)` kapalıyken `sanitize-html` →
 `htmlparser2` yüklemesindeki `ERR_REQUIRE_ESM` çökmesini giderir. Güncel
 `sanitize-html` 2.18.0 ve ayrıştırıcısı build sırasında CommonJS paketine

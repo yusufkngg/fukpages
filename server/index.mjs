@@ -446,6 +446,7 @@ export function createApp({
   webhookFetch,
   demoMode = false,
   secureCookies = process.env.NODE_ENV === "production",
+  authSetupError = "",
 } = {}) {
   mkdirSync(dataDir, { recursive: true, mode: 0o700 });
   const fontCacheRoot = resolve(tmpdir(), "fukpages-font-cache");
@@ -525,6 +526,7 @@ export function createApp({
   app.get("/api/auth/status", (req, res) =>
     res.json({
       configured: !!ownerHash,
+      setupError: authSetupError || undefined,
       demo: demoMode,
       authenticated: !!req.ownerSession,
       csrf: req.ownerSession?.csrf,

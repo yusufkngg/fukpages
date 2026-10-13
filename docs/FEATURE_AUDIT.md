@@ -4,7 +4,7 @@ Kullanıcının özgün özellik listesi [REQUESTED_FEATURES.md](REQUESTED_FEATU
 
 ## Doğrulama
 
-- `npm test`: 41 test; HTTP/SQLite, gerçek medya/font dönüşümü, rol sınırları, form, SEO, sürüm/senkron bölüm, aktarım, A/B, taslak birleştirme ve Netlify sunucusuz kayıt/çakışma.
+- `npm test`: 42 test; HTTP/SQLite, gerçek medya/font dönüşümü, rol sınırları, form, SEO, sürüm/senkron bölüm, aktarım, A/B, taslak birleştirme ve Netlify sunucusuz kayıt/çakışma.
 - `npm run build`: TypeScript ve Vite üretim derlemesi.
 - `npm run test:browser`: gerçek Chromium; editör, ürün, medya, font, formlar, çeviri, klavye erişimi, kayıt kurtarma, çakışma, popup, bölüm düzen/kart/önizleme ve demo panel/mağaza akışları.
 - 60 bölüm × 3 içerik durumu × 4 ekran genişliği = **720 bölüm kontrolü**. Taşma ve JavaScript hatası yok; bu sayı 720 ayrı özellik veya bütün etkileşimlerin testi değildir.

@@ -6,7 +6,7 @@ Medya/font/marka, 49 öğe, 30 bölüm ailesi/60 düzen, yerel katalog/form/SEO/
 0.3: kayıt kurtarma/çakışma birleştirme, güvenli upload tekrar denemesi,
 hover/focus, erişilebilir dialog, marka/font aktarımı, A/B sonuçları,
 içeriği koruyan bölüm düzeni, kart yönetimi ve gerçek bölüm önizlemesi eklendi.
-41 otomatik test ve 720 bölüm/ekran kontrolü geçti. 155 maddeden 113'ü yerel
+42 otomatik test ve 720 bölüm/ekran kontrolü geçti. 155 maddeden 113'ü yerel
 testle, 23'ü kod incelemesiyle kontrol edildi; ertelenen/sınırlı maddeler raporda.
 Şifreli panel ve örnek mağaza için Netlify Functions/Blobs kurulumu hazır;
 canlı Netlify hesabına deploy henüz doğrulanmadı. [Kurulum](docs/NETLIFY_DEMO.md).

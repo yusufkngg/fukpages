@@ -37,10 +37,12 @@ function Login({
   configured,
   onLogin,
   demo = false,
+  setupError,
 }: {
   configured: boolean;
   onLogin: (csrf: string) => void;
   demo?: boolean;
+  setupError?: string;
 }) {
   const [login, setLogin] = useState("owner"),
     [password, setPassword] = useState("");
@@ -151,8 +153,8 @@ function Login({
             {!configured && (
               <div className="form-error">
                 <CircleAlert size={16} />
-                Yönetici hesabı henüz yapılandırılmadı. Kurulum tamamlandıktan
-                sonra giriş yapabilirsin.
+                {setupError ||
+                  "Yönetici hesabı henüz yapılandırılmadı. Kurulum tamamlandıktan sonra giriş yapabilirsin."}
               </div>
             )}
             {error && (
@@ -729,6 +731,7 @@ export function App() {
     configured: boolean;
     role?: "owner" | "editor" | "viewer";
     demo?: boolean;
+    setupError?: string;
   } | null>(null);
   const [editing, setEditing] = useState<{ id: string; store: Store } | null>(
     null,
@@ -927,6 +930,7 @@ export function App() {
         <Login
           configured={status.configured}
           demo={status.demo}
+          setupError={status.setupError}
           onLogin={(csrf) => {
             setCsrf(csrf);
             api<{

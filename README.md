@@ -20,6 +20,10 @@ Canlı Netlify hesabı bu ortamda bağlı değildir; canlı yayın doğrulaması
 
 ## 0.3 geliştirmeleri
 
+0.3.2: geçersiz Netlify şifre ayarı demo mağazayı kapatmaz. Yönetim erişimi
+kapalı kalır, giriş ekranı düzeltilmesi gereken ayarı gösterir ve eski
+oturumlar iptal edilir. 42 otomatik test çalışır.
+
 0.3.1: Netlify'daki `ERR_REQUIRE_ESM` başlangıç çökmesi giderildi. Güncel HTML
 temizleme paketleri build sırasında CommonJS biçimine derlenir; Lambda uyumlu
 paket ve tarayıcı testleri `require(ESM)` kapalıyken de geçer. Panel API
@@ -38,7 +42,7 @@ hatasında veya 30 saniyelik zaman aşımında hata/yeniden deneme gösterir.
 - Bölümleri gerçek renderer ile marka/font ve üç cihazda önizleme.
 - Ziyaretçi/olay bazında tekrar saymayı engelleyen A/B sonuç tablosu, tekil
   sepete ekleme oranı ve %95 güven aralığı; gerçek satın alma ölçümü değildir.
-- **41 otomatik test**, **720 bölüm/ekran kontrolü**, **113 yerel olarak
+- **42 otomatik test**, **720 bölüm/ekran kontrolü**, **113 yerel olarak
   doğrulanmış madde**. 23 madde kod incelemesi seviyesindedir; 11 Shopify,
   5 sağlayıcı ve 3 kısmi madde için sınırlar raporda korunur.
 
