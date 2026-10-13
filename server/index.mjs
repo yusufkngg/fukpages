@@ -158,8 +158,24 @@ const styleKeys = new Set([
 const cleanText = (value) => String(value ?? "").slice(0, 10000);
 const cleanRich = (value) =>
   sanitizeHtml(cleanText(value), {
-    allowedTags: ["b", "strong", "i", "em", "u", "s", "br", "p", "span"],
-    allowedAttributes: { span: ["style"] },
+    allowedTags: ["b", "strong", "i", "em", "u", "s", "br", "p", "span", "a"],
+    allowedAttributes: { span: ["style"], a: ["href", "target", "rel"] },
+    allowedSchemes: ["http", "https", "mailto", "tel"],
+    allowProtocolRelative: false,
+    transformTags: {
+      strike: "s",
+      a: (tagName, attribs) => {
+        const href = safeUrl(attribs.href);
+        if (!href) return { tagName: "span", attribs: {} };
+        return {
+          tagName,
+          attribs:
+            attribs.target === "_blank"
+              ? { href, target: "_blank", rel: "noopener noreferrer" }
+              : { href },
+        };
+      },
+    },
     allowedStyles: {
       span: {
         color: [/^#[0-9a-f]{3,8}$/i],

@@ -1,4 +1,5 @@
 import { getUiLocale, getUiLanguage, t } from "./i18n.ts";
+import { BrandMark } from "./BrandMark";
 import {
   normalizeAtomicDocument,
   normalizeAtomicBlock,
@@ -6,17 +7,24 @@ import {
 } from "./atomicContent.ts";
 import { FloatingPanel } from "./FloatingPanel";
 import { UiSettingsButton } from "./UiSettings";
-import { ColumnHandles, resizeColumns } from "./ColumnHandles";
+import { resizeColumns } from "./ColumnHandles";
 import { SectionDesign } from "./SectionDesign";
-import { PageBar } from "./PageBar";
-import { PanelSplitter, usePanelWidths } from "./PanelSplitter";
-import { ElementHandles, useElementGesture } from "./ElementHandles";
 import {
-  cssNumber,
-  freeHeight,
-  placedStyle,
-  setFreeLayout,
-} from "./freePlacement";
+  EditorMenu,
+  PageSwitcher,
+  PreviewResourcePicker,
+  usePageOverview,
+} from "./PageBar";
+import { CanvasNode, EmptyPage } from "./CanvasNode";
+import { Layer } from "./LayerTree";
+import { ElementLibrary } from "./ElementLibrary";
+import { ToolRail, type RailTool } from "./ToolRail";
+import { TextToolbar } from "./TextToolbar";
+import { Breadcrumb } from "./Breadcrumb";
+import { SectionInsert } from "./SectionInsert";
+import { useCanvasDrop } from "./useCanvasDrop";
+import { PanelSplitter, usePanelWidths } from "./PanelSplitter";
+import { cssNumber, freeHeight, setFreeLayout } from "./freePlacement";
 import { normalizeLink, navigationActions } from "./links";
 import { ConflictDialog, type DraftConflict } from "./ConflictDialog";
 import {
@@ -31,6 +39,7 @@ import { TeamPanel } from "./TeamPanel";
 import { GrowthPanel } from "./GrowthPanel";
 import { CatalogPanel, type Catalog } from "./Commerce";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useRef,
@@ -43,10 +52,6 @@ import {
   KeyboardSensor,
   MeasuringStrategy,
   PointerSensor,
-  closestCenter,
-  pointerWithin,
-  useDraggable,
-  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -55,26 +60,19 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  Copy,
   Download,
   Eye,
-  EyeOff,
   GripVertical,
   Layers,
   LayoutTemplate,
   Loader2,
-  Store as StoreIcon,
   LockKeyhole,
   Monitor,
-  MoreHorizontal,
-  MousePointer2,
   Plus,
   Redo2,
-  Search,
   ShieldCheck,
   Smartphone,
   Tablet,
-  Trash2,
   Undo2,
   Upload,
   X,
@@ -84,14 +82,7 @@ import {
 import { ApiError, api, json, uploadFiles } from "./api";
 import { MediaPanel } from "./MediaPanel";
 import { BrandPanel } from "./BrandPanel";
-import {
-  StudioProvider,
-  brandStyle,
-  assetUrl,
-  defaultBrand,
-  type Asset,
-  type Brand,
-} from "./studio";
+import { StudioProvider, defaultBrand, type Asset, type Brand } from "./studio";
 import {
   isLocked,
   rootSelection,
@@ -102,7 +93,7 @@ import {
 } from "./editorCommands";
 import { SelectionTools } from "./SelectionTools";
 import { WorkflowPanel } from "./WorkflowPanel";
-import { BlockContent, PageRenderer, richHtml } from "./Renderer";
+import { PageRenderer, richHtml } from "./Renderer";
 import { Inspector } from "./Inspector";
 import { SectionLibrary } from "./SectionLibrary";
 import {
@@ -110,6 +101,7 @@ import {
   enclosingSection,
   fromSavedSection,
   insertSection,
+  placeSection,
   type SavedSection,
 } from "./sections";
 import {
@@ -118,15 +110,12 @@ import {
   NativeThemeSection,
 } from "./ThemePanel";
 import { templateForPage, type ThemeSnapshot, type ThemeStatus } from "./theme";
-import { blockIcons } from "./icons";
 import {
   cloneBlock,
   createBlock,
   deviceNames,
-  effectiveStyle,
   findBlock,
   firstHeading,
-  groups,
   insertBlock,
   isContainer,
   labels,
@@ -158,479 +147,6 @@ interface EditorProps {
   notify: (message: string, error?: boolean) => void;
   openPage: (id: string) => void;
 }
-function PaletteItem({
-  kind,
-  columns,
-  onAdd,
-}: {
-  kind: Kind;
-  columns?: number;
-  onAdd: () => void;
-}) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `palette:${kind}:${columns ?? "default"}`,
-    data: { kind, columns },
-  });
-  const Icon = blockIcons[kind];
-  return (
-    <button
-      ref={setNodeRef}
-      {...attributes}
-      {...listeners}
-      className={`palette-card ${isDragging ? "dragging" : ""}`}
-      onClick={onAdd}
-      title={t("{p0} ekle veya sürükle", { p0: labels[kind] })}
-      data-palette={
-        kind !== "row" || columns === undefined || columns === 2
-          ? kind
-          : undefined
-      }
-      data-row-columns={columns}
-    >
-      <span className="palette-visual">
-        {kind === "row" && columns !== undefined ? (
-          <span className="row-visual">
-            {columns ? (
-              Array.from({ length: columns }, (_, i) => <i key={i} />)
-            ) : (
-              <>
-                <i className="mini-icon" />
-                <i className="mini-text" />
-              </>
-            )}
-          </span>
-        ) : (
-          <Icon size={32} strokeWidth={1.5} />
-        )}
-      </span>
-      <span>
-        {labels[kind]}
-        {kind === "row" && columns !== undefined && (
-          <small>{columns ? `${columns} ${t("columns")}` : t("Inline")}</small>
-        )}
-      </span>
-      <Plus size={11} className="palette-add" />
-    </button>
-  );
-}
-function NodeSlot({
-  nodeId,
-  parent,
-  index,
-  side,
-  context = "canvas",
-  dragging,
-  horizontal = false,
-}: {
-  nodeId: string;
-  parent: string | null;
-  index: number;
-  side: "before" | "after";
-  context?: string;
-  dragging: boolean;
-  horizontal?: boolean;
-}) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: `${context}:${nodeId}:${side}`,
-    data: { parent, index },
-    disabled: !dragging,
-  });
-  return (
-    <div
-      ref={setNodeRef}
-      className={`node-slot ${side} ${horizontal ? "horizontal" : ""} ${dragging ? "enabled" : ""} ${isOver ? "over" : ""}`}
-      data-slot={`${parent ?? "root"}:${index}`}
-    />
-  );
-}
-function CanvasNode({
-  node,
-  parent = null,
-  index = 0,
-  horizontalParent = false,
-  device,
-  selected,
-  select,
-  updateHtml,
-  duplicate,
-  remove,
-  dragging,
-  resizeColumn,
-  parentFree = false,
-  geometry,
-  inheritedLocked = false,
-}: {
-  node: Block;
-  parent?: string | null;
-  index?: number;
-  horizontalParent?: boolean;
-  device: Device;
-  selected: string | null;
-  select: (id: string, multi?: boolean) => void;
-  updateHtml: (id: string, value: string) => void;
-  duplicate: (id: string) => void;
-  remove: (id: string) => void;
-  dragging: boolean;
-  resizeColumn?: (id: string, value: number, index?: number) => void;
-  parentFree?: boolean;
-  geometry: (id: string, styles: Record<string, string>, free: boolean) => void;
-  inheritedLocked?: boolean;
-}) {
-  const locked = inheritedLocked || !!node.props.locked;
-  const elementRef = useRef<HTMLDivElement | null>(null);
-  const gesture = useElementGesture(
-    () => elementRef.current,
-    parentFree,
-    (box, mode) => {
-      const styles: Record<string, string> = {};
-      if (mode === "move")
-        Object.assign(styles, { left: box.left + "%", top: box.top + "px" });
-      else {
-        if (mode.includes("e"))
-          styles.width = box.width + (parentFree ? "%" : "px");
-        if (mode.includes("s")) styles.height = box.height + "px";
-      }
-      geometry(node.id, styles, parentFree);
-    },
-  );
-  const drag = useDraggable({
-    id: `node:${node.id}`,
-    data: { nodeId: node.id },
-    disabled: locked || parentFree,
-  });
-  const drop = useDroppable({
-    id: `inside:${node.id}`,
-    data: { parent: node.id, index: node.children.length },
-    disabled: locked || !isContainer(node.kind),
-  });
-  if (node.hidden[device]) return null;
-  const style: CSSProperties = {
-    ...brandStyle(node, device),
-    ...placedStyle(node, device, parentFree),
-    ...(node.props.backgroundSrc
-      ? {
-          backgroundImage: `linear-gradient(${String(node.props.backgroundOverlay || "#00000000")},${String(node.props.backgroundOverlay || "#00000000")}),url("${assetUrl(node.props.backgroundSrc)}")`,
-          backgroundSize: "cover",
-        }
-      : {}),
-  };
-  const horizontal =
-    style.display === "flex" &&
-    String(style.flexDirection ?? "row").startsWith("row");
-  return (
-    <div
-      ref={(element) => {
-        elementRef.current = element;
-        drag.setNodeRef(element);
-        drop.setNodeRef(element);
-      }}
-      data-node-id={node.id}
-      data-kind={node.kind}
-      data-block={node.id}
-      data-free-placed={parentFree || undefined}
-      tabIndex={selected === node.id ? 0 : -1}
-      aria-label={`${node.name} · ${labels[node.kind]}`}
-      onFocus={(event) => {
-        if (event.target === event.currentTarget) select(node.id);
-      }}
-      className={`content-block editor-block ${selected === node.id ? "selected" : ""} ${drag.isDragging ? "moving" : ""} ${drop.isOver ? "drop-inside" : ""}`}
-      style={style}
-      onPointerDown={(event) => {
-        if (
-          parentFree &&
-          !locked &&
-          !(event.target as HTMLElement).closest(
-            'button,input,textarea,select,[contenteditable="true"]',
-          )
-        ) {
-          select(node.id);
-          gesture.start(event, "move");
-        }
-      }}
-      onPointerMove={gesture.move}
-      onPointerUp={gesture.stop}
-      onPointerCancel={gesture.stop}
-      onClick={(event) => {
-        event.stopPropagation();
-        if (
-          !(event.target as HTMLElement).closest(
-            'input,textarea,select,[contenteditable="true"]',
-          )
-        )
-          event.currentTarget.focus({ preventScroll: true });
-        select(node.id, event.shiftKey || event.ctrlKey || event.metaKey);
-      }}
-    >
-      {selected === node.id && (
-        <div className="block-toolbar">
-          <span>{node.name}</span>
-          <button
-            title={t("Öğeyi sürükle")}
-            disabled={locked}
-            {...(!parentFree ? drag.attributes : {})}
-            {...(!parentFree ? drag.listeners : {})}
-            onPointerDown={(e) =>
-              parentFree
-                ? gesture.start(e, "move")
-                : drag.listeners?.onPointerDown?.(e)
-            }
-            onPointerMove={parentFree ? gesture.move : undefined}
-            onPointerUp={parentFree ? gesture.stop : undefined}
-          >
-            <GripVertical size={13} />
-          </button>
-          <button
-            title={t("Öğeyi çoğalt")}
-            onClick={(event) => {
-              event.stopPropagation();
-              duplicate(node.id);
-            }}
-          >
-            <Copy size={12} />
-          </button>
-          <button
-            title={t("Öğeyi sil")}
-            onClick={(event) => {
-              event.stopPropagation();
-              remove(node.id);
-            }}
-          >
-            <Trash2 size={12} />
-          </button>
-        </div>
-      )}
-      <NodeSlot
-        nodeId={node.id}
-        parent={parent}
-        index={index}
-        side="before"
-        dragging={dragging}
-        horizontal={horizontalParent}
-      />
-      <NodeSlot
-        nodeId={node.id}
-        parent={parent}
-        index={index + 1}
-        side="after"
-        dragging={dragging}
-        horizontal={horizontalParent}
-      />
-      {selected === node.id &&
-        node.kind === "row" &&
-        node.children.length >= 2 &&
-        node.children.every((child) => child.kind === "column") &&
-        !locked &&
-        !freeHeight(node, device) &&
-        horizontal && (
-          <ColumnHandles
-            rowRef={elementRef}
-            count={node.children.length}
-            resize={(value, index) => resizeColumn?.(node.id, value, index)}
-          />
-        )}
-      <BlockContent
-        node={node}
-        device={device}
-        editable={!node.props.locked}
-        onHtml={(html) => updateHtml(node.id, html)}
-      >
-        {isContainer(node.kind) && (
-          <>
-            {node.children.map((child, index) => (
-              <CanvasNode
-                key={child.id}
-                node={child}
-                parent={node.id}
-                index={index}
-                horizontalParent={horizontal}
-                device={device}
-                selected={selected}
-                select={select}
-                updateHtml={updateHtml}
-                duplicate={duplicate}
-                remove={remove}
-                dragging={dragging}
-                resizeColumn={resizeColumn}
-                geometry={geometry}
-                parentFree={!!freeHeight(node, device)}
-                inheritedLocked={locked}
-              />
-            ))}
-            {!node.children.length && (
-              <div className="empty-container">
-                <Plus size={16} />
-                <span>{t("Öğeyi buraya bırak")}</span>
-              </div>
-            )}
-          </>
-        )}
-      </BlockContent>
-      {selected === node.id &&
-        !locked &&
-        !["section", "row"].includes(node.kind) && (
-          <ElementHandles gesture={gesture} />
-        )}
-    </div>
-  );
-}
-function Layer({
-  node,
-  parent = null,
-  index = 0,
-  depth,
-  selected,
-  select,
-  dragging,
-  search = "",
-  visibility,
-  device,
-  inheritedLocked = false,
-}: {
-  node: Block;
-  parent?: string | null;
-  index?: number;
-  depth: number;
-  selected: string | null;
-  select: (id: string, multi?: boolean) => void;
-  dragging: boolean;
-  search?: string;
-  visibility: (id: string) => void;
-  device: Device;
-  inheritedLocked?: boolean;
-}) {
-  const locked = inheritedLocked || !!node.props.locked;
-  const [open, setOpen] = useState(depth > 0);
-  const expanded = open || Boolean(search.trim());
-  const drag = useDraggable({
-    id: `layer:${node.id}`,
-    data: { nodeId: node.id },
-    disabled: locked,
-  });
-  const drop = useDroppable({
-    id: `layer-inside:${node.id}`,
-    data: { parent: node.id, index: node.children.length },
-    disabled: !isContainer(node.kind),
-  });
-  const Icon = blockIcons[node.kind];
-  return (
-    <>
-      <div
-        ref={drop.setNodeRef}
-        data-layer-id={node.id}
-        className={`layer-row ${selected === node.id ? "active" : ""} ${drop.isOver ? "drop-active" : ""}`}
-        style={{ paddingLeft: depth * 14 + 10 }}
-      >
-        <NodeSlot
-          context="layers"
-          nodeId={node.id}
-          parent={parent}
-          index={index}
-          side="before"
-          dragging={dragging}
-        />
-        <NodeSlot
-          context="layers"
-          nodeId={node.id}
-          parent={parent}
-          index={index + 1}
-          side="after"
-          dragging={dragging}
-        />
-        <button
-          className="layer-toggle"
-          aria-label={t("Katmanı aç veya kapat")}
-          aria-expanded={expanded}
-          onClick={() => setOpen(!open)}
-        >
-          {isContainer(node.kind) ? (
-            expanded ? (
-              <ChevronDown size={12} />
-            ) : (
-              <ChevronRight size={12} />
-            )
-          ) : (
-            <span />
-          )}
-        </button>
-        <button
-          ref={drag.setNodeRef}
-          {...drag.attributes}
-          {...drag.listeners}
-          className="layer-select"
-          onClick={(e) => select(node.id, e.shiftKey || e.ctrlKey || e.metaKey)}
-        >
-          <Icon size={14} />
-          <span>{node.name}</span>
-        </button>
-        <button
-          className="layer-visibility"
-          disabled={locked}
-          aria-label={`${t("Visibility")}: ${node.name}`}
-          aria-pressed={!node.hidden[device]}
-          onClick={() => visibility(node.id)}
-        >
-          {node.hidden[device] ? <EyeOff size={13} /> : <Eye size={13} />}
-        </button>
-        <span className="layer-kind">
-          {depth === 0 && node.kind === "section" && (
-            <i className="fp-section-tag">FP</i>
-          )}
-          {node.hidden.mobile && "M̸"}
-        </span>
-      </div>
-      {expanded &&
-        node.children
-          .filter(
-            (child) =>
-              !search ||
-              JSON.stringify(child)
-                .toLocaleLowerCase(getUiLanguage())
-                .includes(search.toLocaleLowerCase(getUiLanguage())),
-          )
-          .map((child) => (
-            <Layer
-              key={child.id}
-              node={child}
-              parent={node.id}
-              index={node.children.indexOf(child)}
-              depth={depth + 1}
-              selected={selected}
-              select={select}
-              dragging={dragging}
-              search={search}
-
-              visibility={visibility}
-              device={device}
-              inheritedLocked={locked}
-            />
-          ))}
-    </>
-  );
-}
-function EmptyPage({ add }: { add: () => void }) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: "empty-root",
-    data: { parent: null, index: 0 },
-  });
-  return (
-    <div
-      ref={setNodeRef}
-      className={`empty-page ${isOver ? "drop-inside" : ""}`}
-    >
-      <Plus size={32} />
-      <h2>{t("İlk bölümünü ekle.")}</h2>
-      <p>{t("Kütüphaneden bir öğeyi buraya sürükle.")}</p>
-      <button
-        onClick={(event) => {
-          event.stopPropagation();
-          add();
-        }}
-      >
-        {t("Bölüm ekle")}
-      </button>
-    </div>
-  );
-}
 export function Editor({
   pageId,
   store,
@@ -640,6 +156,7 @@ export function Editor({
   openPage,
 }: EditorProps) {
   const panels = usePanelWidths();
+  const pages = usePageOverview(store.id, pageId, notify);
   const [catalog, setCatalog] = useState<Catalog>({
     source: "local",
     products: [],
@@ -694,6 +211,12 @@ export function Editor({
     y: number;
   } | null>(null);
   const [selection, setSelection] = useState<string[]>([]);
+  // Keyboard handlers read the latest selection even if a shortcut arrives
+  // before the effect that re-subscribes them has run.
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
   useEffect(() => {
     if (!contextMenu) return;
     const dismiss = (event: Event) => {
@@ -778,7 +301,6 @@ export function Editor({
   const [preview, setPreview] = useState(false);
   const [published, setPublished] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [menu, setMenu] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [available, setAvailable] = useState(800);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -791,6 +313,7 @@ export function Editor({
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor),
   );
+  const canvasDrop = useCanvasDrop(pageRef);
   useEffect(() => {
     let current = true;
     Promise.all([
@@ -1192,6 +715,8 @@ export function Editor({
   };
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
+      const selected = selectedRef.current;
+      const selection = selectionRef.current;
       const target = event.target as HTMLElement;
       const typing =
         target.matches("input,textarea,select") || target.isContentEditable;
@@ -1366,7 +891,6 @@ export function Editor({
       if (event.key === "Escape") {
         setSelected(null);
         setPreview(false);
-        setMenu(false);
       }
     };
     window.addEventListener("keydown", listener);
@@ -1682,7 +1206,9 @@ export function Editor({
   });
   const onDragEnd = (event: DragEndEvent) => {
     setDragging(null);
-    const target = event.over?.data.current;
+    const planned = canvasDrop.plan.current;
+    canvasDrop.reset();
+    const target = planned ?? event.over?.data.current;
     if (!target || !pageRef.current) return;
     if (
       (target.parent && isLocked(pageRef.current.nodes, target.parent)) ||
@@ -1719,6 +1245,7 @@ export function Editor({
       if (!section) return;
       if (!canInsertSection(section)) return;
       commit((document) => {
+        if (planned?.section) return placeSection(document, section, index);
         if (parent) return insertSection(document, section, parent);
         const nodes = [...document.nodes];
         nodes.splice(index, 0, section);
@@ -1943,7 +1470,6 @@ export function Editor({
     link.download = `${page.name.replace(/[^\p{L}\p{N}-]/gu, "-").slice(0, 60)}.json`;
     link.click();
     URL.revokeObjectURL(url);
-    setMenu(false);
     notify(t("Tasarım JSON olarak dışa aktarıldı"));
   };
   async function importPage(file?: File) {
@@ -1969,7 +1495,6 @@ export function Editor({
       notify((error as Error).message, true);
     }
     if (importRef.current) importRef.current.value = "";
-    setMenu(false);
   }
   async function publish() {
     setPublishing(true);
@@ -1985,6 +1510,9 @@ export function Editor({
       setPublishing(false);
     }
   }
+  const switchPage = async (id: string) => {
+    if (await save()) openPage(id);
+  };
   if (!page)
     return (
       <div className="loading-screen">
@@ -2057,6 +1585,53 @@ export function Editor({
         })),
       }),
       `html:${id}`,
+    );
+  const resizeColumn = (id: string, value: number, index?: number) =>
+    commit(
+      (d) => ({
+        ...d,
+        nodes: mapBlock(d.nodes, id, (n) =>
+          resizeColumns(n, device, value, index),
+        ),
+      }),
+      `resize:${id}:${device}`,
+    );
+  const geometry = (
+    id: string,
+    styles: Record<string, string>,
+    free: boolean,
+  ) =>
+    commit(
+      (d) => ({
+        ...d,
+        nodes: mapBlock(d.nodes, id, (n) => ({
+          ...n,
+          props: {
+            ...n.props,
+            ...(free
+              ? {
+                  freePlaced: true,
+                  ...(!n.props.freePlaced
+                    ? {
+                        freeFlowStyles: JSON.stringify({
+                          [device]: { ...n.styles[device] },
+                        }),
+                      }
+                    : {}),
+                }
+              : {}),
+          },
+          styles: {
+            ...n.styles,
+            [device]: {
+              ...n.styles[device],
+              ...(free ? { position: "absolute" } : {}),
+              ...styles,
+            },
+          },
+        })),
+      }),
+      `geometry:${id}:${device}`,
     );
   const changeSelected = (change: (node: Block) => Block, key?: string) => {
     if (!selected) return;
@@ -2220,18 +1795,6 @@ export function Editor({
       .querySelector(`[data-node-id="${id}"]`)
       ?.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
   };
-  const collision: typeof pointerWithin = (args) => {
-    if (!args.pointerCoordinates) return closestCenter(args);
-    const collisions = pointerWithin(args);
-    return collisions.sort((a, b) => {
-      const ar = args.droppableRects.get(a.id),
-        br = args.droppableRects.get(b.id);
-      return (
-        (ar ? ar.width * ar.height : Infinity) -
-        (br ? br.width * br.height : Infinity)
-      );
-    });
-  };
   return (
     <StudioProvider
       page={page}
@@ -2255,13 +1818,20 @@ export function Editor({
     >
       <DndContext
         sensors={sensors}
-        collisionDetection={collision}
+        collisionDetection={canvasDrop.collision}
         measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-        onDragStart={(event) => setDragging(String(event.active.id))}
+        onDragStart={(event) => {
+          canvasDrop.onDragStart(event);
+          setDragging(String(event.active.id));
+        }}
+        onDragMove={canvasDrop.onDragMove}
         onDragEnd={onDragEnd}
-        onDragCancel={() => setDragging(null)}
+        onDragCancel={() => {
+          canvasDrop.reset();
+          setDragging(null);
+        }}
       >
-        <div className="studio">
+        <div className={`studio ${dragging ? "is-dragging" : ""}`}>
           <header className="studio-topbar">
             <button
               className="brand"
@@ -2270,9 +1840,7 @@ export function Editor({
                 if (await save()) back();
               }}
             >
-              <span className="brand-mark">
-                <Layers size={18} />
-              </span>
+              <BrandMark />
               <b>
                 fuk<span>pages</span>
               </b>
@@ -2293,6 +1861,13 @@ export function Editor({
                 }
               />
             </div>
+            <PageSwitcher
+              pages={pages}
+              pageId={pageId}
+              busy={saving || publishing}
+              switchPage={switchPage}
+            />
+            <div className="topbar-divider" />
             <div className="history-controls">
               <button
                 title={t("Geri al (Ctrl+Z)")}
@@ -2402,55 +1977,41 @@ export function Editor({
                 {published ? t("Yerel yayın güncelle") : t("Yerel yayın")}
                 <ChevronDown size={12} />
               </button>
-              <div className="more-menu">
-                <button
-                  className="icon-button"
-                  aria-label={t("Tasarım işlemleri")}
-                  onClick={() => setMenu(!menu)}
-                >
-                  <MoreHorizontal size={18} />
-                </button>
-                {menu && (
-                  <div className="dropdown-menu">
-                    <button onClick={exportPage}>
-                      <Download size={14} />
-                      {" " + t("JSON dışa aktar")}
-                    </button>
-                    <button onClick={() => importRef.current?.click()}>
-                      <Upload size={14} />
-                      {" " + t("JSON içe aktar")}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setLibrary("templates");
-                        setMenu(false);
-                      }}
-                    >
-                      <LayoutTemplate size={14} />
-                      {" " + t("Başlangıç şablonları")}
-                    </button>
-                  </div>
-                )}
-              </div>
+              <EditorMenu
+                pageId={pageId}
+                pages={pages}
+                store={store}
+                catalog={catalog}
+                busy={saving || publishing}
+                save={save}
+                notify={notify}
+                switchPage={switchPage}
+                manage={async () => {
+                  if (await save()) back();
+                }}
+                designActions={[
+                  {
+                    id: "export",
+                    icon: Download,
+                    label: t("JSON dışa aktar"),
+                    run: exportPage,
+                  },
+                  {
+                    id: "import",
+                    icon: Upload,
+                    label: t("JSON içe aktar"),
+                    run: () => importRef.current?.click(),
+                  },
+                  {
+                    id: "templates",
+                    icon: LayoutTemplate,
+                    label: t("Başlangıç şablonları"),
+                    run: () => setLibrary("templates"),
+                  },
+                ]}
+              />
             </div>
           </header>
-          <PageBar
-            pageId={pageId}
-            store={store}
-            catalog={catalog}
-            type={page.type}
-            resource={previewResource}
-            onResource={setPreviewResource}
-            busy={saving || publishing}
-            save={save}
-            notify={notify}
-            switchPage={async (id) => {
-              if (await save()) openPage(id);
-            }}
-            manage={async () => {
-              if (await save()) back();
-            }}
-          />
           {(recovery || conflict || saveError || !recoveryWritable) && (
             <div className="recovery-banner" role="status" data-recovery-banner>
               {!recoveryWritable && (
@@ -2593,54 +2154,18 @@ export function Editor({
               } as CSSProperties
             }
           >
-            <nav className="tool-rail">
-              <div>
-                {[
-                  ["blocks", Plus, t("Öğeler")],
-                  ["sections", LayoutTemplate, t("Bölümler")],
-                  ["layers", Layers, t("Katmanlar")],
-                  ["templates", LayoutTemplate, t("Şablonlar")],
-                  ["theme", StoreIcon, t("Tema")],
-                  ["media", Upload, t("Medya")],
-                  ["brand", LayoutTemplate, t("Marka")],
-                  ["workflow", MoreHorizontal, t("Sayfa")],
-                  ["catalog", StoreIcon, t("Ürünler")],
-                  ["growth", LayoutTemplate, t("Akışlar")],
-                  ...(role === "owner"
-                    ? [["team", ShieldCheck, t("Hesaplar")]]
-                    : []),
-                ].map(([id, Tool, title]) => {
-                  const Icon = Tool as typeof Plus;
-                  return (
-                    <button
-                      key={String(id)}
-                      className={
-                        library === id || (id === "layers" && layersOpen)
-                          ? "active"
-                          : ""
-                      }
-                      title={String(title)}
-                      onClick={() => {
-                        if (id === "layers") setLayersOpen((v) => !v);
-                        else setLibrary(String(id));
-                      }}
-                    >
-                      <Icon size={20} />
-                      <span className="rail-caption">{String(title)}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <button
-                title={t("Mağaza yönetimi")}
-                onClick={async () => {
-                  if (await save()) back();
-                }}
-              >
-                <ShieldCheck size={20} />
-                <span>{t("Yönetim")}</span>
-              </button>
-            </nav>
+            <ToolRail
+              active={library}
+              layersOpen={layersOpen}
+              owner={role === "owner"}
+              open={(tool: RailTool) => {
+                if (tool === "layers") setLayersOpen((v) => !v);
+                else setLibrary(tool);
+              }}
+              exit={async () => {
+                if (await save()) back();
+              }}
+            />
             <aside className="library">
               <div className="library-heading">
                 <div>
@@ -2792,80 +2317,11 @@ export function Editor({
                 />
               )}
               {library === "blocks" && (
-                <>
-                  <label className="library-search">
-                    <Search size={14} />
-                    <input
-                      aria-label={t("Öğe ara")}
-                      placeholder={t("Öğe ara…")}
-                      value={search}
-                      onChange={(event) => setSearch(event.target.value)}
-                    />
-                    <span>⌘ K</span>
-                  </label>
-                  <div className="library-scroll">
-                    {groups.map((group) => {
-                      const filtered = group.kinds.filter((kind) =>
-                        labels[kind]
-                          .toLocaleLowerCase(getUiLanguage())
-                          .includes(search.toLocaleLowerCase(getUiLanguage())),
-                      );
-                      return (
-                        !!filtered.length && (
-                          <details
-                            open
-                            className="palette-group"
-                            key={group.name}
-                          >
-                            <summary>
-                              {group.name}
-                              <ChevronDown size={12} />
-                            </summary>
-                            <div className="palette-grid">
-                              {filtered.includes("row") &&
-                                [0, 1, 2, 3, 4].map((columns) => (
-                                  <PaletteItem
-                                    key={`row-${columns}`}
-                                    kind="row"
-                                    columns={columns}
-                                    onAdd={() => add("row", columns)}
-                                  />
-                                ))}
-                              {filtered
-                                .filter((kind) => kind !== "row")
-                                .map((kind) => (
-                                  <PaletteItem
-                                    key={kind}
-                                    kind={kind}
-                                    onAdd={() => add(kind)}
-                                  />
-                                ))}
-                            </div>
-                          </details>
-                        )
-                      );
-                    })}
-                    {!groups.some((group) =>
-                      group.kinds.some((kind) =>
-                        labels[kind]
-                          .toLocaleLowerCase(getUiLanguage())
-                          .includes(search.toLocaleLowerCase(getUiLanguage())),
-                      ),
-                    ) && (
-                      <p className="setting-help">
-                        {t("Eşleşen öğe bulunamadı.")}
-                      </p>
-                    )}
-                  </div>
-                  <div className="library-tip">
-                    <MousePointer2 size={15} />
-                    <p>
-                      {t("Öğeyi sürükle veya tıklayarak ekle.")}
-                      <br />
-                      <span>{t("Metne çift tıkla ve yazmaya başla.")}</span>
-                    </p>
-                  </div>
-                </>
+                <ElementLibrary
+                  search={search}
+                  setSearch={setSearch}
+                  add={add}
+                />
               )}
               {library === "templates" && (
                 <div className="library-scroll template-list">
@@ -2980,6 +2436,12 @@ export function Editor({
                   <span className="canvas-status-dot" />
                   {deviceNames[device]}
                   {" " + t("görünümü")}
+                  <PreviewResourcePicker
+                    type={page.type}
+                    catalog={catalog}
+                    resource={previewResource}
+                    onResource={setPreviewResource}
+                  />
                 </span>
                 <span>
                   {themeSnapshot
@@ -3025,67 +2487,54 @@ export function Editor({
                             />
                           ))}
                       {visibleNodes.map((node) => (
-                        <CanvasNode
-                          key={node.id}
-                          node={node}
-                          index={page.nodes.findIndex(
-                            (item) => item.id === node.id,
-                          )}
-                          device={device}
-                          selected={selected}
-                          select={selectMany}
-                          resizeColumn={(id, value, index) =>
-                            commit(
-                              (d) => ({
-                                ...d,
-                                nodes: mapBlock(d.nodes, id, (n) =>
-                                  resizeColumns(n, device, value, index),
-                                ),
-                              }),
-                              `resize:${id}:${device}`,
-                            )
-                          }
-                          updateHtml={updateHtml}
-                          duplicate={duplicate}
-                          remove={remove}
-                          dragging={!!dragging}
-                          geometry={(id, styles, free) =>
-                            commit(
-                              (d) => ({
-                                ...d,
-                                nodes: mapBlock(d.nodes, id, (n) => ({
-                                  ...n,
-                                  props: {
-                                    ...n.props,
-                                    ...(free
-                                      ? {
-                                          freePlaced: true,
-                                          ...(!n.props.freePlaced
-                                            ? {
-                                                freeFlowStyles: JSON.stringify({
-                                                  [device]: {
-                                                    ...n.styles[device],
-                                                  },
-                                                }),
-                                              }
-                                            : {}),
-                                        }
-                                      : {}),
-                                  },
-                                  styles: {
-                                    ...n.styles,
-                                    [device]: {
-                                      ...n.styles[device],
-                                      ...(free ? { position: "absolute" } : {}),
-                                      ...styles,
-                                    },
-                                  },
-                                })),
-                              }),
-                              `geometry:${id}:${device}`,
-                            )
-                          }
-                        />
+                        <Fragment key={node.id}>
+                          <CanvasNode
+                            node={node}
+                            device={device}
+                            selected={selected}
+                            select={selectMany}
+                            resizeColumn={resizeColumn}
+                            updateHtml={updateHtml}
+                            duplicate={duplicate}
+                            remove={remove}
+                            dragging={!!dragging}
+                            geometry={geometry}
+                          />
+                          {!dragging &&
+                            !node.hidden[device] &&
+                            node.props.sectionRole !== "footer" && (
+                              <SectionInsert
+                                after={node.id}
+                                name={node.name}
+                                chooseSection={() => {
+                                  selectMany(node.id);
+                                  setNativeSelected(null);
+                                  setLibrary("sections");
+                                  notify(
+                                    t(
+                                      "Seçtiğin bölüm {p0} sonrasına eklenecek.",
+                                      { p0: node.name },
+                                    ),
+                                  );
+                                }}
+                                addBlank={() => {
+                                  const section = createBlock("section");
+                                  commit((d) => {
+                                    const nodes = [...d.nodes];
+                                    nodes.splice(
+                                      d.nodes.findIndex(
+                                        (item) => item.id === node.id,
+                                      ) + 1,
+                                      0,
+                                      section,
+                                    );
+                                    return { ...d, nodes };
+                                  });
+                                  showNewNode(section.id);
+                                }}
+                              />
+                            )}
+                        </Fragment>
                       ))}
                       {useThemeShell &&
                         themeSnapshot?.sections
@@ -3104,7 +2553,16 @@ export function Editor({
                   </div>
                 </div>
                 <div className="canvas-bottom-add">
-                  <button onClick={() => setLibrary("sections")}>
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      const last = [...page.nodes]
+                        .reverse()
+                        .find((node) => node.props.sectionRole !== "footer");
+                      if (last) selectMany(last.id);
+                      setLibrary("sections");
+                    }}
+                  >
                     <LayoutTemplate size={20} />
                     <span>
                       <b>{t("Choose templates")}</b>
@@ -3127,18 +2585,11 @@ export function Editor({
                 </div>
               </div>
               <footer className="canvas-footer">
-                <div>
-                  <MousePointer2 size={12} />
-                  <span>
-                    {selectedNode?.name ?? t("Bir öğe seç")}
-                    {selectedNode && (
-                      <>
-                        <ChevronRight size={10} />
-                        {labels[selectedNode.kind]}
-                      </>
-                    )}
-                  </span>
-                </div>
+                <Breadcrumb
+                  nodes={page.nodes}
+                  selected={selected}
+                  select={selectLayer}
+                />
                 <div>
                   <button
                     title={t("Uzaklaştır")}
@@ -3343,58 +2794,26 @@ export function Editor({
             hidden
             onChange={(event) => void importPage(event.target.files?.[0])}
           />
-          {selectedNode && ["text", "heading"].includes(selectedNode.kind) && (
-            <div className="rich-format-toolbar">
-              <span>{t("Metin")}</span>
-              {[
-                ["bold", "B"],
-                ["italic", "I"],
-                ["underline", "U"],
-                ["strikeThrough", "S"],
-              ].map(([command, label]) => (
-                <button
-                  key={command}
-                  title={command}
-                  style={{
-                    fontWeight: command === "bold" ? 800 : undefined,
-                    fontStyle: command === "italic" ? "italic" : undefined,
-                    textDecoration:
-                      command === "underline"
-                        ? "underline"
-                        : command === "strikeThrough"
-                          ? "line-through"
-                          : undefined,
-                  }}
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    const selection = window.getSelection();
-                    const anchor = selection?.anchorNode;
-                    const element =
-                      anchor instanceof Element
-                        ? anchor
-                        : anchor?.parentElement;
-                    const editable = element?.closest(".rich-content");
-                    if (
-                      !editable ||
-                      editable
-                        .closest("[data-node-id]")
-                        ?.getAttribute("data-node-id") !== selected
-                    ) {
-                      notify(
-                        t("Biçimlendirmek için tasarım alanındaki metni seç."),
-                      );
-                      return;
-                    }
-                    document.execCommand(command);
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-              <small>{t("Metne çift tıkla")}</small>
-            </div>
-          )}
+          <TextToolbar
+            brandColors={Object.values(brand.colors).filter((color) =>
+              /^#[0-9a-f]{3,8}$/i.test(color),
+            )}
+          />
         </div>
+        {dragging && canvasDrop.indicator && (
+          <div
+            className={`drop-indicator ${canvasDrop.indicator.orientation}`}
+            data-drop-indicator
+            style={{
+              top: canvasDrop.indicator.top,
+              left: canvasDrop.indicator.left,
+              width: canvasDrop.indicator.width,
+              height: canvasDrop.indicator.height,
+            }}
+          >
+            <span>{canvasDrop.indicator.label}</span>
+          </div>
+        )}
         <DragOverlay>
           {dragging && (
             <div className="drag-chip">
@@ -3410,9 +2829,7 @@ export function Editor({
           <div className="preview-modal">
             <header>
               <button className="brand">
-                <span className="brand-mark">
-                  <Layers size={18} />
-                </span>
+                <BrandMark />
                 <b>{t("Önizleme")}</b>
               </button>
               <span className="preview-label">

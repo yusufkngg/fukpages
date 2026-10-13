@@ -23,15 +23,103 @@ import {
   type Device,
   type PageDocument,
 } from "./model";
+const hexChannel = (value: string) =>
+  Math.max(0, Math.min(255, Math.round(Number(value))))
+    .toString(16)
+    .padStart(2, "0");
+/** Browsers report computed colours as rgb(); the stored format is hex. */
+export function hexColor(value: string) {
+  const trimmed = value.trim();
+  if (/^#[0-9a-f]{3,8}$/i.test(trimmed)) return trimmed.toLowerCase();
+  const match =
+    /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+)(%?))?\s*\)$/i.exec(
+      trimmed,
+    );
+  if (!match) return "";
+  const alpha =
+    match[4] === undefined
+      ? 1
+      : Number(match[4]) / (match[5] === "%" ? 100 : 1);
+  return (
+    "#" +
+    [match[1], match[2], match[3]].map(hexChannel).join("") +
+    (alpha < 1 ? hexChannel(String(alpha * 255)) : "")
+  );
+}
+const richTags = ["b", "strong", "i", "em", "u", "s", "br", "p", "span", "a"];
+/**
+ * Sanitises inline rich text and rewrites browser editing output into the
+ * same canonical markup the server stores: <strike> becomes <s>, colours are
+ * hex, only spans carry styles, and links are normalised and safe.
+ */
 export function richHtml(value: unknown) {
-  return DOMPurify.sanitize(String(value ?? ""), {
-    ALLOWED_TAGS: ["b", "strong", "i", "em", "u", "s", "br", "p", "span"],
-    ALLOWED_ATTR: ["style"],
+  const fragment = DOMPurify.sanitize(String(value ?? ""), {
+    ALLOWED_TAGS: [...richTags, "strike"],
+    ALLOWED_ATTR: ["style", "href", "target"],
+    RETURN_DOM_FRAGMENT: true,
   });
+  for (const strike of fragment.querySelectorAll("strike")) {
+    const replacement = document.createElement("s");
+    replacement.append(...strike.childNodes);
+    strike.replaceWith(replacement);
+  }
+  for (const element of fragment.querySelectorAll<HTMLElement>("[style]")) {
+    const style = element.style;
+    const color = hexColor(style.color || "");
+    const background = hexColor(style.backgroundColor || "");
+    const weight = /^(bold|[1-9]00)$/.test(style.fontWeight)
+      ? style.fontWeight
+      : "";
+    element.removeAttribute("style");
+    // Written as text: the CSSOM would serialise colours back to rgb().
+    const declarations = [
+      color && `color: ${color}`,
+      background && `background-color: ${background}`,
+      element.tagName === "SPAN" && weight && `font-weight: ${weight}`,
+    ]
+      .filter(Boolean)
+      .join("; ");
+    if (!declarations) continue;
+    if (element.tagName === "SPAN") element.setAttribute("style", declarations);
+    else {
+      // Browsers may colour a <b>/<i>; keep it by moving it to a span.
+      const span = document.createElement("span");
+      span.setAttribute("style", declarations);
+      span.append(...element.childNodes);
+      element.append(span);
+    }
+  }
+  for (const link of fragment.querySelectorAll("a")) {
+    const href = normalizeLink(link.getAttribute("href"));
+    if (!href) {
+      link.replaceWith(...link.childNodes);
+      continue;
+    }
+    const blank = link.getAttribute("target") === "_blank";
+    for (const name of [...link.getAttributeNames()])
+      link.removeAttribute(name);
+    link.setAttribute("href", href);
+    if (blank) {
+      link.setAttribute("target", "_blank");
+      link.setAttribute("rel", "noopener noreferrer");
+    }
+  }
+  const holder = document.createElement("div");
+  holder.append(fragment);
+  return holder.innerHTML;
 }
 export function plain(value: unknown) {
   const element = document.createElement("div");
   element.innerHTML = richHtml(value);
+  return element.textContent ?? "";
+}
+/** Plain text for a textarea: line breaks survive as newlines. */
+export function editableText(value: unknown) {
+  const element = document.createElement("div");
+  element.innerHTML = richHtml(value);
+  for (const br of element.querySelectorAll("br")) br.replaceWith("\n");
+  for (const paragraph of element.querySelectorAll("p"))
+    if (paragraph.nextSibling) paragraph.append("\n");
   return element.textContent ?? "";
 }
 const safeHref = (url: unknown) => normalizeLink(url) || "#";
@@ -61,6 +149,8 @@ function Countdown({ value }: { value: unknown }) {
     </div>
   );
 }
+const insideTextToolbar = (node: EventTarget | null) =>
+  node instanceof Element && !!node.closest("[data-text-toolbar]");
 function EditableText({
   tag: Tag,
   html,
@@ -84,6 +174,28 @@ function EditableText({
     )
       element.innerHTML = value;
   }, [value]);
+  useEffect(() => {
+    if (!editing) return;
+    // Leave edit mode when the user works anywhere else; the floating text
+    // toolbar keeps the text editable while its inputs have focus.
+    const leave = (event: Event) => {
+      const element = elementRef.current;
+      if (
+        !element ||
+        (event.target instanceof Node && element.contains(event.target)) ||
+        insideTextToolbar(event.target)
+      )
+        return;
+      if (element.isConnected) onHtml?.(richHtml(element.innerHTML));
+      setEditing(false);
+    };
+    document.addEventListener("focusin", leave);
+    document.addEventListener("pointerdown", leave, true);
+    return () => {
+      document.removeEventListener("focusin", leave);
+      document.removeEventListener("pointerdown", leave, true);
+    };
+  }, [editing, onHtml]);
   return (
     <Tag
       ref={(element) => {
@@ -98,10 +210,14 @@ function EditableText({
         requestAnimationFrame(() => elementRef.current?.focus());
         onEdit?.();
       }}
+      onClick={(event) => {
+        // Links inside text are edited, not followed, on the canvas.
+        if ((event.target as Element).closest("a")) event.preventDefault();
+      }}
       onInput={(event) => onHtml?.(richHtml(event.currentTarget.innerHTML))}
       onBlur={(event) => {
         onHtml?.(richHtml(event.currentTarget.innerHTML));
-        setEditing(false);
+        if (!insideTextToolbar(event.relatedTarget)) setEditing(false);
       }}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
@@ -109,6 +225,12 @@ function EditableText({
           event.stopPropagation();
           setEditing(false);
           event.currentTarget.closest<HTMLElement>(".editor-block")?.focus();
+        }
+        if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+          // Keep one text element: Enter adds a line break instead of a
+          // browser-generated <div> that would be stripped on save.
+          event.preventDefault();
+          document.execCommand("insertLineBreak");
         }
       }}
     />

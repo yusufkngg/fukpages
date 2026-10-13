@@ -109,7 +109,7 @@ with browser_fixture(netlify=True) as f:
     public.set_viewport_size({'width':390,'height':1000});expect(public_row).to_have_css('padding-top','8px')
     print('PASS: SEO draft changes the editor tab; one save/publish updates the new live URL, initial HTML title and visitor metadata',flush=True)
 
-    page.get_by_role('button',name='Sayfa yönetimi',exact=True).click();expect(page.get_by_role('tab',name=__import__('re').compile('Ürün sayfaları'))).to_be_visible()
+    page.get_by_role('button',name='Tasarım işlemleri',exact=True).click();page.get_by_role('menuitem',name='Sayfa yönetimi',exact=True).click();expect(page.get_by_role('tab',name=__import__('re').compile('Ürün sayfaları'))).to_be_visible()
     page.get_by_role('tab',name=__import__('re').compile('Ürün sayfaları')).click();product_row=page.locator('.page-table-row').filter(has_text='Aura · Ürün sayfası');product_row.get_by_role('button',name='Aura · Ürün sayfası çoğalt',exact=True).click();expect(page.locator('.page-table-row')).to_have_count(2,timeout=20000)
     copied=page.locator('.page-table-row').filter(has_text='Kopya');expect(copied).to_contain_text('Atama yok');expect(copied).to_contain_text('Taslak')
     product_row=page.locator('.page-table-row').filter(has_text='Aura · Ürün sayfası').filter(has_not_text='Kopya');product_row.get_by_role('button',name='Atamalar',exact=True).click();expect(page.get_by_label('Ata: Aura One kablosuz kulaklık')).to_be_checked();page.get_by_role('button',name='Vazgeç',exact=True).click()

@@ -732,6 +732,33 @@ export function insertSection(
   nodes.splice(index, 0, section);
   return { ...page, nodes };
 }
+/**
+ * Insert a top-level section at a position chosen on the canvas while
+ * keeping headers first and footers last.
+ */
+export function placeSection(
+  page: PageDocument,
+  section: Block,
+  index: number,
+): PageDocument {
+  const nodes = [...page.nodes];
+  const role = section.props.sectionRole;
+  let at = Math.max(0, Math.min(Math.round(index) || 0, nodes.length));
+  if (role === "header") at = 0;
+  else if (role === "footer") at = nodes.length;
+  else {
+    const header = nodes.findIndex(
+      (node) => node.props.sectionRole === "header",
+    );
+    if (header >= 0 && at <= header) at = header + 1;
+    const footer = nodes.findIndex(
+      (node) => node.props.sectionRole === "footer",
+    );
+    if (footer >= 0 && at > footer) at = footer;
+  }
+  nodes.splice(at, 0, section);
+  return { ...page, nodes };
+}
 export function fromSavedSection(section: Block) {
   return cloneBlock(section);
 }

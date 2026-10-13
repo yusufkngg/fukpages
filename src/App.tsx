@@ -1,4 +1,5 @@
 import { getUiLocale, getUiLanguage, subscribeUiLanguage, t } from "./i18n.ts";
+import { BrandMark } from "./BrandMark";
 import { UiSettingsButton } from "./UiSettings";
 import { PageManager } from "./PageManager";
 import { pageTemplate } from "./pageTemplates";
@@ -18,7 +19,6 @@ import {
   ChevronRight,
   CircleAlert,
   FileText,
-  Layers,
   Loader2,
   LockKeyhole,
   LogOut,
@@ -84,9 +84,7 @@ function Login({
       </div>
       <div className="login-visual">
         <div className="login-brand">
-          <span className="brand-mark">
-            <Layers size={21} />
-          </span>
+          <BrandMark size={36} />
           fukpages<span>STUDIO</span>
         </div>
         <div className="login-statement">
@@ -380,9 +378,7 @@ function Dashboard({
     <div className="dashboard">
       <aside className="dashboard-nav">
         <div className="brand">
-          <span className="brand-mark">
-            <Layers size={19} />
-          </span>
+          <BrandMark />
           <b>
             fuk<span>pages</span>
           </b>

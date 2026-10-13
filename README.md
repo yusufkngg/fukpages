@@ -20,6 +20,24 @@ Canlı demo: https://fukpages.netlify.app/ . Giriş ekranı, API, demo mağaza v
 yerel sepet masaüstü/mobilde canlı olarak doğrulandı. Yönetici şifresi
 Netlify ortam ayarlarından sağlanır; gerçek sahip oturumu bu testte açılmadı.
 
+## 0.7: editör deneyimi ve yeni logo
+
+Üst çubuk tek satır: **Pages** listesiyle sayfa geçişi, **⋯** menüsünde sayfa
+yönetimi, çoğaltma, atamalar ve JSON işlemleri. Sol menüdeki her aracın kendi
+ikonu ve adı var. Öğe kütüphanesi 50 öğeyi ayrı ikonlarla sekiz grupta, sıkı bir
+ızgarada gösterir.
+
+Sürüklerken tuvalde tek bir çizgi bırakılacak yeri ve hedefi gösterir; bırakılan
+yer çizgiyle aynıdır. Bölümler yalnızca sayfa seviyesinde yer alır. Bir bölümün
+alt kenarındaki **+ Add section** ile hazır veya boş bölüm tam o konuma eklenir.
+Metne çift tıklayınca metnin üstünde kalın/italik/altı çizili/üstü çizili,
+renk, bağlantı (Ctrl/Cmd+K) ve biçim temizleme açılır; Enter satır sonu ekler.
+Alt çubuktaki seçim yolu üst katmanları seçer. Text content kutusu satır
+sonlarını korur. Yeni logo giriş, panel, editör ve favicon'da kullanılır.
+
+64 otomatik test ve `npm run test:editor` gerçek tarayıcı akışı.
+[Ayrıntılar ve ekran görüntüleri](docs/EDITOR_V07.md).
+
 ## 0.6: bağımsız öğeler
 
 Menü, yıldız puanı, ikonlu maddeler, düğme/badge içeriği ve ürün kartları artık

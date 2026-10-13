@@ -29,7 +29,7 @@ import {
   type Device,
   type Styles,
 } from "./model";
-import { plain } from "./Renderer";
+import { editableText } from "./Renderer";
 import { NodeExtras } from "./NodeExtras";
 import {
   resolveBrandStyles,
@@ -236,7 +236,7 @@ export function Inspector({
           rows={4}
           value={
             key === "html"
-              ? plain(node.props[key])
+              ? editableText(node.props[key])
               : String(node.props[key] ?? "")
           }
           onChange={(event) =>
