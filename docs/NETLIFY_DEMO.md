@@ -14,10 +14,22 @@ Bu prototip, şifreli paneli ve örnek mağazayı aynı Netlify projesinde sunar
 | Adres | Kullanım |
 | --- | --- |
 | `/` | Şifreli yönetim paneli; demo sayfayı seçip düzenle |
-| `/p/demo/demo-store` | Ziyaretçilere açık örnek mağaza |
+| `/p/demo/home` | Atanmış ana sayfa; SEO kısa adı değişse de açılır |
+| `/p/demo/products/aura-one` | Örnek ürüne atanmış ürün sayfası |
+| `/p/demo/collections/demo-collection` | Örnek koleksiyona atanmış koleksiyon sayfası |
 | `/api/health` | Sunucu sağlık yanıtı |
 
 Panelde **Demo mağazayı aç** bağlantısı bulunur. Sayfayı düzenleyip **Yerel yayın** ile yayınla; bu adım Netlify üzerindeki demo mağazayı günceller. **Kaydet** taslağı saklar, yayınlanan sürümü ayrıca değiştirmen gerekir.
+
+SEO için **Sayfa → SEO ve yayın → SEO’yu kaydet ve yayını güncelle** kullan.
+Bu düğme başlık, meta açıklaması ve kısa adresi kaydeder, yayını günceller ve
+yeni bağlantıyı gösterir. Editörün sekme başlığı da alanı takip eder.
+
+0.4, bir defaya mahsus örnek ürün ve koleksiyon sayfalarını ekler ve mevcut
+demo kataloğunun ilk ürün/koleksiyonuna atar. Düzenlenmiş sayfa ve atamalar
+korunur. Sonraki deploy'lar örnekleri yeniden oluşturmaz; devre dışı mağazayı
+etkinleştirmez. Katalog kimlikleri değiştirildiyse yukarıdaki ürün/koleksiyon
+adresleri yerine sayfa yönetimindeki **Mağazada aç** bağlantısını kullan.
 
 ## Sonraki güncellemeler
 

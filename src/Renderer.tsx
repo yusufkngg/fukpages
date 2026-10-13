@@ -10,6 +10,8 @@ import { trackEvent } from "./metrics";
 import DOMPurify from "dompurify";
 import { CommerceBlock } from "./Commerce";
 import { AdvancedContent, performAction } from "./AdvancedContent";
+import { buttonLink, normalizeLink, navigationActions } from "./links";
+import { freeHeight, placedStyle } from "./freePlacement";
 import { assetUrl, brandStyle, useStudio } from "./studio";
 import { Play, ShoppingBag } from "lucide-react";
 import {
@@ -29,10 +31,7 @@ export function plain(value: unknown) {
   element.innerHTML = richHtml(value);
   return element.textContent ?? "";
 }
-const safeHref = (url: unknown) =>
-  /^(https?:\/\/|\/(?!\/)|#|mailto:|tel:)/i.test(String(url))
-    ? String(url)
-    : "#";
+const safeHref = (url: unknown) => normalizeLink(url) || "#";
 function Countdown({ value }: { value: unknown }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -127,11 +126,13 @@ export function BlockContent({
   const [failedSrc, setFailedSrc] = useState("");
   if (node.kind === "section") {
     const frozenWidth = Number(p.sectionContentWidth);
+    const height = freeHeight(node, device);
     return (
       <div
-        className="section-content"
-        style={
-          p.globalDetached
+        className={`section-content ${height ? "free-canvas" : ""}`}
+        style={{
+          ...(height ? { height } : {}),
+          ...(p.globalDetached
             ? {
                 maxWidth:
                   p.sectionContentWidth !== undefined &&
@@ -139,13 +140,22 @@ export function BlockContent({
                     ? `${Math.max(0, Math.min(3000, frozenWidth))}px`
                     : (effectiveStyle(node, device).maxWidth ?? "none"),
               }
-            : undefined
-        }
+            : {}),
+        }}
       >
         {children}
       </div>
     );
   }
+  if (["row", "column", "box"].includes(node.kind) && freeHeight(node, device))
+    return (
+      <div
+        className="free-canvas"
+        style={{ height: freeHeight(node, device)! }}
+      >
+        {children}
+      </div>
+    );
   if (["row", "column", "box"].includes(node.kind)) return <>{children}</>;
   switch (node.kind) {
     case "heading":
@@ -236,11 +246,18 @@ export function BlockContent({
         <>
           <a
             className="block-button"
-            href={safeHref(p.actionTarget || p.href)}
+            href={
+              navigationActions.has(String(p.action || "navigate"))
+                ? buttonLink(p) || "#"
+                : "#"
+            }
             target={p.targetBlank ? "_blank" : undefined}
             rel={p.targetBlank ? "noopener noreferrer" : undefined}
             onClick={(event) => {
-              if (editable || (p.action && p.action !== "navigate")) {
+              if (
+                editable ||
+                !navigationActions.has(String(p.action || "navigate"))
+              ) {
                 event.preventDefault();
                 setActionError("");
                 void performAction(node, pageId, editable).catch(() =>
@@ -364,9 +381,11 @@ export function BlockContent({
 export function ReadOnlyBlock({
   node,
   device,
+  parentFree = false,
 }: {
   node: Block;
   device: Device;
+  parentFree?: boolean;
 }) {
   const studio = useStudio();
   if (node.hidden[device]) return null;
@@ -391,7 +410,7 @@ export function ReadOnlyBlock({
       data-block={node.id}
       style={{
         ...brandStyle(node, device),
-        ...effectiveStyle(node, device),
+        ...placedStyle(node, device, parentFree),
         ...(node.props.backgroundSrc
           ? {
               backgroundImage: `linear-gradient(${String(node.props.backgroundOverlay || "#00000000")},${String(node.props.backgroundOverlay || "#00000000")}),url("${assetUrl(node.props.backgroundSrc, studio.previewToken)}")`,
@@ -402,7 +421,12 @@ export function ReadOnlyBlock({
     >
       <BlockContent node={localized} device={device}>
         {node.children.map((child) => (
-          <ReadOnlyBlock key={child.id} node={child} device={device} />
+          <ReadOnlyBlock
+            key={child.id}
+            node={child}
+            device={device}
+            parentFree={!!freeHeight(node, device)}
+          />
         ))}
       </BlockContent>
     </div>

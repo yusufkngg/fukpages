@@ -1,4 +1,5 @@
 import { freezeBrandDocument } from "./transfer-brand.mjs";
+import { catalogDocumentUses } from "./catalog-media.mjs";
 import { createAnalytics } from "./metrics.mjs";
 import multer from "multer";
 import sharp from "sharp";
@@ -663,10 +664,10 @@ export function registerStudio({
   const activePublicDocuments = (store) =>
     db
       .prepare(
-        "SELECT u.document FROM publications u JOIN pages p ON p.id=u.page_id JOIN stores s ON s.id=p.store_id WHERE s.id=? AND s.status='active' AND u.active=1",
+        "SELECT p.id,u.document FROM publications u JOIN pages p ON p.id=u.page_id JOIN stores s ON s.id=p.store_id WHERE s.id=? AND s.status='active' AND u.active=1",
       )
       .all(store)
-      .map((r) => JSON.parse(r.document));
+      .map((r) => ({ ...JSON.parse(r.document), __pageId: r.id }));
   app.get("/api/assets/:assetId/:file", (req, res) => {
     const row = db
       .prepare("SELECT * FROM assets WHERE id=?")
@@ -677,15 +678,27 @@ export function registerStudio({
       req.query.preview &&
       db
         .prepare(
-          "SELECT v.document FROM previews v JOIN pages p ON p.id=v.page_id JOIN stores s ON s.id=p.store_id WHERE v.token=? AND v.expires>? AND p.store_id=? AND s.status='active'",
+          "SELECT p.id,v.document FROM previews v JOIN pages p ON p.id=v.page_id JOIN stores s ON s.id=p.store_id WHERE v.token=? AND v.expires>? AND p.store_id=? AND s.status='active'",
         )
         .get(req.query.preview, Date.now(), row.store_id);
     const docs = preview
-      ? [JSON.parse(preview.document)]
+      ? [{ ...JSON.parse(preview.document), __pageId: preview.id }]
       : activePublicDocuments(row.store_id);
     if (
       !req.ownerSession &&
-      !docs.some((d) => documentUses(d, asset)) &&
+      !docs.some(
+        (d) =>
+          documentUses(d, asset) ||
+          catalogDocumentUses(
+            d,
+            asset,
+            catalog(row.store_id),
+            db
+              .prepare("SELECT entity_id FROM page_assignments WHERE page_id=?")
+              .all(d.__pageId)
+              .map((r) => r.entity_id),
+          ),
+      ) &&
       !(
         asset.type === "font" &&
         docs.length &&

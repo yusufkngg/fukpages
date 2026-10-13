@@ -1,6 +1,8 @@
 import { SectionPreview } from "./SectionPreview";
 import { createSectionPreset } from "./sections";
-import { useState } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { PageRenderer } from "./Renderer";
+import { widths } from "./model";
 import { useDraggable } from "@dnd-kit/core";
 import {
   Bookmark,
@@ -19,6 +21,46 @@ import {
   type SectionPreset,
 } from "./sections";
 import type { Block } from "./model";
+function SectionThumbnail({ preset }: { preset: SectionPreset }) {
+  const section = useMemo(() => createSectionPreset(preset.id), [preset.id]);
+  const ref = useRef<HTMLDivElement | null>(null),
+    [scale, setScale] = useState(0.2);
+  useEffect(() => {
+    if (!ref.current) return;
+    const observer = new ResizeObserver((entries) =>
+      setScale(entries[0].contentRect.width / widths.desktop),
+    );
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div
+      className="section-thumbnail-render"
+      ref={ref}
+      inert
+      aria-hidden="true"
+      data-preset-thumbnail={preset.id}
+    >
+      <div
+        style={{
+          width: widths.desktop,
+          transform: `scale(${scale})`,
+          transformOrigin: "top left",
+        }}
+      >
+        <PageRenderer
+          document={{
+            schemaVersion: 1,
+            name: preset.name,
+            type: "landing",
+            nodes: section ? [section] : [],
+          }}
+          device="desktop"
+        />
+      </div>
+    </div>
+  );
+}
 
 function PresetCard({
   preset,
@@ -43,37 +85,7 @@ function PresetCard({
         className={`section-preset-card ${drag.isDragging ? "dragging" : ""}`}
         data-section-preset={preset.id}
       >
-        <div
-          className={`section-thumb ${preset.category} ${preset.id}`}
-          style={{ backgroundColor: preset.accent }}
-        >
-          <span className="mini-brand">fukpages / sections</span>
-          <div className="mini-section-title">
-            {preset.category === "hero" ? (
-              <>
-                MAKE IT
-                <br />
-                YOUR OWN.
-              </>
-            ) : preset.category === "layout" ? (
-              "Your brand."
-            ) : preset.category === "conversion" ? (
-              "A little more."
-            ) : (
-              "Designed for you."
-            )}
-          </div>
-          {preset.id === "product-hero" || preset.id === "image-story" ? (
-            <img src="/assets/headphones.svg" alt="" />
-          ) : (
-            <div className="mini-section-grid">
-              <i />
-              <i />
-              <i />
-            </div>
-          )}
-          <span className="mini-cta" />
-        </div>
+        <SectionThumbnail preset={preset} />
         <div className="section-card-title">
           <b>{preset.name}</b>
           <span>
@@ -96,6 +108,7 @@ export function SectionLibrary({
   saved,
   addPreset,
   addSaved,
+  addPrepared,
   saveSelected,
   selectedSection,
   removeSaved,
@@ -103,6 +116,7 @@ export function SectionLibrary({
   saved: SavedSection[];
   addPreset: (id: string) => void;
   addSaved: (section: Block) => void;
+  addPrepared: (section: Block) => void;
   saveSelected: (name: string, synchronized?: boolean) => Promise<boolean>;
   selectedSection?: Block;
   removeSaved: (id: string) => Promise<void>;
@@ -111,7 +125,10 @@ export function SectionLibrary({
     [category, setCategory] = useState<SectionCategory>("all"),
     [search, setSearch] = useState("");
   const [previewId, setPreviewId] = useState<string | null>(null);
-  const previewSection = previewId ? createSectionPreset(previewId) : undefined;
+  const previewSection = useMemo(
+    () => (previewId ? createSectionPreset(previewId) : undefined),
+    [previewId],
+  );
   const [synchronized, setSynchronized] = useState(false);
   const [saveName, setSaveName] = useState(""),
     [naming, setNaming] = useState(false),
@@ -220,8 +237,8 @@ export function SectionLibrary({
         <SectionPreview
           section={previewSection}
           onClose={() => setPreviewId(null)}
-          apply={() => {
-            addPreset(previewId!);
+          apply={(prepared) => {
+            addPrepared(prepared);
             setPreviewId(null);
           }}
         />

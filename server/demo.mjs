@@ -1,4 +1,5 @@
 import { starterDocument, createBlock } from "../src/model.ts";
+import { pageTemplate } from "../src/pageTemplates.ts";
 import { cleanCatalog } from "./catalog.mjs";
 import { validateDocument } from "./index.mjs";
 
@@ -168,5 +169,81 @@ export function seedDemo(db) {
   } catch (e) {
     db.exec("ROLLBACK");
     throw e;
+  }
+}
+export function seedPageTypes(db) {
+  if (
+    db
+      .prepare("SELECT value FROM demo_settings WHERE key='page-types-v1'")
+      .get()
+  )
+    return;
+  const store = db.prepare("SELECT status FROM stores WHERE id='demo'").get();
+  if (!store) return;
+  const catalogRow = db
+    .prepare("SELECT data FROM catalogs WHERE store_id='demo'")
+    .get();
+  const catalog = catalogRow
+    ? JSON.parse(catalogRow.data)
+    : { products: [], collections: [] };
+  db.exec("BEGIN");
+  try {
+    for (const [id, type, name, target] of [
+      [
+        "demo-product",
+        "product",
+        "Aura · Ürün sayfası",
+        catalog.products[0]?.id,
+      ],
+      [
+        "demo-collection-page",
+        "collection",
+        "Aura · Koleksiyon sayfası",
+        catalog.collections[0]?.id,
+      ],
+    ]) {
+      const document = pageTemplate(type);
+      document.name = name;
+      document.seo = {
+        slug: type === "product" ? "demo-product" : "demo-collection",
+        title: name,
+        description: "Yerel demo tasarımı",
+        image: "",
+        noindex: true,
+      };
+      const encoded = JSON.stringify(validateDocument(document)),
+        now = Date.now();
+      const created = db
+        .prepare(
+          "INSERT INTO pages VALUES(?,'demo',?,1,?) ON CONFLICT(id) DO NOTHING",
+        )
+        .run(id, encoded, now);
+      if (created.changes && store.status === "active")
+        db.prepare("INSERT INTO publications VALUES(?,?,1,?)").run(
+          id,
+          encoded,
+          now,
+        );
+      if (created.changes && target)
+        db.prepare(
+          "INSERT INTO page_assignments VALUES('demo',?,?,?) ON CONFLICT(store_id,kind,entity_id) DO NOTHING",
+        ).run(type, target, id);
+    }
+    const home = db
+      .prepare(
+        "SELECT document FROM pages WHERE id='demo-home' AND store_id='demo'",
+      )
+      .get();
+    if (home && JSON.parse(home.document).type === "home")
+      db.prepare(
+        "INSERT INTO page_assignments VALUES('demo','home','home','demo-home') ON CONFLICT(store_id,kind,entity_id) DO NOTHING",
+      ).run();
+    db.prepare(
+      "INSERT INTO demo_settings VALUES('page-types-v1','complete')",
+    ).run();
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
   }
 }

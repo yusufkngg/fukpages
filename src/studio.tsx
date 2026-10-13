@@ -91,6 +91,8 @@ export const StudioContext = createContext({
   storeId: "",
   pageId: "",
   previewToken: "",
+  activeProductId: "",
+  activeCollectionId: "",
   editable: false,
   formDestination: "Webhook yapılandırılmadı",
   language: "tr",

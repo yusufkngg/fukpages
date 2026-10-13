@@ -18,7 +18,7 @@ export function SectionPreview({
 }: {
   section: Block;
   onClose: () => void;
-  apply: () => void;
+  apply: (section: Block) => void;
   actionLabel?: string;
 }) {
   const studio = useStudio();
@@ -103,7 +103,7 @@ export function SectionPreview({
           </StudioProvider>
         </div>
       </div>
-      <button className="primary-button" onClick={apply}>
+      <button className="primary-button" onClick={() => apply(prepared)}>
         {actionLabel}
       </button>
     </Dialog>

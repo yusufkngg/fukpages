@@ -13,12 +13,33 @@ canlı mağaza erişimi bu ortamda henüz yapılandırılmadı.
 Yeni Netlify projesini GitHub **yusufkngg/fukpages → main** dalından içe aktar.
 `netlify.toml` build, Functions, Node 24 ve yönlendirmeleri hazırlar.
 Netlify ortam ayarına en az 12 karakterlik `FUKPAGES_DEMO_PASSWORD` ekle;
-kullanıcı adı `owner`. Panel `/`, demo mağaza `/p/demo/demo-store` adresindedir.
+kullanıcı adı `owner`. Panel `/`, demo mağaza `/p/demo/home` adresindedir.
 `main` güncellemeleri otomatik deploy edilir; taslaklar ve medya Netlify Blobs'ta
 korunur. [Adım adım kurulum ve prototip sınırları](docs/NETLIFY_DEMO.md).
 Canlı demo: https://fukpages.netlify.app/ . Giriş ekranı, API, demo mağaza ve
 yerel sepet masaüstü/mobilde canlı olarak doğrulandı. Yönetici şifresi
 Netlify ortam ayarlarından sağlanır; gerçek sahip oturumu bu testte açılmadı.
+
+## 0.4 geliştirmeleri
+
+- Ana sayfa, ürün ve koleksiyon sekmeleri; arama, bağımsız taslak çoğaltma ve
+  çoklu yerel ürün/koleksiyon ataması. Editörde kaydederek sayfa geçişi ve
+  önizleme hedefi seçimi.
+- Cihaz bazında serbest yerleştirme, sürükleme, ok tuşları ve kenardan
+  genişlik/yükseklik değiştirme. Akışa dönüş, görünür kolonlar ve kolon ekleme.
+- Kalıcı düğme bağlantıları, görsel öğesi/PNG/tarayıcı görseli kopyala-yapıştır;
+  gerçek bölüm kartı ve önizlemedeki ürün bağlamını koruyan ekleme.
+- Genişliği ayarlanıp hatırlanan yan paneller, dikey uzatılan bölüm ayarları,
+  kısa araçlar ve sol tık/Escape/kaydırmayla kapanan sağ tık menüsü.
+- `Sayfa → SEO ve yayın → SEO’yu kaydet ve yayını güncelle` ile taslak ve
+  ziyaretçinin gördüğü başlık, meta açıklaması ve URL birlikte güncellenir.
+  Editör sekmesi de başlığı kullanır. Demo bağlantısı slug değişse de açılır.
+- Padding/margin için `10` gibi birimsiz uzunluklar px olarak uygulanır ve
+  saklanır; eski belgeler de düzeltilir. `%`, `rem` ve birimsiz line-height korunur.
+
+**47 otomatik test** ve gerçek Netlify Function/resmi yerel Blobs üzerinde ek
+tarayıcı kontrolleri: `npm run test:feedback`. Kabul koşulları ve ekran görüntüleri
+[docs/EDITOR_FEEDBACK.md](docs/EDITOR_FEEDBACK.md) içinde. Shopify bağlantısı kurulmadı.
 
 ## 0.3 geliştirmeleri
 
@@ -303,6 +324,8 @@ python tests/browser_smoke.py
 python tests/browser_smoke.py --dev
 python tests/browser_smoke.py --theme-fixture
 python tests/browser_studio.py
+npm run test:feedback
+npm run test:responsive
 npm run test:network
 npm run format:check
 ```

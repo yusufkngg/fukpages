@@ -1,10 +1,11 @@
-# Özellik denetimi — FukPages 0.3
+# Özellik denetimi — FukPages 0.4
 
 Kullanıcının özgün özellik listesi [REQUESTED_FEATURES.md](REQUESTED_FEATURES.md) içinde korunur. 155 madde için durum ve kanıt [requirements.json](requirements.json) içinde saklanır. Shopify bağlantısı bu aşamada yapılmaz; AI ve e-posta/CRM sağlayıcısı henüz seçilmedi.
 
 ## Doğrulama
 
-- `npm test`: 42 test; HTTP/SQLite, gerçek medya/font dönüşümü, rol sınırları, form, SEO, sürüm/senkron bölüm, aktarım, A/B, taslak birleştirme ve Netlify sunucusuz kayıt/çakışma.
+- `npm test`: 47 test; HTTP/SQLite, gerçek medya/font dönüşümü, rol sınırları, form, SEO, sürüm/senkron bölüm, aktarım, A/B, taslak birleştirme, sayfa atamaları/çoğaltma, birimsiz boşluklar ve Netlify sunucusuz kayıt/çakışma.
+- `npm run test:feedback`: bağlantı, pano, serbest konum, boyutlandırma, cihaz bağımsızlığı, kolonlar, paneller, bölüm ekleme, padding/margin, SEO ve üç temel sayfa türü. Gerçek Chromium/Netlify Function/resmi **yerel** Blobs kullanılır. Ayrıntılar: [EDITOR_FEEDBACK.md](EDITOR_FEEDBACK.md).
 - `npm run test:responsive`: 320–4256 px arasında 13 genişlikte tam ekran bölüm arka planı, ortalı/sınırlı içerik, taşma ve gerçek breakpoint kontrolü; canlı marka genişliği değişimi, özel flex/grid ve aktarımda kaynak container korunması. Önceki sola hizalı 1200 px hata bu testte başarısız olur.
 - `npm run build`: TypeScript ve Vite üretim derlemesi.
 - `npm run test:browser`: gerçek Chromium; editör, ürün, medya, font, formlar, çeviri, klavye erişimi, kayıt kurtarma, çakışma, popup, bölüm düzen/kart/önizleme ve demo panel/mağaza akışları.

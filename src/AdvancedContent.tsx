@@ -5,6 +5,7 @@ import { CommerceBlock } from "./Commerce";
 import DOMPurify from "dompurify";
 import { api, json } from "./api";
 import type { Block } from "./model";
+import { buttonLink, navigationActions } from "./links";
 import { assetUrl, fontFamilyFor, useStudio } from "./studio";
 const lines = (v: unknown) =>
   String(v || "")
@@ -17,7 +18,9 @@ export async function performAction(
 ) {
   if (editable) return;
   const p = node.props,
-    target = String(p.actionTarget || p.href || ""),
+    target = navigationActions.has(String(p.action || "navigate"))
+      ? buttonLink(p)
+      : String(p.actionTarget || p.href || ""),
     action = String(p.action || "navigate");
   trackEvent(pageId, "click");
   switch (action) {

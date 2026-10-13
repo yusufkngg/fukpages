@@ -291,9 +291,15 @@ export function CommerceBlock({
   editable?: boolean;
 }) {
   const c = useContext(CatalogContext),
-    { previewToken } = useStudio(),
+    { previewToken, activeProductId, activeCollectionId } = useStudio(),
     p = node.props,
-    product = c.catalog.products.find((v) => v.id === p.productId),
+    product = c.catalog.products.find(
+      (v) =>
+        v.id ===
+        (p.resourceBinding === "page" || !p.productId
+          ? activeProductId
+          : p.productId),
+    ),
     variant = product?.variants.find(
       (v) => v.id === (c.selected[product.id] || product.variants[0]?.id),
     );
@@ -304,7 +310,11 @@ export function CommerceBlock({
   useEffect(() => setActive(0), [variant?.id]);
   if (node.kind === "collectionGrid") {
     const collection = c.catalog.collections.find(
-      (v) => v.id === p.collectionId,
+      (v) =>
+        v.id ===
+        (p.resourceBinding === "page" || !p.collectionId
+          ? activeCollectionId
+          : p.collectionId),
     );
     let products = collection
       ? collection.productIds
@@ -318,9 +328,10 @@ export function CommerceBlock({
     if (sort === "title")
       products = [...products].sort((a, b) => a.title.localeCompare(b.title));
     const size = Math.max(1, Math.min(24, Number(p.pageSize || 6)));
+    const Heading = p.tag === "h1" ? "h1" : "h3";
     return (
       <div>
-        <h3>{collection?.title || "Yerel koleksiyon seç"}</h3>
+        <Heading>{collection?.title || "Yerel koleksiyon seç"}</Heading>
         <p>{collection?.description}</p>
         {collection?.image && (
           <img
@@ -419,9 +430,10 @@ export function CommerceBlock({
       </div>
     );
   switch (node.kind) {
-    case "productField":
+    case "productField": {
+      const Tag = p.field === "title" && p.tag === "h1" ? "h1" : "span";
       return (
-        <span>
+        <Tag>
           {p.field === "price"
             ? money(variant?.price || 0, product.currency)
             : p.field === "comparePrice"
@@ -431,8 +443,9 @@ export function CommerceBlock({
                 : p.field === "description"
                   ? product.description
                   : product.title}
-        </span>
+        </Tag>
       );
+    }
     case "productGallery": {
       const images = variant?.image
         ? [variant.image, ...product.images]

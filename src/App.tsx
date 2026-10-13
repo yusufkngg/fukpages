@@ -1,3 +1,5 @@
+import { PageManager } from "./PageManager";
+import { pageTemplate } from "./pageTemplates";
 import { Viewer } from "./Viewer";
 import { PreviewReview } from "./GrowthPanel";
 import { StudioProvider, type Asset, type Brand } from "./studio";
@@ -123,7 +125,7 @@ function Login({
           <p>Mağazalarını ve tasarımlarını yönetmek için giriş yap.</p>
           {demo && (
             <p>
-              <a href="/p/demo/demo-store" target="_blank" rel="noreferrer">
+              <a href="/p/demo/home" target="_blank" rel="noreferrer">
                 Demo mağazayı aç ↗
               </a>
             </p>
@@ -213,12 +215,14 @@ function StartupFailure({
 function Dashboard({
   role = "owner",
   demo = false,
+  initialStoreId,
   openPage,
   logout,
   notify,
 }: {
   role?: "owner" | "editor" | "viewer";
   demo?: boolean;
+  initialStoreId?: string;
   openPage: (id: string, store: Store) => void;
   logout: () => void;
   notify: (message: string, error?: boolean) => void;
@@ -241,8 +245,13 @@ function Dashboard({
     return result;
   }, []);
   useEffect(() => {
-    void reload().catch((error) => notify(error.message, true));
-  }, [reload, notify]);
+    void reload()
+      .then((result) => {
+        if (initialStoreId)
+          setSelected(result.find((s) => s.id === initialStoreId) || null);
+      })
+      .catch((error) => notify(error.message, true));
+  }, [reload, notify, initialStoreId]);
   useEffect(() => {
     if (!selected) return;
     let valid = true;
@@ -277,7 +286,7 @@ function Dashboard({
       }
       const result = await api<{ id: string }>(`/stores/${store.id}/pages`, {
         method: "POST",
-        body: json({ document: starterDocument(type) }),
+        body: json({ document: pageTemplate(type) }),
       });
       openPage(result.id, store);
     } catch (error) {
@@ -358,7 +367,7 @@ function Dashboard({
         {demo && (
           <a
             className="demo-store-link"
-            href="/p/demo/demo-store"
+            href="/p/demo/home"
             target="_blank"
             rel="noreferrer"
           >
@@ -538,6 +547,15 @@ function Dashboard({
                   <p>Sayfalar, tasarımlar ve işlem geçmişi.</p>
                 </div>
                 <div className="new-page-controls">
+                  {role === "owner" && selected.status === "active" && (
+                    <button
+                      className="text-button"
+                      disabled={busy}
+                      onClick={() => setConfirm(selected)}
+                    >
+                      Devre dışı bırak
+                    </button>
+                  )}
                   <select
                     aria-label="Yeni sayfa türü"
                     value={type}
@@ -568,42 +586,12 @@ function Dashboard({
                   </button>
                 </div>
               )}
-              <div className="page-table">
-                <div className="page-table-header">
-                  <span>Sayfa adı</span>
-                  <span>Tür</span>
-                  <span>Son güncelleme</span>
-                  <span />
-                </div>
-                {pages.map((page) => (
-                  <div className="page-table-row" key={page.id}>
-                    <span>
-                      <FileText size={17} />
-                      {page.name}
-                    </span>
-                    <span>{pageNames[page.type]}</span>
-                    <span>
-                      {new Date(page.updated).toLocaleDateString("tr-TR", {
-                        timeZone: "Europe/Istanbul",
-                      })}
-                    </span>
-                    <button
-                      disabled={selected.status !== "active"}
-                      onClick={() => openPage(page.id, selected)}
-                    >
-                      Düzenle <ArrowRight size={14} />
-                    </button>
-                  </div>
-                ))}
-                {!pages.length && (
-                  <div className="dashboard-empty">
-                    <FileText size={25} />
-                    <p>
-                      Henüz sayfa yok. Bir tür seçip ilk tasarımını oluştur.
-                    </p>
-                  </div>
-                )}
-              </div>
+              <PageManager
+                store={selected}
+                role={role}
+                open={(id) => openPage(id, selected)}
+                notify={notify}
+              />
               <h2 className="audit-heading">İşlem geçmişi</h2>
               <div className="audit-list">
                 {audit.map((event, index) => (
@@ -733,9 +721,12 @@ export function App() {
     demo?: boolean;
     setupError?: string;
   } | null>(null);
-  const [editing, setEditing] = useState<{ id: string; store: Store } | null>(
-    null,
-  );
+  const [editing, setEditing] = useState<{
+    id: string;
+    store: Store;
+    nonce?: number;
+  } | null>(null);
+  const [pageStoreId, setPageStoreId] = useState<string | undefined>();
   const [toast, setToast] = useState<{
     message: string;
     error: boolean;
@@ -746,9 +737,15 @@ export function App() {
   const slugPath = /^\/p\/([\w-]+)\/([a-z0-9-]+)\/?$/.exec(
     window.location.pathname,
   );
-  const publicPath = slugPath
-    ? `/public/stores/${slugPath[1]}/pages/${slugPath[2]}`
-    : null;
+  const resourcePath =
+    /^\/p\/([\w-]+)\/(products|collections)\/([^/]+)\/?$/.exec(
+      window.location.pathname,
+    );
+  const publicPath = resourcePath
+    ? `/public/stores/${resourcePath[1]}/${resourcePath[2]}/${resourcePath[3]}`
+    : slugPath
+      ? `/public/stores/${slugPath[1]}/${slugPath[2] === "home" ? "home" : "pages/" + slugPath[2]}`
+      : null;
   const experimentId = new URLSearchParams(window.location.search).get(
       "experiment",
     ),
@@ -950,10 +947,13 @@ export function App() {
         />
       ) : editing ? (
         <Editor
-          key={editing.id}
+          key={editing.id + ":" + (editing.nonce || 0)}
           pageId={editing.id}
           store={editing.store}
           role={status.role === "editor" ? "editor" : "owner"}
+          openPage={(id) =>
+            setEditing({ id, store: editing.store, nonce: Date.now() })
+          }
           back={() => setEditing(null)}
           notify={notify}
         />
@@ -961,7 +961,11 @@ export function App() {
         <Dashboard
           role={status.role || "owner"}
           demo={status.demo}
-          openPage={(id, store) => setEditing({ id, store })}
+          initialStoreId={pageStoreId}
+          openPage={(id, store) => {
+            setPageStoreId(store.id);
+            setEditing({ id, store, nonce: Date.now() });
+          }}
           logout={() => void logout()}
           notify={notify}
         />

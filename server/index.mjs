@@ -1,4 +1,7 @@
 import express from "express";
+import { normalizeLink } from "../src/links.ts";
+import { normalizeStyleValue } from "../src/styleValues.ts";
+import { registerPageManagement } from "./page-management.mjs";
 import { DatabaseSync } from "node:sqlite";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFileSync, mkdirSync, existsSync } from "node:fs";
@@ -192,7 +195,7 @@ export function validateDocument(input) {
           /[;{}]|url\s*\(|expression|@import/i.test(String(value))
         )
           throw new Error("Geçersiz stil değeri.");
-        styles[device][key] = value;
+        styles[device][key] = normalizeStyleValue(key, value);
       }
     }
     const props = {};
@@ -263,6 +266,10 @@ export function validateDocument(input) {
           "globalStyle",
           "globalDetached",
           "sectionContentWidth",
+          "freeLayout",
+          "freePlaced",
+          "freeFlowStyles",
+          "resourceBinding",
           "linkedSectionId",
           "buttonVariant",
           "hoverStyles",
@@ -296,12 +303,53 @@ export function validateDocument(input) {
         "backgroundSrc",
         "redirect",
       ].includes(key)
-        ? safeUrl(value)
+        ? key === "href"
+          ? normalizeLink(value)
+          : safeUrl(value)
         : key === "html"
           ? cleanRich(value)
           : typeof value === "boolean"
             ? value
             : cleanText(value);
+    }
+    if (props.freeFlowStyles) {
+      const original = JSON.parse(props.freeFlowStyles);
+      if (!original || Array.isArray(original) || typeof original !== "object")
+        throw new Error("Geçersiz akış stili.");
+      for (const [device, styles] of Object.entries(original)) {
+        if (
+          !["desktop", "tablet", "mobile"].includes(device) ||
+          !styles ||
+          Array.isArray(styles) ||
+          typeof styles !== "object"
+        )
+          throw new Error("Geçersiz akış stili.");
+        for (const [key, value] of Object.entries(styles))
+          if (
+            !styleKeys.has(key) ||
+            !["string", "number"].includes(typeof value) ||
+            String(value).length > 240 ||
+            /[;{}]|url\s*\(|expression|@import/i.test(String(value))
+          )
+            throw new Error("Geçersiz akış stili.");
+      }
+    }
+    if (props.freeLayout) {
+      const free = JSON.parse(props.freeLayout);
+      if (
+        !free ||
+        Array.isArray(free) ||
+        typeof free !== "object" ||
+        Object.entries(free).some(
+          ([key, value]) =>
+            !["desktop", "tablet", "mobile"].includes(key) ||
+            typeof value !== "number" ||
+            !Number.isFinite(value) ||
+            value < 100 ||
+            value > 5000,
+        )
+      )
+        throw new Error("Geçersiz serbest yerleşim ayarı.");
     }
     if (props.translations) {
       let translated;
@@ -980,6 +1028,12 @@ export function createApp({
     res.json({
       ...page,
       document,
+      assignments: db
+        .prepare(
+          "SELECT entity_id FROM page_assignments WHERE page_id=? ORDER BY entity_id",
+        )
+        .all(page.id)
+        .map((r) => r.entity_id),
       themeSnapshot: theme ? JSON.parse(theme.snapshot) : null,
     });
   });
@@ -1038,7 +1092,12 @@ export function createApp({
     ).run(page.id, page.document, Date.now());
     audit(page.store_id, "Yerel önizlemeye yayınlandı");
     studio.recordPublication(page);
-    res.json({ published: true, mode: "local" });
+    res.json({
+      published: true,
+      mode: "local",
+      path: slug ? `/p/${page.store_id}/${slug}` : `/?published=${page.id}`,
+      seoTitle: publishingDoc.seo?.title || publishingDoc.name,
+    });
   });
   app.get("/api/public/pages/:id", (req, res) => {
     studio.runSchedules();
@@ -1052,6 +1111,7 @@ export function createApp({
     const document = JSON.parse(page.document);
     res.json({
       document,
+      ...pageManagement.contextFor(req.params.id, document, page.store_id),
       catalog: commerce.catalog(page.store_id),
       formDestination: studio.destination(),
       storeId: page.store_id,
@@ -1083,7 +1143,19 @@ export function createApp({
     webhookFetch,
   });
   const dist = resolve("dist");
+  const pageManagement = registerPageManagement({
+    app,
+    db,
+    auth,
+    csrf,
+    activeStore,
+    studio,
+    commerce,
+    validateDocument,
+    audit,
+  });
   registerSeo({
+    pageManagement,
     app,
     db,
     studio,

@@ -285,7 +285,8 @@ export function NodeExtras({
                 ))}
               </select>
             </label>
-            {field("actionTarget", "Aksiyon hedefi / bölüm veya popup ID")}
+            {String(node.props.action || "navigate") !== "navigate" &&
+              field("actionTarget", "Aksiyon hedefi / bölüm veya popup ID")}
             {["addToCart", "product", "collection"].includes(
               String(node.props.action),
             ) && field("productId", "Ürün ID (yerel katalog)")}
@@ -301,6 +302,36 @@ export function NodeExtras({
               </select>
             </label>
           </>
+        )}
+        {[
+          "productGallery",
+          "productField",
+          "variantPicker",
+          "quantity",
+          "addToCart",
+          "stickyCart",
+          "collectionGrid",
+        ].includes(node.kind) && (
+          <label className="control">
+            <span>
+              {node.kind === "collectionGrid"
+                ? "Koleksiyon kaynağı"
+                : "Ürün kaynağı"}
+            </span>
+            <select
+              aria-label="Katalog veri kaynağı"
+              value={String(
+                node.props.resourceBinding ||
+                  (node.props.productId || node.props.collectionId
+                    ? "fixed"
+                    : "page"),
+              )}
+              onChange={(e) => prop("resourceBinding", e.target.value)}
+            >
+              <option value="page">Bu sayfaya atanan hedef</option>
+              <option value="fixed">Öğede seçilen ürün / koleksiyon</option>
+            </select>
+          </label>
         )}
         {["input", "textarea", "select", "checkbox", "radio"].includes(
           node.kind,

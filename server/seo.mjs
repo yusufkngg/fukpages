@@ -1,7 +1,14 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { documentUses } from "./studio.mjs";
-export function registerSeo({ app, db, dist, studio, commerce }) {
+export function registerSeo({
+  app,
+  db,
+  dist,
+  studio,
+  commerce,
+  pageManagement,
+}) {
   const published = (id) =>
     db
       .prepare(
@@ -22,6 +29,7 @@ export function registerSeo({ app, db, dist, studio, commerce }) {
       brand = studio.brand(row.store_id);
     res.json({
       document,
+      ...pageManagement.contextFor(row.id, document, row.store_id),
       formDestination: studio.destination(),
       brand,
       pageId: row.id,
@@ -50,33 +58,50 @@ export function registerSeo({ app, db, dist, studio, commerce }) {
           "'": "&#39;",
         })[c],
     );
-  app.get(["/", "/p/:storeId/:slug"], (req, res, next) => {
-    const preview =
-      typeof req.query.preview === "string"
-        ? db
-            .prepare(
-              "SELECT v.document,p.store_id,p.id FROM previews v JOIN pages p ON p.id=v.page_id JOIN stores s ON s.id=p.store_id WHERE v.token=? AND v.expires>? AND s.status='active'",
-            )
-            .get(req.query.preview, Date.now())
-        : null;
-    const row = req.params.slug
-      ? bySlug(req.params.storeId, req.params.slug)
-      : typeof req.query.published === "string"
-        ? published(req.query.published)
-        : preview;
-    if (!row) return next();
-    const document = JSON.parse(row.document),
-      seo = document.seo || {},
-      title = seo.title || document.name;
-    let html = readFileSync(resolve(dist, "index.html"), "utf8");
-    html = html.replace(
-      /<title>[^<]*<\/title>/,
-      `<title>${escape(title)}</title>`,
-    );
-    const tags = `<meta name="description" content="${escape(seo.description)}"><meta name="robots" content="${preview || seo.noindex ? "noindex,nofollow" : "index,follow"}"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(seo.description)}"><meta property="og:type" content="website">${seo.image ? `<meta property="og:image" content="${escape(seo.image)}">` : ""}`;
-    res
-      .type("html")
-      .set("Cache-Control", "no-store")
-      .send(html.replace("</head>", tags + "</head>"));
-  });
+  app.get(
+    [
+      "/",
+      "/p/:storeId/:slug",
+      "/p/:storeId/products/:entityId",
+      "/p/:storeId/collections/:entityId",
+    ],
+    (req, res, next) => {
+      const preview =
+        typeof req.query.preview === "string"
+          ? db
+              .prepare(
+                "SELECT v.document,p.store_id,p.id FROM previews v JOIN pages p ON p.id=v.page_id JOIN stores s ON s.id=p.store_id WHERE v.token=? AND v.expires>? AND s.status='active'",
+              )
+              .get(req.query.preview, Date.now())
+          : null;
+      const row = req.params.entityId
+        ? pageManagement.assigned(
+            req.params.storeId,
+            req.path.includes("/products/") ? "product" : "collection",
+            req.params.entityId,
+          )
+        : req.params.slug === "home"
+          ? pageManagement.assigned(req.params.storeId, "home", "home") ||
+            bySlug(req.params.storeId, req.params.slug)
+          : req.params.slug
+            ? bySlug(req.params.storeId, req.params.slug)
+            : typeof req.query.published === "string"
+              ? published(req.query.published)
+              : preview;
+      if (!row) return next();
+      const document = JSON.parse(row.document),
+        seo = document.seo || {},
+        title = seo.title || document.name;
+      let html = readFileSync(resolve(dist, "index.html"), "utf8");
+      html = html.replace(
+        /<title>[^<]*<\/title>/,
+        `<title>${escape(title)}</title>`,
+      );
+      const tags = `<meta name="description" content="${escape(seo.description)}"><meta name="robots" content="${preview || seo.noindex ? "noindex,nofollow" : "index,follow"}"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(seo.description)}"><meta property="og:type" content="website">${seo.image ? `<meta property="og:image" content="${escape(seo.image)}">` : ""}`;
+      res
+        .type("html")
+        .set("Cache-Control", "no-store")
+        .send(html.replace("</head>", tags + "</head>"));
+    },
+  );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AlignCenter,
   AlignLeft,
@@ -26,6 +26,10 @@ import { plain } from "./Renderer";
 import { NodeExtras } from "./NodeExtras";
 import { resolveBrandStyles, useStudio, type Asset } from "./studio";
 import { blockIcons } from "./icons";
+import { normalizeLink } from "./links";
+import { freeHeight, placedStyle } from "./freePlacement";
+import { StyleInput } from "./StyleInput";
+import { normalizeStyleValue } from "./styleValues";
 type Props = {
   node?: Block;
   openMedia: () => void;
@@ -36,6 +40,9 @@ type Props = {
   duplicate: () => void;
   remove: () => void;
   move: (direction: -1 | 1) => void;
+  setLayout: (id: string, enabled: boolean) => void;
+  contentIntent?: number;
+  parentFree?: boolean;
 };
 export function Inspector({
   node,
@@ -47,8 +54,14 @@ export function Inspector({
   duplicate,
   remove,
   move,
+  setLayout,
+  contentIntent = 0,
+  parentFree = false,
 }: Props) {
   const [tab, setTab] = useState("style");
+  useEffect(() => {
+    if (contentIntent) setTab("content");
+  }, [contentIntent]);
   const [linked, setLinked] = useState(true);
   const { brand } = useStudio();
   if (!node)
@@ -70,7 +83,7 @@ export function Inspector({
   const Icon = blockIcons[node.kind];
   const nodeId = node.id;
   const effective = resolveBrandStyles(
-    effectiveStyle(node, device) as Styles,
+    placedStyle(node, device, parentFree),
     brand,
     device,
   ) as Styles;
@@ -81,7 +94,10 @@ export function Inspector({
         ...current,
         styles: {
           ...current.styles,
-          [device]: { ...current.styles[device], [key]: value },
+          [device]: {
+            ...current.styles[device],
+            [key]: normalizeStyleValue(key, value),
+          },
         },
       }),
       `style:${node.id}:${device}:${key}`,
@@ -118,11 +134,12 @@ export function Inspector({
           </button>
         )}
       </span>
-      <input
-        aria-label={label}
-        value={String(effective[key] ?? "")}
+      <StyleInput
+        key={`${nodeId}:${device}:${key}`}
+        label={label}
+        value={effective[key]}
         placeholder={placeholder}
-        onChange={(event) => style(key, event.target.value)}
+        onChange={(value) => style(key, value)}
       />
     </div>
   );
@@ -224,17 +241,24 @@ export function Inspector({
         <div className="spacing-grid">
           {["Top", "Right", "Bottom", "Left"].map((side, index) => (
             <label key={side}>
-              <input
-                aria-label={`${prefix} ${side}`}
-                value={String(effective[prefix + side] ?? "")}
+              <StyleInput
+                key={`${nodeId}:${device}:${prefix}:${side}`}
+                label={`${prefix} ${side}`}
+                value={effective[prefix + side]}
                 placeholder="0px"
-                onChange={(event) =>
+                onChange={(value) =>
                   update((current) => {
                     const values = { ...current.styles[device] };
                     (linked
                       ? ["Top", "Right", "Bottom", "Left"]
                       : [side]
-                    ).forEach((s) => (values[prefix + s] = event.target.value));
+                    ).forEach(
+                      (s) =>
+                        (values[prefix + s] = normalizeStyleValue(
+                          prefix + s,
+                          value,
+                        )),
+                    );
                     return {
                       ...current,
                       styles: { ...current.styles, [device]: values },
@@ -363,7 +387,42 @@ export function Inspector({
                 )}
                 {node.kind === "button" && (
                   <>
-                    {textProp("href", "Bağlantı")}
+                    <label className="control">
+                      <span>Bağlantı</span>
+                      <input
+                        aria-label="Bağlantı"
+                        placeholder="https://… veya /sayfa"
+                        value={String(
+                          node.props.action === "navigate" || !node.props.action
+                            ? node.props.href && node.props.href !== "#"
+                              ? node.props.href
+                              : node.props.actionTarget || ""
+                            : node.props.href || "",
+                        )}
+                        onChange={(event) =>
+                          update(
+                            (current) => ({
+                              ...current,
+                              props: {
+                                ...current.props,
+                                action: "navigate",
+                                actionTarget: "",
+                                href: event.target.value,
+                              },
+                            }),
+                            `link:${node.id}`,
+                          )
+                        }
+                        onBlur={() => {
+                          const href = normalizeLink(node.props.href);
+                          if (href && href !== node.props.href)
+                            prop("href", href);
+                        }}
+                      />
+                      <small>
+                        Adres girildiğinde düğme bu bağlantıya gider.
+                      </small>
+                    </label>
                     <label className="toggle-row">
                       <span>Yeni sekmede aç</span>
                       <input
@@ -453,6 +512,57 @@ export function Inspector({
                   {input("order", "Bu cihazda sıralama", "0")}
                   {input("flexBasis", "Kolon genişliği", "50%")}
                 </div>
+                {["section", "row", "column", "box"].includes(node.kind) && (
+                  <>
+                    <label className="control">
+                      <span>Yerleşim modu · {deviceNames[device]}</span>
+                      <select
+                        aria-label="Yerleşim modu"
+                        value={freeHeight(node, device) ? "free" : "flow"}
+                        onChange={(e) =>
+                          setLayout(node.id, e.target.value === "free")
+                        }
+                      >
+                        <option value="flow">Otomatik akış</option>
+                        <option value="free">Serbest yerleştirme</option>
+                      </select>
+                    </label>
+                    {freeHeight(node, device) && (
+                      <label className="control">
+                        <span>Serbest alan yüksekliği</span>
+                        <input
+                          aria-label="Serbest alan yüksekliği"
+                          type="number"
+                          min={100}
+                          max={5000}
+                          value={freeHeight(node, device)!}
+                          onChange={(e) => {
+                            const value = Math.max(
+                              100,
+                              Math.min(5000, Number(e.target.value)),
+                            );
+                            update((n) => ({
+                              ...n,
+                              props: {
+                                ...n.props,
+                                freeLayout: JSON.stringify({
+                                  ...JSON.parse(
+                                    String(n.props.freeLayout || "{}"),
+                                  ),
+                                  [device]: value,
+                                }),
+                              },
+                            }));
+                          }}
+                        />
+                      </label>
+                    )}
+                    <small className="setting-help">
+                      Serbest modda öğeleri tutup taşı; kenar tutamaçlarıyla
+                      boyutlandır. Her cihazın yerleşimi ayrıdır.
+                    </small>
+                  </>
+                )}
                 {["section", "row", "column", "box"].includes(node.kind) && (
                   <>
                     {select("display", "Düzen", [

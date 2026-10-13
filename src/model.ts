@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { normalizeStyles } from "./styleValues.ts";
 export type Device = "desktop" | "tablet" | "mobile";
 export const advancedLabels = {
   form: "Form",
@@ -104,6 +105,9 @@ export interface PageSummary {
   type: PageType;
   version: number;
   updated: number;
+  published?: boolean;
+  assignments?: string[];
+  slug?: string;
 }
 export const widths: Record<Device, number> = {
   desktop: 1120,
@@ -774,11 +778,11 @@ export function moveBlock(
   return insertBlock(removeBlock(nodes, id), parent, adjusted, node);
 }
 export function effectiveStyle(node: Block, device: Device): CSSProperties {
-  return {
+  return normalizeStyles({
     ...node.styles.desktop,
     ...(device !== "desktop" ? node.styles.tablet : {}),
     ...(device === "mobile" ? node.styles.mobile : {}),
-  } as CSSProperties;
+  }) as CSSProperties;
 }
 export function firstHeading(nodes: Block[]): string | null {
   for (const node of nodes) {

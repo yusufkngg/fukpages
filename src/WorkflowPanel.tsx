@@ -2,45 +2,9 @@ import { useStudio } from "./studio";
 import { useState, useEffect } from "react";
 import { api, json } from "./api";
 import type { PageDocument, Block } from "./model";
-export function qualityWarnings(page: PageDocument) {
-  const warnings: string[] = [],
-    headings: Block[] = [];
-  const walk = (nodes: Block[]) =>
-    nodes.forEach((n) => {
-      if (n.kind === "image") {
-        if (!n.props.src) warnings.push(`${n.name}: görsel eksik`);
-        if (!n.props.alt) warnings.push(`${n.name}: alternatif metin eksik`);
-      }
-      if (
-        n.kind === "button" &&
-        (!n.props.action || n.props.action === "navigate") &&
-        (!n.props.href || n.props.href === "#")
-      )
-        warnings.push(`${n.name}: bağlantı boş`);
-      if (
-        [
-          "productField",
-          "addToCart",
-          "productGallery",
-          "variantPicker",
-        ].includes(n.kind) &&
-        !n.props.productId
-      )
-        warnings.push(`${n.name}: ürün bağlantısı eksik`);
-      if (n.kind === "heading") headings.push(n);
-      walk(n.children);
-    });
-  walk(page.nodes);
-  const h1 = headings.filter((n) => n.props.tag === "h1").length;
-  if (h1 !== 1) warnings.push(`H1 sayısı ${h1}; tek ana başlık önerilir.`);
-  for (let i = 1; i < headings.length; i++) {
-    const prev = Number(String(headings[i - 1].props.tag).slice(1)),
-      next = Number(String(headings[i].props.tag).slice(1));
-    if (next > prev + 1)
-      warnings.push(`${headings[i].name}: başlık düzeyi atlanmış`);
-  }
-  return warnings;
-}
+import { qualityIssues } from "./quality";
+export const qualityWarnings = (page: PageDocument) =>
+  qualityIssues(page).map((issue) => issue.message);
 export function WorkflowPanel({
   pageId,
   storeId,
@@ -48,6 +12,7 @@ export function WorkflowPanel({
   commit,
   save,
   notify,
+  selectNode,
 }: {
   pageId: string;
   storeId: string;
@@ -55,6 +20,7 @@ export function WorkflowPanel({
   commit: (f: (p: PageDocument) => PageDocument) => void;
   save: () => Promise<boolean>;
   notify: (m: string, e?: boolean) => void;
+  selectNode?: (id: string) => void;
 }) {
   const { assets } = useStudio();
   const usedImages = assets.filter(
@@ -70,6 +36,11 @@ export function WorkflowPanel({
       { id: string; data: Record<string, string>; created: number }[]
     >([]),
     [preview, setPreview] = useState(""),
+    [seoPublication, setSeoPublication] = useState<{
+      path: string;
+      seoTitle: string;
+    } | null>(null),
+    [seoBusy, setSeoBusy] = useState(false),
     [publishAt, setPublishAt] = useState(""),
     [unpublishAt, setUnpublishAt] = useState(""),
     [metrics, setMetrics] = useState<
@@ -100,7 +71,7 @@ export function WorkflowPanel({
     image: "",
     noindex: false,
   };
-  const warnings = qualityWarnings(page);
+  const warnings = qualityIssues(page);
   return (
     <div className="library-scroll feature-panel">
       <h3>SEO ve URL</h3>
@@ -140,12 +111,51 @@ export function WorkflowPanel({
         Yerel URL:{" "}
         {seo.slug ? `/p/${storeId}/${seo.slug}` : "Önce kısa adres gir."}
       </p>
+      <button
+        disabled={seoBusy}
+        onClick={async () => {
+          setSeoBusy(true);
+          try {
+            if (!(await save())) return;
+            const result = await api<{ path: string; seoTitle: string }>(
+              `/pages/${pageId}/publish`,
+              { method: "POST", body: "{}" },
+            );
+            setSeoPublication(result);
+            notify("SEO ayarları ve sayfa yayını güncellendi.");
+          } catch (e) {
+            notify((e as Error).message, true);
+          } finally {
+            setSeoBusy(false);
+          }
+        }}
+      >
+        {seoBusy ? "Yayın güncelleniyor…" : "SEO’yu kaydet ve yayını güncelle"}
+      </button>
+      <small>
+        Kaydet taslağı günceller. Bu düğme ziyaretçinin gördüğü başlık ve URL’yi
+        de yayımlar.
+      </small>
+      {seoPublication && (
+        <p data-seo-publication>
+          <b>{seoPublication.seoTitle}</b>
+          <br />
+          <a href={seoPublication.path} target="_blank" rel="noreferrer">
+            Güncellenen sayfayı aç ↗
+          </a>
+        </p>
+      )}
       <h3>Kalite kontrolü</h3>
       {warnings.length ? (
         warnings.map((w, i) => (
-          <p className="feature-warning" key={i}>
-            {w}
-          </p>
+          <button
+            className="feature-warning quality-issue"
+            key={i}
+            onClick={() => selectNode?.(w.nodeId)}
+            title="İlgili öğeyi düzenle"
+          >
+            {w.message} ↗
+          </button>
         ))
       ) : (
         <p>Belge kontrolleri geçti ✓</p>

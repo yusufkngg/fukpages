@@ -1,4 +1,15 @@
+import { ColumnHandles, resizeColumns } from "./ColumnHandles";
 import { SectionDesign } from "./SectionDesign";
+import { PageBar } from "./PageBar";
+import { PanelSplitter, usePanelWidths } from "./PanelSplitter";
+import { ElementHandles, useElementGesture } from "./ElementHandles";
+import {
+  cssNumber,
+  freeHeight,
+  placedStyle,
+  setFreeLayout,
+} from "./freePlacement";
+import { normalizeLink, navigationActions } from "./links";
 import { ConflictDialog, type DraftConflict } from "./ConflictDialog";
 import {
   draftKey,
@@ -127,6 +138,7 @@ import {
 interface PageResponse {
   id: string;
   document: PageDocument;
+  assignments?: string[];
   version: number;
   themeSnapshot?: ThemeSnapshot | null;
 }
@@ -136,6 +148,7 @@ interface EditorProps {
   store: Store;
   back: () => void;
   notify: (message: string, error?: boolean) => void;
+  openPage: (id: string) => void;
 }
 function PaletteItem({ kind, onAdd }: { kind: Kind; onAdd: () => void }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -202,6 +215,9 @@ function CanvasNode({
   remove,
   dragging,
   resizeColumn,
+  parentFree = false,
+  geometry,
+  inheritedLocked = false,
 }: {
   node: Block;
   parent?: string | null;
@@ -214,25 +230,42 @@ function CanvasNode({
   duplicate: (id: string) => void;
   remove: (id: string) => void;
   dragging: boolean;
-  resizeColumn?: (id: string, value: number) => void;
+  resizeColumn?: (id: string, value: number, index?: number) => void;
+  parentFree?: boolean;
+  geometry: (id: string, styles: Record<string, string>, free: boolean) => void;
+  inheritedLocked?: boolean;
 }) {
-  const columnDrag = useRef<{ x: number; start: number; width: number } | null>(
-    null,
+  const locked = inheritedLocked || !!node.props.locked;
+  const elementRef = useRef<HTMLDivElement | null>(null);
+  const gesture = useElementGesture(
+    () => elementRef.current,
+    parentFree,
+    (box, mode) => {
+      const styles: Record<string, string> = {};
+      if (mode === "move")
+        Object.assign(styles, { left: box.left + "%", top: box.top + "px" });
+      else {
+        if (mode.includes("e"))
+          styles.width = box.width + (parentFree ? "%" : "px");
+        if (mode.includes("s")) styles.height = box.height + "px";
+      }
+      geometry(node.id, styles, parentFree);
+    },
   );
   const drag = useDraggable({
     id: `node:${node.id}`,
     data: { nodeId: node.id },
-    disabled: !!node.props.locked,
+    disabled: locked || parentFree,
   });
   const drop = useDroppable({
     id: `inside:${node.id}`,
     data: { parent: node.id, index: node.children.length },
-    disabled: !isContainer(node.kind),
+    disabled: locked || !isContainer(node.kind),
   });
   if (node.hidden[device]) return null;
-  const style = {
+  const style: CSSProperties = {
     ...brandStyle(node, device),
-    ...effectiveStyle(node, device),
+    ...placedStyle(node, device, parentFree),
     ...(node.props.backgroundSrc
       ? {
           backgroundImage: `linear-gradient(${String(node.props.backgroundOverlay || "#00000000")},${String(node.props.backgroundOverlay || "#00000000")}),url("${assetUrl(node.props.backgroundSrc)}")`,
@@ -246,12 +279,14 @@ function CanvasNode({
   return (
     <div
       ref={(element) => {
+        elementRef.current = element;
         drag.setNodeRef(element);
         drop.setNodeRef(element);
       }}
       data-node-id={node.id}
       data-kind={node.kind}
       data-block={node.id}
+      data-free-placed={parentFree || undefined}
       tabIndex={selected === node.id ? 0 : -1}
       aria-label={`${node.name} · ${labels[node.kind]}`}
       onFocus={(event) => {
@@ -259,8 +294,29 @@ function CanvasNode({
       }}
       className={`content-block editor-block ${selected === node.id ? "selected" : ""} ${drag.isDragging ? "moving" : ""} ${drop.isOver ? "drop-inside" : ""}`}
       style={style}
+      onPointerDown={(event) => {
+        if (
+          parentFree &&
+          !locked &&
+          !(event.target as HTMLElement).closest(
+            'button,input,textarea,select,[contenteditable="true"]',
+          )
+        ) {
+          select(node.id);
+          gesture.start(event, "move");
+        }
+      }}
+      onPointerMove={gesture.move}
+      onPointerUp={gesture.stop}
+      onPointerCancel={gesture.stop}
       onClick={(event) => {
         event.stopPropagation();
+        if (
+          !(event.target as HTMLElement).closest(
+            'input,textarea,select,[contenteditable="true"]',
+          )
+        )
+          event.currentTarget.focus({ preventScroll: true });
         select(node.id, event.shiftKey || event.ctrlKey || event.metaKey);
       }}
     >
@@ -269,8 +325,16 @@ function CanvasNode({
           <span>{node.name}</span>
           <button
             title="Öğeyi sürükle"
-            {...drag.attributes}
-            {...drag.listeners}
+            disabled={locked}
+            {...(!parentFree ? drag.attributes : {})}
+            {...(!parentFree ? drag.listeners : {})}
+            onPointerDown={(e) =>
+              parentFree
+                ? gesture.start(e, "move")
+                : drag.listeners?.onPointerDown?.(e)
+            }
+            onPointerMove={parentFree ? gesture.move : undefined}
+            onPointerUp={parentFree ? gesture.stop : undefined}
           >
             <GripVertical size={13} />
           </button>
@@ -313,48 +377,13 @@ function CanvasNode({
       {selected === node.id &&
         node.kind === "row" &&
         node.children.length >= 2 &&
-        !node.props.locked && (
-          <div
-            className="column-resize-handle"
-            role="separator"
-            aria-label="Kolonları boyutlandır"
-            style={{
-              left: `${((parseFloat(String(effectiveStyle(node.children[0], device).width)) || 50) / ((parseFloat(String(effectiveStyle(node.children[0], device).width)) || 50) + (parseFloat(String(effectiveStyle(node.children[1], device).width)) || 50))) * 100}%`,
-            }}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              const row = e.currentTarget.parentElement!,
-                rect = row.getBoundingClientRect(),
-                first = row.querySelector(":scope > .content-block");
-              columnDrag.current = {
-                x: e.clientX,
-                width: rect.width,
-                start: first
-                  ? (first.getBoundingClientRect().width / rect.width) * 100
-                  : 50,
-              };
-              e.currentTarget.setPointerCapture(e.pointerId);
-            }}
-            onPointerMove={(e) => {
-              if (columnDrag.current) {
-                e.stopPropagation();
-                const d = columnDrag.current;
-                resizeColumn?.(
-                  node.id,
-                  Math.max(
-                    10,
-                    Math.min(90, d.start + ((e.clientX - d.x) / d.width) * 100),
-                  ),
-                );
-              }
-            }}
-            onPointerUp={() => {
-              columnDrag.current = null;
-            }}
-            onPointerCancel={() => {
-              columnDrag.current = null;
-            }}
+        !locked &&
+        !freeHeight(node, device) &&
+        horizontal && (
+          <ColumnHandles
+            rowRef={elementRef}
+            count={node.children.length}
+            resize={(value, index) => resizeColumn?.(node.id, value, index)}
           />
         )}
       <BlockContent
@@ -380,6 +409,9 @@ function CanvasNode({
                 remove={remove}
                 dragging={dragging}
                 resizeColumn={resizeColumn}
+                geometry={geometry}
+                parentFree={!!freeHeight(node, device)}
+                inheritedLocked={locked}
               />
             ))}
             {!node.children.length && (
@@ -391,6 +423,11 @@ function CanvasNode({
           </>
         )}
       </BlockContent>
+      {selected === node.id &&
+        !locked &&
+        !["section", "row"].includes(node.kind) && (
+          <ElementHandles gesture={gesture} />
+        )}
     </div>
   );
 }
@@ -537,12 +574,15 @@ export function Editor({
   back,
   notify,
   role = "owner",
+  openPage,
 }: EditorProps) {
+  const panels = usePanelWidths();
   const [catalog, setCatalog] = useState<Catalog>({
     source: "local",
     products: [],
     collections: [],
   });
+  const [previewResource, setPreviewResource] = useState("");
   const refreshCatalog = useCallback(
     async () => setCatalog(await api<Catalog>(`/stores/${store.id}/catalog`)),
     [store.id],
@@ -578,11 +618,34 @@ export function Editor({
   const [page, setPage] = useState<PageDocument | null>(null);
   const pageRef = useRef<PageDocument | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [contentIntent, setContentIntent] = useState(0);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
   } | null>(null);
   const [selection, setSelection] = useState<string[]>([]);
+  useEffect(() => {
+    if (!contextMenu) return;
+    const dismiss = (event: Event) => {
+      if (event.type === "keydown" && (event as KeyboardEvent).key !== "Escape")
+        return;
+      if (
+        event.type === "pointerdown" &&
+        event.target instanceof Element &&
+        event.target.closest(".editor-context-menu")
+      )
+        return;
+      setContextMenu(null);
+    };
+    document.addEventListener("pointerdown", dismiss, true);
+    document.addEventListener("keydown", dismiss, true);
+    document.addEventListener("scroll", dismiss, true);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss, true);
+      document.removeEventListener("keydown", dismiss, true);
+      document.removeEventListener("scroll", dismiss, true);
+    };
+  }, [contextMenu]);
   const selectMany = useCallback((id: string, multi = false) => {
     setSelected(id);
     setSelection((old) =>
@@ -594,6 +657,17 @@ export function Editor({
     );
   }, []);
   const [device, setDevice] = useState<Device>("desktop");
+  const showNewNode = useCallback((id: string) => {
+    setSelected(id);
+    setSelection([id]);
+    requestAnimationFrame(() => {
+      const element = document.querySelector<HTMLElement>(
+        `[data-node-id="${id}"]`,
+      );
+      element?.scrollIntoView({ block: "nearest", behavior: "auto" });
+      element?.focus({ preventScroll: true });
+    });
+  }, []);
   const [library, setLibrary] = useState("sections");
   const [savedSections, setSavedSections] = useState<SavedSection[]>([]);
   const [themeStatus, setThemeStatus] = useState<ThemeStatus>({
@@ -655,6 +729,7 @@ export function Editor({
         if (!current) return;
         pageRef.current = result.document;
         setPage(result.document);
+        setPreviewResource(result.assignments?.[0] || "");
         version.current = result.version;
         const value = JSON.stringify(result.document);
         savedRef.current = value;
@@ -681,6 +756,13 @@ export function Editor({
     };
   }, [pageId, notify]);
   const pageType = page?.type;
+  useEffect(() => {
+    if (!page) return;
+    document.title = page.seo?.title || `${page.name} — ${store.name}`;
+    return () => {
+      document.title = "FukPages — Design studio";
+    };
+  }, [page?.name, page?.seo?.title, store.name]);
   useEffect(() => {
     if (!pageType) return;
     let active = true;
@@ -742,6 +824,30 @@ export function Editor({
   const save = useCallback(async () => {
     const current = pageRef.current;
     if (!current) return false;
+    const invalidLink = (nodes: Block[]): Block | undefined => {
+      for (const n of nodes) {
+        const raw =
+          n.props.href && n.props.href !== "#"
+            ? n.props.href
+            : n.props.actionTarget;
+        if (
+          n.kind === "button" &&
+          navigationActions.has(String(n.props.action || "navigate")) &&
+          raw &&
+          !normalizeLink(raw)
+        )
+          return n;
+        const child = invalidLink(n.children);
+        if (child) return child;
+      }
+    };
+    const invalid = invalidLink(current.nodes);
+    if (invalid) {
+      setSaveError(
+        `${invalid.name}: geçerli bir bağlantı gir. Değerin taslakta korundu.`,
+      );
+      return false;
+    }
     if (recovery) {
       notify("Önce kurtarılabilir yerel kopyayı seç.", true);
       return false;
@@ -885,9 +991,87 @@ export function Editor({
     },
     [commit],
   );
+  const createElement = (kind: Kind) => {
+    const node = createBlock(kind);
+    if (kind === "row")
+      node.children = [createBlock("column"), createBlock("column")].map(
+        (child) => ({
+          ...child,
+          styles: {
+            ...child.styles,
+            desktop: { ...child.styles.desktop, width: "50%" },
+            mobile: { ...child.styles.mobile, width: "100%" },
+          },
+        }),
+      );
+    return node;
+  };
+  const prepareForParent = (node: Block, parent: string | null) => {
+    const frame = parent && findBlock(pageRef.current?.nodes || [], parent);
+    if (frame && freeHeight(frame, device)) {
+      node.props.freePlaced = true;
+      node.props.freeFlowStyles = JSON.stringify({
+        [device]: { ...node.styles[device] },
+      });
+      Object.assign(node.styles[device], {
+        position: "absolute",
+        left: "5%",
+        top: "16px",
+        width: "40%",
+      });
+    }
+    return node;
+  };
+  const changeFreeLayout = (id: string, enabled: boolean) => {
+    const current = pageRef.current;
+    const parent = current && findBlock(current.nodes, id);
+    if (!parent || isLocked(current!.nodes, id)) return;
+    const element = document.querySelector<HTMLElement>(
+      `[data-node-id="${id}"]`,
+    );
+    const geometry: Record<
+      string,
+      { left: number; top: number; width: number; height: number }
+    > = {};
+    if (element && enabled) {
+      const wrapper = element.querySelector<HTMLElement>(
+        ":scope > .section-content, :scope > .free-canvas",
+      );
+      const frame = wrapper || element,
+        rect = frame.getBoundingClientRect(),
+        scale = rect.width / (frame.offsetWidth || rect.width) || 1;
+      const style = getComputedStyle(frame),
+        pl = wrapper ? 0 : parseFloat(style.paddingLeft) || 0,
+        pr = wrapper ? 0 : parseFloat(style.paddingRight) || 0,
+        pt = wrapper ? 0 : parseFloat(style.paddingTop) || 0;
+      const width = frame.clientWidth - pl - pr;
+      parent.children.forEach((child) => {
+        const childEl = element.querySelector<HTMLElement>(
+          `[data-node-id="${child.id}"]`,
+        );
+        if (!childEl || child.hidden[device]) return;
+        const box = childEl.getBoundingClientRect();
+        geometry[child.id] = {
+          left: Math.max(
+            0,
+            (((box.left - rect.left) / scale - pl) / width) * 100,
+          ),
+          top: Math.max(0, (box.top - rect.top) / scale - pt),
+          width: Math.min(100, (box.width / scale / width) * 100),
+          height: box.height / scale,
+        };
+      });
+    }
+    commit((d) => ({
+      ...d,
+      nodes: mapBlock(d.nodes, id, (n) =>
+        setFreeLayout(n, device, enabled, geometry),
+      ),
+    }));
+  };
   const add = (kind: Kind) => {
     if (!pageRef.current) return;
-    const node = createBlock(kind),
+    const node = createElement(kind),
       selectedNode = findBlock(pageRef.current.nodes, selected);
     const parent =
       selectedNode && isContainer(selectedNode.kind)
@@ -898,11 +1082,12 @@ export function Editor({
     const siblings = parent
       ? (findBlock(pageRef.current.nodes, parent)?.children ?? [])
       : pageRef.current.nodes;
+    prepareForParent(node, parent);
     commit((document) => ({
       ...document,
       nodes: insertBlock(document.nodes, parent, siblings.length, node),
     }));
-    setSelected(node.id);
+    showNewNode(node.id);
     notify(`${labels[kind]} eklendi`);
   };
   useEffect(() => {
@@ -942,6 +1127,86 @@ export function Editor({
         event.preventDefault();
         remove(selected);
       }
+      if (
+        selected &&
+        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)
+      ) {
+        const current = pageRef.current,
+          where = current && locateBlock(current.nodes, selected);
+        const parent =
+          where?.parent && findBlock(current?.nodes || [], where.parent);
+        if (
+          current &&
+          parent &&
+          freeHeight(parent, device) &&
+          !isLocked(current.nodes, selected)
+        ) {
+          event.preventDefault();
+          const element = document.querySelector<HTMLElement>(
+              `[data-node-id="${selected}"]`,
+            ),
+            frame = element?.parentElement;
+          if (!element || !frame) return;
+          const r = element.getBoundingClientRect(),
+            f = frame.getBoundingClientRect(),
+            scale = f.width / frame.clientWidth,
+            step = event.shiftKey ? 10 : 1;
+          const left = Math.max(
+            0,
+            Math.min(
+              frame.clientWidth - r.width / scale,
+              (r.left - f.left) / scale +
+                (event.key === "ArrowRight"
+                  ? step
+                  : event.key === "ArrowLeft"
+                    ? -step
+                    : 0),
+            ),
+          );
+          const top = Math.max(
+            0,
+            Math.min(
+              frame.clientHeight - r.height / scale,
+              (r.top - f.top) / scale +
+                (event.key === "ArrowDown"
+                  ? step
+                  : event.key === "ArrowUp"
+                    ? -step
+                    : 0),
+            ),
+          );
+          commit(
+            (d) => ({
+              ...d,
+              nodes: mapBlock(d.nodes, selected, (n) => ({
+                ...n,
+                props: {
+                  ...n.props,
+                  freePlaced: true,
+                  ...(!n.props.freePlaced
+                    ? {
+                        freeFlowStyles: JSON.stringify({
+                          [device]: n.styles[device],
+                        }),
+                      }
+                    : {}),
+                },
+                styles: {
+                  ...n.styles,
+                  [device]: {
+                    ...n.styles[device],
+                    position: "absolute",
+                    left: cssNumber((left / frame.clientWidth) * 100) + "%",
+                    top: cssNumber(top) + "px",
+                  },
+                },
+              })),
+            }),
+            `nudge:${selected}:${device}`,
+          );
+          return;
+        }
+      }
       if (selected && ["ArrowUp", "ArrowDown"].includes(event.key)) {
         event.preventDefault();
         const current = pageRef.current,
@@ -967,13 +1232,17 @@ export function Editor({
     };
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
-  }, [selected, undo, redo, duplicate, remove, save]);
+  }, [selected, undo, redo, duplicate, remove, save, device, commit]);
   const addAsset = useCallback(
-    (asset: Asset, mode = "replace") => {
+    (asset: Asset, mode = "replace", anchor = selected) => {
       if (asset.type !== "image") return;
       const current = pageRef.current;
       if (!current) return;
-      const old = findBlock(current.nodes, selected);
+      const old = findBlock(current.nodes, anchor);
+      if (old && isLocked(current.nodes, old.id)) {
+        notify("Hedef öğe kilitli.", true);
+        return;
+      }
       if (mode === "background" && old) {
         commit((d) => ({
           ...d,
@@ -1010,19 +1279,29 @@ export function Editor({
         const image = createBlock("image");
         image.props.src = asset.url;
         image.props.alt = asset.name;
+        const where = old && locateBlock(current.nodes, old.id);
+        const parent =
+          old && isContainer(old.kind) ? old.id : where?.parent || null;
+        const siblings = parent
+          ? findBlock(current.nodes, parent)?.children || []
+          : current.nodes;
+        prepareForParent(image, parent);
         commit((d) => ({
           ...d,
           nodes: insertBlock(
             d.nodes,
-            old && isContainer(old.kind) ? old.id : null,
-            old && isContainer(old.kind) ? old.children.length : d.nodes.length,
+            parent,
+            old && !isContainer(old.kind) && where
+              ? where.index + 1
+              : siblings.length,
             image,
           ),
         }));
-        setSelected(image.id);
+        showNewNode(image.id);
+        return image.id;
       }
     },
-    [commit, selected],
+    [commit, selected, device, notify],
   );
   async function dropFiles(files: File[]) {
     try {
@@ -1032,8 +1311,10 @@ export function Editor({
         { type: "image" },
         () => {},
       );
+      let anchor = selected;
       for (const result of r.results)
-        if (result.ok && result.asset) addAsset(result.asset, "add");
+        if (result.ok && result.asset)
+          anchor = addAsset(result.asset, "add", anchor) || anchor;
         else notify(result.error || "Görsel yüklenemedi.", true);
       await refreshAssets();
     } catch (e) {
@@ -1041,9 +1322,77 @@ export function Editor({
     }
   }
   useEffect(() => {
+    const typing = (target: EventTarget | null) =>
+      target instanceof HTMLElement &&
+      !!target.closest('input,textarea,select,[contenteditable="true"]');
+    const copy = (e: ClipboardEvent) => {
+      if (typing(e.target) || !selected || window.getSelection()?.toString())
+        return;
+      const current = pageRef.current;
+      if (!current) return;
+      const blocks = clipboardBlocks(
+        current,
+        selection.includes(selected) ? selection : [selected],
+      );
+      if (!blocks.length) return;
+      e.preventDefault();
+      const payload = JSON.stringify({
+        format: "fukpages-blocks",
+        version: 1,
+        blocks,
+      });
+      e.clipboardData?.setData("text/plain", payload);
+      e.clipboardData?.setData("application/x-fukpages-blocks", payload);
+      try {
+        localStorage.setItem("fp-block-clipboard", JSON.stringify(blocks));
+      } catch {}
+      notify("Öğe kopyalandı. Ctrl+V ile yapıştırabilirsin.");
+    };
     const paste = (e: ClipboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.matches("input,textarea") || target.isContentEditable) return;
+      if (typing(e.target)) return;
+      const text =
+        e.clipboardData?.getData("application/x-fukpages-blocks") ||
+        e.clipboardData?.getData("text/plain") ||
+        "";
+      if (text.includes('"fukpages-blocks"')) {
+        e.preventDefault();
+        void (async () => {
+          try {
+            if (text.length > 1024 * 1024)
+              throw new Error("Kopyalanan içerik çok büyük.");
+            const data = JSON.parse(text);
+            if (
+              data.format !== "fukpages-blocks" ||
+              data.version !== 1 ||
+              !Array.isArray(data.blocks)
+            )
+              throw new Error("Geçersiz pano içeriği.");
+            const current = pageRef.current;
+            if (!current) return;
+            const valid = await api<{ document: PageDocument }>(
+              "/documents/validate",
+              {
+                method: "POST",
+                body: json({ document: { ...current, nodes: data.blocks } }),
+              },
+            );
+            const latest = pageRef.current!;
+            const anchor = findBlock(latest.nodes, selected),
+              parent =
+                anchor && isContainer(anchor.kind)
+                  ? anchor.id
+                  : locateBlock(latest.nodes, selected || "")?.parent || null;
+            const copied = pasteBlocks(latest, valid.document.nodes, parent);
+            commit(() => copied.page);
+            setSelection(copied.ids);
+            setSelected(copied.ids[0] || null);
+            notify("Kopyalanan öğeler eklendi.");
+          } catch (error) {
+            notify((error as Error).message, true);
+          }
+        })();
+        return;
+      }
       const files = [...(e.clipboardData?.items || [])]
         .filter((i) => i.type.startsWith("image/"))
         .map((i) => i.getAsFile())
@@ -1051,10 +1400,80 @@ export function Editor({
       if (files.length) {
         e.preventDefault();
         void dropFiles(files);
+        return;
       }
+      const html = e.clipboardData?.getData("text/html") || "";
+      const url = html
+        ? new DOMParser()
+            .parseFromString(html, "text/html")
+            .querySelector("img")
+            ?.getAttribute("src") || ""
+        : /\.(png|jpe?g|webp|gif|avif|svg)([?#]|$)/i.test(text.trim())
+          ? text.trim()
+          : "";
+      if (!url) return;
+      e.preventDefault();
+      void (async () => {
+        try {
+          if (/^data:image\/(png|jpeg|webp|gif|avif);base64,/i.test(url)) {
+            if (url.length > 5 * 1024 * 1024)
+              throw new Error("Panodaki görsel 4 MB sınırını aşıyor.");
+            const [prefix, data] = url.split(","),
+              bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+            await dropFiles([
+              new File(
+                [bytes],
+                "pano-gorseli." + prefix.split("/")[1].split(";")[0],
+                { type: prefix.slice(5).split(";")[0] },
+              ),
+            ]);
+          } else {
+            const localStatic = new URL(url, location.origin);
+            const existing = assets.find(
+              (a) =>
+                a.type === "image" &&
+                (a.url === url || new URL(a.url, location.origin).href === url),
+            );
+            if (existing) addAsset(existing, "add");
+            else if (
+              localStatic.origin === location.origin &&
+              localStatic.pathname.startsWith("/assets/")
+            ) {
+              const current = pageRef.current!;
+              const node = createBlock("image");
+              node.props.src = localStatic.pathname;
+              const where = selected && locateBlock(current.nodes, selected),
+                parent = (where && where.parent) || null;
+              commit((p) => ({
+                ...p,
+                nodes: insertBlock(
+                  p.nodes,
+                  parent,
+                  where ? where.index + 1 : p.nodes.length,
+                  prepareForParent(node, parent),
+                ),
+              }));
+              setSelected(node.id);
+            } else {
+              const asset = await api<Asset>(
+                `/stores/${store.id}/assets/import`,
+                { method: "POST", body: json({ url }) },
+              );
+              addAsset(asset, "add");
+              await refreshAssets();
+            }
+          }
+        } catch (error) {
+          notify((error as Error).message, true);
+        }
+      })();
     };
+    window.addEventListener("copy", copy);
     window.addEventListener("paste", paste);
-    return () => window.removeEventListener("paste", paste);
+    return () => {
+      window.removeEventListener("copy", copy);
+      window.removeEventListener("paste", paste);
+    };
   });
   const onDragEnd = (event: DragEndEvent) => {
     setDragging(null);
@@ -1086,7 +1505,10 @@ export function Editor({
       });
       setSelected(section.id);
     } else if (event.active.data.current?.kind) {
-      const node = createBlock(event.active.data.current.kind as Kind);
+      const node = prepareForParent(
+        createElement(event.active.data.current.kind as Kind),
+        parent,
+      );
       commit((document) => ({
         ...document,
         nodes: insertBlock(document.nodes, parent, index, node),
@@ -1119,7 +1541,7 @@ export function Editor({
     if (!canInsertSection(section)) return;
     commit((document) => insertSection(document, section, selected));
     setNativeSelected(null);
-    setSelected(section.id);
+    showNewNode(section.id);
     notify(`${section.name} eklendi; tüm alt öğeleri düzenleyebilirsin.`);
   };
   const addSaved = (saved: Block) => {
@@ -1127,7 +1549,7 @@ export function Editor({
     if (!canInsertSection(section)) return;
     commit((document) => insertSection(document, section, selected));
     setNativeSelected(null);
-    setSelected(section.id);
+    showNewNode(section.id);
     notify("Kaydedilen bölüm eklendi. Bu kopya bağımsız düzenlenir.");
   };
   const saveSection = async (name: string, synchronized = false) => {
@@ -1415,7 +1837,27 @@ export function Editor({
       if (!node) return;
       const ids = selection.includes(selected) ? selection : [selected];
       if (action === "sync") void syncSelected();
-      else if (action === "copyStyle")
+      else if (action === "freeMove") {
+        const parent = locateBlock(current.nodes, node.id)?.parent;
+        const target = isContainer(node.kind) ? node.id : parent;
+        if (target) changeFreeLayout(target, true);
+        else notify("Önce öğeyi bir bölüm veya kutu içine yerleştir.");
+      } else if (action === "addColumn" && node.kind === "row") {
+        changeSelected((n) => ({
+          ...n,
+          children: [...n.children, createBlock("column")].map((child) => ({
+            ...child,
+            styles: {
+              ...child.styles,
+              [device]: {
+                ...child.styles[device],
+                width: 100 / (n.children.length + 1) + "%",
+                flexBasis: 100 / (n.children.length + 1) + "%",
+              },
+            },
+          })),
+        }));
+      } else if (action === "copyStyle")
         localStorage.setItem(
           "fp-style-clipboard",
           JSON.stringify({
@@ -1478,25 +1920,9 @@ export function Editor({
           props: { ...n.props, locked: !node.props.locked },
         }));
       else if (action.startsWith("columnWidth:") && node.children.length >= 2) {
-        const width = Number(action.split(":")[1]);
-        changeSelected((n) => ({
-          ...n,
-          children: n.children.map((c, i) =>
-            i < 2
-              ? {
-                  ...c,
-                  styles: {
-                    ...c.styles,
-                    [device]: {
-                      ...c.styles[device],
-                      width: `${i === 0 ? width : 100 - width}%`,
-                      flexBasis: `${i === 0 ? width : 100 - width}%`,
-                    },
-                  },
-                }
-              : c,
-          ),
-        }));
+        changeSelected((n) =>
+          resizeColumns(n, device, Number(action.split(":")[1])),
+        );
       }
     } catch (e) {
       notify((e as Error).message, true);
@@ -1553,6 +1979,14 @@ export function Editor({
         pageId,
         editable: true,
         formDestination,
+        activeProductId:
+          page.type === "product"
+            ? previewResource || catalog.products[0]?.id || ""
+            : "",
+        activeCollectionId:
+          page.type === "collection"
+            ? previewResource || catalog.collections[0]?.id || ""
+            : "",
       }}
     >
       <DndContext
@@ -1731,6 +2165,23 @@ export function Editor({
               </div>
             </div>
           </header>
+          <PageBar
+            pageId={pageId}
+            store={store}
+            catalog={catalog}
+            type={page.type}
+            resource={previewResource}
+            onResource={setPreviewResource}
+            busy={saving || publishing}
+            save={save}
+            notify={notify}
+            switchPage={async (id) => {
+              if (await save()) openPage(id);
+            }}
+            manage={async () => {
+              if (await save()) back();
+            }}
+          />
           {(recovery || conflict || saveError || !recoveryWritable) && (
             <div className="recovery-banner" role="status" data-recovery-banner>
               {!recoveryWritable && (
@@ -1856,7 +2307,15 @@ export function Editor({
               }}
             />
           )}
-          <div className="studio-workspace">
+          <div
+            className="studio-workspace"
+            style={
+              {
+                "--library-width": panels.widths.library + "px",
+                "--inspector-width": panels.widths.inspector + "px",
+              } as CSSProperties
+            }
+          >
             <nav className="tool-rail">
               <div>
                 {[
@@ -1906,7 +2365,7 @@ export function Editor({
                       {
                         media: "Medya kütüphanesi",
                         brand: "Marka kiti",
-                        workflow: "Sayfa ayarları",
+                        workflow: "SEO ve yayın",
                         catalog: "Yerel ürünler",
                         growth: "Diller ve akışlar",
                       } as Record<string, string>
@@ -1922,15 +2381,17 @@ export function Editor({
                               : "İyi bir başlangıç.")}
                   </h2>
                   <p>
-                    {library === "sections"
-                      ? "Hazır bir bölüm ekle, her ayrıntıyı düzenle."
-                      : library === "theme"
-                        ? "Header, footer ve mevcut bölüm sırası."
-                        : library === "blocks"
-                          ? "Sürükle, bırak, kendine göre düzenle."
-                          : library === "layers"
-                            ? "Sayfanın yapısını yönet."
-                            : "Bir şablon seç, kendi hikâyeni anlat."}
+                    {library === "workflow"
+                      ? "Başlık, adres ve yayın durumunu yönet."
+                      : library === "sections"
+                        ? "Hazır bir bölüm ekle, her ayrıntıyı düzenle."
+                        : library === "theme"
+                          ? "Header, footer ve mevcut bölüm sırası."
+                          : library === "blocks"
+                            ? "Sürükle, bırak, kendine göre düzenle."
+                            : library === "layers"
+                              ? "Sayfanın yapısını yönet."
+                              : "Bir şablon seç, kendi hikâyeni anlat."}
                   </p>
                 </div>
               </div>
@@ -1987,6 +2448,10 @@ export function Editor({
                   commit={commit}
                   save={save}
                   notify={notify}
+                  selectNode={(id) => {
+                    selectLayer(id);
+                    setContentIntent((n) => n + 1);
+                  }}
                 />
               )}
               {library === "sections" && (
@@ -1994,6 +2459,7 @@ export function Editor({
                   saved={savedSections}
                   addPreset={addPreset}
                   addSaved={addSaved}
+                  addPrepared={addSaved}
                   saveSelected={saveSection}
                   selectedSection={enclosingSection(page, selected)}
                   removeSaved={removeSaved}
@@ -2220,6 +2686,11 @@ export function Editor({
                 </div>
               )}
             </aside>
+            <PanelSplitter
+              side="library"
+              width={panels.widths.library}
+              update={(width) => panels.update("library", width)}
+            />
             <main
               className="canvas-area"
               ref={canvasRef}
@@ -2297,28 +2768,13 @@ export function Editor({
                           device={device}
                           selected={selected}
                           select={selectMany}
-                          resizeColumn={(id, value) =>
+                          resizeColumn={(id, value, index) =>
                             commit(
                               (d) => ({
                                 ...d,
-                                nodes: mapBlock(d.nodes, id, (n) => ({
-                                  ...n,
-                                  children: n.children.map((c, i) =>
-                                    i < 2
-                                      ? {
-                                          ...c,
-                                          styles: {
-                                            ...c.styles,
-                                            [device]: {
-                                              ...c.styles[device],
-                                              width: `${i === 0 ? value : 100 - value}%`,
-                                              flexBasis: `${i === 0 ? value : 100 - value}%`,
-                                            },
-                                          },
-                                        }
-                                      : c,
-                                  ),
-                                })),
+                                nodes: mapBlock(d.nodes, id, (n) =>
+                                  resizeColumns(n, device, value, index),
+                                ),
                               }),
                               `resize:${id}:${device}`,
                             )
@@ -2327,6 +2783,42 @@ export function Editor({
                           duplicate={duplicate}
                           remove={remove}
                           dragging={!!dragging}
+                          geometry={(id, styles, free) =>
+                            commit(
+                              (d) => ({
+                                ...d,
+                                nodes: mapBlock(d.nodes, id, (n) => ({
+                                  ...n,
+                                  props: {
+                                    ...n.props,
+                                    ...(free
+                                      ? {
+                                          freePlaced: true,
+                                          ...(!n.props.freePlaced
+                                            ? {
+                                                freeFlowStyles: JSON.stringify({
+                                                  [device]: {
+                                                    ...n.styles[device],
+                                                  },
+                                                }),
+                                              }
+                                            : {}),
+                                        }
+                                      : {}),
+                                  },
+                                  styles: {
+                                    ...n.styles,
+                                    [device]: {
+                                      ...n.styles[device],
+                                      ...(free ? { position: "absolute" } : {}),
+                                      ...styles,
+                                    },
+                                  },
+                                })),
+                              }),
+                              `geometry:${id}:${device}`,
+                            )
+                          }
                         />
                       ))}
                       {useThemeShell &&
@@ -2390,6 +2882,11 @@ export function Editor({
                 </div>
               </footer>
             </main>
+            <PanelSplitter
+              side="inspector"
+              width={panels.widths.inspector}
+              update={(width) => panels.update("inspector", width)}
+            />
             <div className="inspector-container">
               {enclosingSection(page, selected) && !selectedThemeSection && (
                 <SectionDesign
@@ -2409,6 +2906,7 @@ export function Editor({
                   selection.includes(selected || "") ? selection.length : 1
                 }
                 command={command}
+                device={device}
               />
               {selectedThemeSection && selectedNativeSnapshot ? (
                 <NativeThemeInspector
@@ -2428,6 +2926,18 @@ export function Editor({
                   duplicate={() => selected && duplicate(selected)}
                   remove={() => selected && remove(selected)}
                   move={moveSelected}
+                  setLayout={changeFreeLayout}
+                  contentIntent={contentIntent}
+                  parentFree={
+                    !!freeHeight(
+                      findBlock(
+                        page.nodes,
+                        locateBlock(page.nodes, selectedNode?.id || "")
+                          ?.parent || "",
+                      ),
+                      device,
+                    )
+                  }
                 />
               )}
             </div>

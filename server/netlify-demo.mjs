@@ -1,6 +1,6 @@
 import serverless from "serverless-http";
 import { createApp } from "./index.mjs";
-import { seedDemo } from "./demo.mjs";
+import { seedDemo, seedPageTypes } from "./demo.mjs";
 import { hashPassword, verifyPassword } from "./auth.mjs";
 import { createHash } from "node:crypto";
 import {
@@ -164,6 +164,7 @@ export function createDemoHandler({
         db = initial.db;
         stage = "demo_seed";
         seedDemo(db);
+        seedPageTypes(db);
         stage = "owner_config";
         const { hash, setupError } = credential(db, {
           password,
