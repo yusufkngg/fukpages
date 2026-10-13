@@ -1,6 +1,6 @@
 """User-reported editor workflows, exercised against the real Netlify function/Blobs fixture."""
 import base64,json,subprocess
-from browser_support import ROOT,browser_fixture,expect,open_editor
+from browser_support import ROOT,browser_fixture,expect,open_editor,open_actions
 out=ROOT/'.local/validation';out.mkdir(parents=True,exist_ok=True)
 with browser_fixture(netlify=True) as f:
     base=f['base'];owner=f['owner'];owner.grant_permissions(['clipboard-read','clipboard-write'])
@@ -23,18 +23,18 @@ with browser_fixture(netlify=True) as f:
     root(image['id']).click(button='right');page.keyboard.press('Escape');expect(page.locator('.editor-context-menu')).to_have_count(0)
     root(image['id']).click(button='right');page.locator('.canvas-scroll').evaluate('(el)=>el.scrollTop+=100');expect(page.locator('.editor-context-menu')).to_have_count(0)
     print('PASS: right-click menu dismisses on outside left click, Escape and scroll; left click still selects its target',flush=True)
-    root(button['id']).click();page.locator('.inspector-container').get_by_role('button',name='İçerik',exact=True).click()
+    root(button['id']).click();page.locator('.inspector-tabs').get_by_role('button',name='Ayarlar',exact=True).click()
     page.get_by_label('Bağlantı',exact=True).fill('www.example.com/buy');page.get_by_label('Bağlantı',exact=True).press('Tab')
     page.get_by_role('button',name='Kaydet',exact=True).click();expect(page.locator('.save-indicator')).to_contain_text('Kaydedildi',timeout=20000)
     stored=next(n for n in walk(api('/pages/demo-home')['document']['nodes']) if n['id']==button['id'])
     assert stored['props']['href']=='https://www.example.com/buy' and stored['props']['action']=='navigate' and not stored['props']['actionTarget'],stored['props']
     page.get_by_label('Sayfalar arasında geçiş').select_option('demo-product');expect(page.get_by_label('Sayfa adı')).to_have_value('Aura · Ürün sayfası')
     page.get_by_label('Sayfalar arasında geçiş').select_option('demo-home');expect(page.get_by_label('Sayfa adı')).to_have_value('Aura · Demo mağaza')
-    root(button['id']).click();page.locator('.inspector-container').get_by_role('button',name='İçerik',exact=True).click();expect(page.get_by_label('Bağlantı',exact=True)).to_have_value('https://www.example.com/buy')
+    root(button['id']).click();page.locator('.inspector-tabs').get_by_role('button',name='Ayarlar',exact=True).click();expect(page.get_by_label('Bağlantı',exact=True)).to_have_value('https://www.example.com/buy')
     print('PASS: protocol-less URL overrides the old scroll action, persists and reopens; page bar switches both ways',flush=True)
 
     row_id=next(n for n in nodes if n['kind']=='row')['id']
-    root(row_id).focus();expect(root(row_id)).to_have_class(__import__('re').compile('selected'));page.locator('.inspector-container').get_by_role('button',name='Tasarım',exact=True).click()
+    root(row_id).focus();expect(root(row_id)).to_have_class(__import__('re').compile('selected'));page.locator('.inspector-tabs').get_by_role('button',name='Ayarlar',exact=True).click()
     padding=page.get_by_label('padding Top',exact=True);padding.fill('');padding.press_sequentially('10');padding.press('Tab')
     for side in ['Top','Right','Bottom','Left']:expect(root(row_id)).to_have_css('padding-'+side.lower(),'10px')
     padding.fill('1.5rem');padding.press('Tab');expect(root(row_id)).to_have_css('padding-top','19.5px')
@@ -52,15 +52,15 @@ with browser_fixture(netlify=True) as f:
     page.mouse.move(r['x']+r['width']/2,r['y']+r['height']/2);page.mouse.down();page.mouse.move(r['x']+r['width']/2+60,r['y']+r['height']/2,steps=10);page.mouse.up()
     assert root(button['id']).bounding_box()['width']>before['width']+20
     before=root(button['id']).bounding_box();r=root(button['id']).get_by_label('Yüksekliği boyutlandır').bounding_box();page.mouse.move(r['x']+r['width']/2,r['y']+r['height']/2);page.mouse.down();page.mouse.move(r['x']+r['width']/2,r['y']+r['height']/2+25,steps=8);page.mouse.up();assert root(button['id']).bounding_box()['height']>before['height']+10
-    page.get_by_role('button',name='Serbest yerleştir',exact=True).click();expect(root(button['id'])).to_have_css('position','absolute')
+    open_actions(page);page.get_by_role('button',name='Serbest yerleştir',exact=True).click();expect(root(button['id'])).to_have_css('position','absolute')
     before=root(button['id']).bounding_box();r=root(button['id']).get_by_title('Öğeyi sürükle').bounding_box();page.mouse.move(r['x']+r['width']/2,r['y']+r['height']/2);page.mouse.down();page.mouse.move(r['x']+r['width']/2+50,r['y']+r['height']/2+30,steps=10);page.mouse.up();after=root(button['id']).bounding_box();assert after['x']>before['x']+15 and after['y']>before['y']+10,(before,after)
     before=root(button['id']).bounding_box();page.keyboard.press('Shift+ArrowRight');assert root(button['id']).bounding_box()['x']>before['x']+3
     desktop_position=root(button['id']).evaluate('(el)=>({left:el.style.left,top:el.style.top,width:el.style.width})')
     page.get_by_role('button',name='Mobil',exact=True).click();expect(root(button['id'])).not_to_have_css('position','absolute')
-    page.get_by_role('button',name='Serbest yerleştir',exact=True).click();expect(root(button['id'])).to_have_css('position','absolute')
+    open_actions(page);page.get_by_role('button',name='Serbest yerleştir',exact=True).click();expect(root(button['id'])).to_have_css('position','absolute')
     r=root(button['id']).get_by_title('Öğeyi sürükle').bounding_box();page.mouse.move(r['x']+r['width']/2,r['y']+r['height']/2);page.mouse.down();page.mouse.move(r['x']+r['width']/2+16,r['y']+r['height']/2+16,steps=6);page.mouse.up()
     mobile_position=root(button['id']).evaluate('(el)=>({left:el.style.left,top:el.style.top,width:el.style.width})');assert mobile_position!=desktop_position
-    page.get_by_role('button',name='Üst öğeyi seç',exact=True).click();page.locator('.inspector-container').get_by_role('button',name='Tasarım',exact=True).click();page.get_by_label('Yerleşim modu',exact=True).select_option('flow')
+    open_actions(page);page.get_by_role('button',name='Üst öğeyi seç',exact=True).click();page.locator('.inspector-tabs').get_by_role('button',name='Ayarlar',exact=True).click();page.get_by_label('Yerleşim modu',exact=True).select_option('flow')
     root(button['id']).click();expect(root(button['id'])).not_to_have_css('position','absolute');before=root(button['id']).bounding_box();r=root(button['id']).get_by_label('Genişliği boyutlandır').bounding_box();page.mouse.move(r['x']+r['width']/2,r['y']+r['height']/2);page.mouse.down();page.mouse.move(r['x']+r['width']/2+16,r['y']+r['height']/2,steps=6);page.mouse.up();assert root(button['id']).bounding_box()['width']>before['width']+8
     page.get_by_role('button',name='Masaüstü',exact=True).click();expect(root(button['id'])).to_have_css('position','absolute');assert root(button['id']).evaluate('(el)=>({left:el.style.left,top:el.style.top,width:el.style.width})')==desktop_position
     page.get_by_role('button',name='Kaydet',exact=True).click();expect(page.locator('.save-indicator')).to_contain_text('Kaydedildi',timeout=20000)
@@ -79,14 +79,12 @@ with browser_fixture(netlify=True) as f:
 
     page.get_by_role('button',name='Öğeler',exact=True).click();page.locator('[data-palette=row]').click();row=page.locator('.editor-block[data-kind=row].selected');expect(row.locator(':scope > .editor-block[data-kind=column]')).to_have_count(2)
     columns=row.locator(':scope > .editor-block[data-kind=column]');assert columns.first.evaluate('(el)=>getComputedStyle(el).outlineStyle')=='dashed';assert columns.first.bounding_box()['width']>0
-    page.get_by_role('button',name='Kolon ekle',exact=True).click();expect(row.locator(':scope > .editor-block[data-kind=column]')).to_have_count(3)
+    open_actions(page);page.get_by_role('button',name='Kolon ekle',exact=True).click();expect(row.locator(':scope > .editor-block[data-kind=column]')).to_have_count(3)
     print('PASS: new rows immediately contain visible columns and another column can be added',flush=True)
-    for label,panel,dx in [('Kütüphane panelini boyutlandır','.library',50),('Ayar panelini boyutlandır','.inspector-container',-50)]:
-        before=page.locator(panel).bounding_box()['width'];r=page.get_by_role('separator',name=label).bounding_box();page.mouse.move(r['x']+3,r['y']+r['height']/2);page.mouse.down();page.mouse.move(r['x']+3+dx,r['y']+r['height']/2,steps=10);page.mouse.up();assert page.locator(panel).bounding_box()['width']>before+20
+    before=page.locator('.library').bounding_box()['width'];r=page.get_by_role('separator',name='Kütüphane panelini boyutlandır').bounding_box();page.mouse.move(r['x']+3,r['y']+r['height']/2);page.mouse.down();page.mouse.move(r['x']+53,r['y']+r['height']/2,steps=10);page.mouse.up();assert page.locator('.library').bounding_box()['width']>before+20
     widths=page.evaluate("JSON.parse(localStorage.getItem('fp-panel-widths'))")
-    detail=page.locator('.section-design');detail.locator('summary').click();before=detail.bounding_box();page.mouse.move(before['x']+before['width']-4,before['y']+before['height']-4);page.mouse.down();page.mouse.move(before['x']+before['width']-4,before['y']+before['height']+60,steps=10);page.mouse.up();assert detail.bounding_box()['height']>before['height']+25;detail.locator('summary').click()
     page.get_by_role('button',name='Kaydet',exact=True).click();expect(page.locator('.save-indicator')).to_contain_text('Kaydedildi',timeout=20000)
-    print('PASS: both side panels resize with real pointer gestures and widths are remembered',flush=True)
+    print('PASS: the shared library/settings pane resizes with a real pointer gesture and remembers its width',flush=True)
 
     page.get_by_role('button',name='Bölümler',exact=True).click();thumb=page.locator('[data-preset-thumbnail=purchase]');expect(thumb.locator('.page-surface')).to_be_visible();assert 'MAKE IT' not in thumb.inner_text()
     card=page.locator('.preset-entry').filter(has=page.locator('[data-section-preset=purchase]'));card.locator('.preset-preview-button').click();expect(page.get_by_role('dialog',name='Bölüm önizlemesi')).to_be_visible()

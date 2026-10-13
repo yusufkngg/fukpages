@@ -1,3 +1,5 @@
+import { t } from "./i18n.ts";
+import { accordionItems } from "./AccordionItems";
 import {
   useEffect,
   useLayoutEffect,
@@ -50,7 +52,9 @@ function Countdown({ value }: { value: unknown }) {
       {values.map((number, index) => (
         <div key={index}>
           <b>{String(number).padStart(2, "0")}</b>
-          <small>{["Gün", "Saat", "Dakika", "Saniye"][index]}</small>
+          <small>
+            {[t("Gün"), t("Saat"), t("Dakika"), t("Saniye")][index]}
+          </small>
         </div>
       ))}
     </div>
@@ -68,6 +72,7 @@ function EditableText({
   onEdit?: () => void;
 }) {
   const elementRef = useRef<HTMLElement | null>(null);
+  const [editing, setEditing] = useState(false);
   const value = richHtml(html);
   useLayoutEffect(() => {
     const element = elementRef.current;
@@ -84,15 +89,27 @@ function EditableText({
         elementRef.current = element;
       }}
       className="rich-content"
-      contentEditable
+      contentEditable={editing}
       suppressContentEditableWarning
       onDoubleClick={(event) => {
         event.stopPropagation();
-        event.currentTarget.focus();
+        setEditing(true);
+        requestAnimationFrame(() => elementRef.current?.focus());
         onEdit?.();
       }}
       onInput={(event) => onHtml?.(richHtml(event.currentTarget.innerHTML))}
-      onBlur={(event) => onHtml?.(richHtml(event.currentTarget.innerHTML))}
+      onBlur={(event) => {
+        onHtml?.(richHtml(event.currentTarget.innerHTML));
+        setEditing(false);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          setEditing(false);
+          event.currentTarget.closest<HTMLElement>(".editor-block")?.focus();
+        }
+      }}
     />
   );
 }
@@ -181,9 +198,9 @@ export function BlockContent({
           <div
             className="missing-media"
             role="img"
-            aria-label={String(p.alt || "Görsel")}
+            aria-label={String(p.alt || t("Görsel"))}
           >
-            {editable ? "Görsel seç" : String(p.alt || "Görsel")}
+            {editable ? t("Görsel seç") : String(p.alt || t("Görsel"))}
           </div>
         ) : (
           <img
@@ -234,7 +251,7 @@ export function BlockContent({
           <Dialog
             open={lightbox}
             onClose={() => setLightbox(false)}
-            label="Görseli büyüt"
+            label={t("Görseli büyüt")}
           >
             <img src={src} alt={String(p.alt || "")} />
           </Dialog>
@@ -262,7 +279,7 @@ export function BlockContent({
                 setActionError("");
                 void performAction(node, pageId, editable).catch(() =>
                   setActionError(
-                    "Aksiyon tamamlanamadı. Tarayıcı izinlerini kontrol et.",
+                    t("Aksiyon tamamlanamadı. Tarayıcı izinlerini kontrol et."),
                   ),
                 );
               } else if (pageId && !studioContext.previewToken)
@@ -280,7 +297,7 @@ export function BlockContent({
           {String(p.label || "")}
           <input
             className="block-input"
-            aria-label={String(p.placeholder || "Metin kutusu")}
+            aria-label={String(p.placeholder || t("Metin kutusu"))}
             type={
               ["email", "text", "tel", "number"].includes(String(p.inputType))
                 ? String(p.inputType)
@@ -304,7 +321,7 @@ export function BlockContent({
           {String(p.label || "")}
           <textarea
             className="block-input"
-            aria-label={String(p.placeholder || "Metin alanı")}
+            aria-label={String(p.placeholder || t("Metin alanı"))}
             placeholder={String(p.placeholder)}
             name={String(p.fieldName || node.id)}
             onInvalid={(e) => {
@@ -321,7 +338,9 @@ export function BlockContent({
       return <div className="block-divider" />;
     case "spacer":
       return (
-        <div className="block-spacer">{editable && <span>Boşluk</span>}</div>
+        <div className="block-spacer">
+          {editable && <span>{t("Boşluk")}</span>}
+        </div>
       );
     case "icon":
     case "badge":
@@ -357,13 +376,54 @@ export function BlockContent({
           </p>
           <small>{String(p.description)}</small>
           <span className="product-demo-label">
-            <ShoppingBag size={12} /> Örnek ürün · Shopify bağlı değil
+            <ShoppingBag size={12} />
+            {" " + t("Örnek ürün · Shopify bağlı değil")}
           </span>
         </div>
       );
     case "countdown":
       return <Countdown value={p.endDate} />;
     case "accordion":
+      if (p.accordionItems)
+        return (
+          <div
+            className="accordion-items"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: Number(p.accordionGap ?? 12),
+            }}
+          >
+            {accordionItems(node).map((item) => (
+              <details
+                key={item.id}
+                style={{
+                  border: `1px solid ${p.accordionBorderColor || "#dce3d3"}`,
+                  borderRadius: Number(p.accordionRadius ?? 8),
+                  overflow: "hidden",
+                }}
+              >
+                <summary
+                  style={{
+                    padding: Number(p.accordionHeaderPadding ?? 16),
+                    background: String(p.accordionHeaderBg || "#ffffff"),
+                  }}
+                >
+                  {item.title}
+                </summary>
+                <div
+                  style={{
+                    padding: Number(p.accordionContentPadding ?? 16),
+                    background: String(p.accordionContentBg || "#ffffff"),
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {item.content}
+                </div>
+              </details>
+            ))}
+          </div>
+        );
       return (
         <details className="block-accordion">
           <summary>{String(p.title)}</summary>
@@ -449,9 +509,9 @@ export function PageRenderer({
     <div className="page-surface" data-device={device}>
       {!!page.locales?.length && (
         <label className="page-language">
-          Dil{" "}
+          {t("Dil")}{" "}
           <select
-            aria-label="Sayfa dili"
+            aria-label={t("Sayfa dili")}
             value={studio.language}
             onChange={(e) => studio.setLanguage(e.target.value)}
           >
@@ -466,7 +526,7 @@ export function PageRenderer({
       ))}
       {studio.nextStage && (
         <a className="funnel-next" href={studio.nextStage}>
-          Sonraki adım →
+          {t("Sonraki adım →")}
         </a>
       )}
     </div>

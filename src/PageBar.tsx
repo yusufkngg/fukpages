@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import { AssignmentDialog } from "./PageManager";
@@ -48,12 +49,12 @@ export function PageBar({
   }, [store.id, pageId, notify]);
   const current = pages.find((p) => p.id === pageId);
   return (
-    <nav className="editor-page-bar" aria-label="Editör sayfa geçişi">
+    <nav className="editor-page-bar" aria-label={t("Editör sayfa geçişi")}>
       <button disabled={busy} onClick={() => void manage()}>
-        Sayfa yönetimi
+        {t("Sayfa yönetimi")}
       </button>
       <select
-        aria-label="Sayfalar arasında geçiş"
+        aria-label={t("Sayfalar arasında geçiş")}
         value={pageId}
         disabled={busy}
         onChange={(e) => void switchPage(e.target.value)}
@@ -82,11 +83,12 @@ export function PageBar({
               ))}
           </optgroup>
         ))}
-        {!current && <option value={pageId}>Geçerli sayfa</option>}
+        {!current && <option value={pageId}>{t("Geçerli sayfa")}</option>}
       </select>
       <span>
         {current ? pageNames[current.type] : ""} ·{" "}
-        {current?.assignments?.length || 0} atama
+        {current?.assignments?.length || 0}
+        {" " + t("atama")}
       </span>
       {current && ["home", "product", "collection"].includes(current.type) && (
         <button
@@ -95,13 +97,13 @@ export function PageBar({
             if (await save()) setAssign(current);
           }}
         >
-          Ürün / koleksiyon atamaları
+          {t("Ürün / koleksiyon atamaları")}
         </button>
       )}
       {["product", "collection"].includes(type) && (
         <select
           aria-label={
-            type === "product" ? "Önizleme ürünü" : "Önizleme koleksiyonu"
+            type === "product" ? t("Önizleme ürünü") : t("Önizleme koleksiyonu")
           }
           value={
             resource ||
@@ -125,17 +127,16 @@ export function PageBar({
         onClick={async () => {
           if (!(await save())) return;
           try {
-            const copy = await api<{ id: string }>(
-              `/pages/${pageId}/duplicate`,
-              { method: "POST", body: "{}" },
-            );
+            const copy = await api<{
+              id: string;
+            }>(`/pages/${pageId}/duplicate`, { method: "POST", body: "{}" });
             await switchPage(copy.id);
           } catch (e) {
             notify((e as Error).message, true);
           }
         }}
       >
-        Sayfayı çoğalt
+        {t("Sayfayı çoğalt")}
       </button>
       {assign && (
         <AssignmentDialog
@@ -144,7 +145,7 @@ export function PageBar({
           catalog={catalog}
           close={() => setAssign(null)}
           saved={() => {
-            notify("Atamalar kaydedildi; güncel sayfa yeniden açılıyor.");
+            notify(t("Atamalar kaydedildi; güncel sayfa yeniden açılıyor."));
             void switchPage(pageId);
           }}
         />

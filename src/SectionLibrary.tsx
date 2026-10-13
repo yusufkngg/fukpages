@@ -1,3 +1,4 @@
+import { getUiLanguage, t } from "./i18n.ts";
 import { SectionPreview } from "./SectionPreview";
 import { createSectionPreset } from "./sections";
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -61,7 +62,6 @@ function SectionThumbnail({ preset }: { preset: SectionPreset }) {
     </div>
   );
 }
-
 function PresetCard({
   preset,
   add,
@@ -97,9 +97,9 @@ function PresetCard({
       <button
         className="preset-preview-button"
         onClick={preview}
-        aria-label={`${preset.name} önizle`}
+        aria-label={t("{p0} önizle", { p0: preset.name })}
       >
-        Önizle
+        {t("Önizle")}
       </button>
     </div>
   );
@@ -137,8 +137,8 @@ export function SectionLibrary({
     (preset) =>
       (category === "all" || preset.category === category) &&
       `${preset.name} ${preset.description}`
-        .toLocaleLowerCase("tr")
-        .includes(search.toLocaleLowerCase("tr")),
+        .toLocaleLowerCase(getUiLanguage())
+        .includes(search.toLocaleLowerCase(getUiLanguage())),
   );
   return (
     <>
@@ -147,20 +147,23 @@ export function SectionLibrary({
           className={tab === "catalog" ? "active" : ""}
           onClick={() => setTab("catalog")}
         >
-          Hazır bölümler <span>{sectionPresets.length}</span>
+          {t("Hazır bölümler") + " "}
+          <span>{sectionPresets.length}</span>
         </button>
         <button
           className={tab === "saved" ? "active" : ""}
           onClick={() => setTab("saved")}
         >
-          <Bookmark size={12} /> Kaydettiklerim <span>{saved.length}</span>
+          <Bookmark size={12} />
+          {" " + t("Kaydettiklerim") + " "}
+          <span>{saved.length}</span>
         </button>
       </div>
       <label className="library-search">
         <Search size={14} />
         <input
-          aria-label="Bölüm ara"
-          placeholder="Bölüm ara…"
+          aria-label={t("Bölüm ara")}
+          placeholder={t("Bölüm ara…")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -191,8 +194,8 @@ export function SectionLibrary({
           : saved
               .filter((item) =>
                 item.name
-                  .toLocaleLowerCase("tr")
-                  .includes(search.toLocaleLowerCase("tr")),
+                  .toLocaleLowerCase(getUiLanguage())
+                  .includes(search.toLocaleLowerCase(getUiLanguage())),
               )
               .map((item) => (
                 <div className="saved-section-card" key={item.id}>
@@ -205,17 +208,17 @@ export function SectionLibrary({
                       <b>{item.name}</b>
                       <small>
                         {item.section.props.linkedSectionId
-                          ? "Senkron · "
-                          : "Bağımsız · "}
-                        {item.section.children.length} alt öğe · tam
-                        düzenlenebilir
+                          ? t("Senkron · ")
+                          : t("Bağımsız · ")}
+                        {item.section.children.length}
+                        {" " + t("alt öğe · tam düzenlenebilir")}
                       </small>
                     </span>
                     <Plus size={13} />
                   </button>
                   <button
                     className="saved-section-remove"
-                    title="Kütüphaneden kaldır"
+                    title={t("Kütüphaneden kaldır")}
                     onClick={() => void removeSaved(item.id)}
                   >
                     <Trash2 size={12} />
@@ -223,13 +226,13 @@ export function SectionLibrary({
                 </div>
               ))}
         {tab === "catalog" && !filtered.length && (
-          <p className="setting-help">Eşleşen hazır bölüm bulunamadı.</p>
+          <p className="setting-help">{t("Eşleşen hazır bölüm bulunamadı.")}</p>
         )}
         {tab === "saved" && !saved.length && (
           <div className="saved-section-empty">
             <Bookmark size={24} />
-            <h3>İyi tasarımlar tekrar kullanılır.</h3>
-            <p>Sayfadan bir bölüm seçip kütüphanene kaydet.</p>
+            <h3>{t("İyi tasarımlar tekrar kullanılır.")}</h3>
+            <p>{t("Sayfadan bir bölüm seçip kütüphanene kaydet.")}</p>
           </div>
         )}
       </div>
@@ -261,7 +264,7 @@ export function SectionLibrary({
           >
             <input
               autoFocus
-              aria-label="Kaydedilen bölüm adı"
+              aria-label={t("Kaydedilen bölüm adı")}
               value={saveName}
               onChange={(event) => setSaveName(event.target.value)}
               maxLength={100}
@@ -270,19 +273,19 @@ export function SectionLibrary({
             <label className="toggle-row">
               <input
                 type="checkbox"
-                aria-label="Senkron bölüm olarak kaydet"
+                aria-label={t("Senkron bölüm olarak kaydet")}
                 checked={synchronized}
                 onChange={(e) => setSynchronized(e.target.checked)}
               />{" "}
-              Senkron bölüm
+              {t("Senkron bölüm")}
             </label>
-            <button type="submit" disabled={busy} title="Bölümü kaydet">
+            <button type="submit" disabled={busy} title={t("Bölümü kaydet")}>
               <Check size={14} />
             </button>
             <button
               type="button"
               onClick={() => setNaming(false)}
-              title="Vazgeç"
+              title={t("Vazgeç")}
             >
               ×
             </button>
@@ -291,12 +294,12 @@ export function SectionLibrary({
           <button
             disabled={!selectedSection}
             onClick={() => {
-              setSaveName(selectedSection?.name ?? "Yeni bölüm");
+              setSaveName(selectedSection?.name ?? t("Yeni bölüm"));
               setNaming(true);
             }}
           >
             <Bookmark size={13} />
-            <span>Seçili bölümü kaydet</span>
+            <span>{t("Seçili bölümü kaydet")}</span>
             <ChevronRight size={12} />
           </button>
         )}

@@ -1,3 +1,4 @@
+import { t, localized } from "./i18n.ts";
 import { useState } from "react";
 import { mapBlock, type Block } from "./model";
 import {
@@ -17,7 +18,7 @@ export function SectionDesign({
   update: (section: Block) => void;
 }) {
   const layouts = compatibleLayouts(section),
-    groups = repeatedGroups(section);
+    groups = localized(repeatedGroups(section));
   const [target, setTarget] = useState(""),
     [preview, setPreview] = useState(false),
     [groupId, setGroupId] = useState("");
@@ -28,13 +29,13 @@ export function SectionDesign({
   );
   return (
     <details className="section-design" data-section-design>
-      <summary>Bölüm düzeni ve kartlar</summary>
+      <summary>{t("Bölüm düzeni ve kartlar")}</summary>
       {layouts.length > 1 ? (
         <>
           <label>
-            Düzen
+            {t("Düzen")}
             <select
-              aria-label="İçeriği koruyan bölüm düzeni"
+              aria-label={t("İçeriği koruyan bölüm düzeni")}
               value={target || String(section.props.presetId)}
               onChange={(e) => setTarget(e.target.value)}
             >
@@ -46,17 +47,22 @@ export function SectionDesign({
             </select>
           </label>
           <p>
-            Metinler, görseller ve bağlantılar korunur. Yerleşim değişir; yeni
-            öğeler eklenmez.
+            {t(
+              "Metinler, görseller ve bağlantılar korunur. Yerleşim değişir; yeni öğeler eklenmez.",
+            )}
           </p>
-          <button onClick={() => setPreview(true)}>Yeni düzeni önizle</button>
+          <button onClick={() => setPreview(true)}>
+            {t("Yeni düzeni önizle")}
+          </button>
           <button onClick={() => update(candidate)}>
-            İçeriği koruyarak uygula
+            {t("İçeriği koruyarak uygula")}
           </button>
         </>
       ) : (
         <p>
-          Bu bölümün diğer düzenleri hazır bölüm kütüphanesinde önizlenebilir.
+          {t(
+            "Bu bölümün diğer düzenleri hazır bölüm kütüphanesinde önizlenebilir.",
+          )}
         </p>
       )}
       {sectionDependencies(section).map((m) => (
@@ -66,9 +72,9 @@ export function SectionDesign({
       ))}
       {!!groups.length && (
         <>
-          <h4>Tekrarlanan kartlar</h4>
+          <h4>{t("Tekrarlanan kartlar")}</h4>
           <select
-            aria-label="Kart grubu"
+            aria-label={t("Kart grubu")}
             value={group?.id}
             onChange={(e) => setGroupId(e.target.value)}
           >
@@ -81,13 +87,17 @@ export function SectionDesign({
           {group?.children.map((card, index) => (
             <article key={card.id} data-card-editor>
               <b>
-                Kart {index + 1} · {card.name}
+                {t("Kart") + " "}
+                {index + 1} · {card.name}
               </b>
               {cardFields(card).map((f) => (
                 <label key={f.id}>
                   {f.name}
                   <textarea
-                    aria-label={`Kart ${index + 1} ${f.name}`}
+                    aria-label={t("Kart {p0} {p1}", {
+                      p0: index + 1,
+                      p1: f.name,
+                    })}
                     value={f.value}
                     onChange={(e) =>
                       update({
@@ -104,15 +114,18 @@ export function SectionDesign({
               <div>
                 {(
                   [
-                    ["up", "Yukarı"],
-                    ["down", "Aşağı"],
-                    ["copy", "Çoğalt"],
-                    ["remove", "Sil"],
+                    ["up", t("Yukarı")],
+                    ["down", t("Aşağı")],
+                    ["copy", t("Çoğalt")],
+                    ["remove", t("Sil")],
                   ] as const
                 ).map(([action, label]) => (
                   <button
                     key={action}
-                    aria-label={`Kart ${index + 1} ${label}`}
+                    aria-label={t("Kart {p0} {p1}", {
+                      p0: index + 1,
+                      p1: label,
+                    })}
                     disabled={
                       (action === "up" && index === 0) ||
                       (action === "down" &&
@@ -140,7 +153,7 @@ export function SectionDesign({
             update(candidate);
             setPreview(false);
           }}
-          actionLabel="Bu düzeni uygula"
+          actionLabel={t("Bu düzeni uygula")}
         />
       )}
     </details>

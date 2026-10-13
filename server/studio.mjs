@@ -12,6 +12,7 @@ import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
 export const defaultBrand = {
+  spacing: { xxs: 2, xs: 4, sm: 8, md: 16, lg: 24, xl: 40 },
   colors: {
     primary: "#17241c",
     secondary: "#d8e8b7",
@@ -63,6 +64,13 @@ const text = (v, n = 200) =>
     .slice(0, n);
 export function cleanBrand(input) {
   const out = structuredClone(defaultBrand);
+  for (const key of Object.keys(out.spacing))
+    if (input.spacing?.[key] !== undefined) {
+      const value = Number(input.spacing[key]);
+      if (!Number.isFinite(value) || value < 0 || value > 400)
+        throw new Error("Invalid spacing token.");
+      out.spacing[key] = value;
+    }
   for (const key of Object.keys(out.colors)) {
     const v = input.colors?.[key];
     if (v !== undefined) {

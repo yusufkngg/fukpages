@@ -267,6 +267,14 @@ export function validateDocument(input) {
           "globalDetached",
           "sectionContentWidth",
           "freeLayout",
+          "accordionItems",
+          "accordionHeaderBg",
+          "accordionContentBg",
+          "accordionBorderColor",
+          "accordionGap",
+          "accordionRadius",
+          "accordionHeaderPadding",
+          "accordionContentPadding",
           "freePlaced",
           "freeFlowStyles",
           "resourceBinding",
@@ -308,10 +316,65 @@ export function validateDocument(input) {
           : safeUrl(value)
         : key === "html"
           ? cleanRich(value)
-          : typeof value === "boolean"
-            ? value
-            : cleanText(value);
+          : key === "accordionItems"
+            ? String(value)
+            : typeof value === "boolean"
+              ? value
+              : cleanText(value);
     }
+    if (props.accordionItems) {
+      if (props.accordionItems.length > 100000)
+        throw new Error("Accordion content is too large.");
+      let items;
+      try {
+        items = JSON.parse(props.accordionItems);
+      } catch {
+        throw new Error("Invalid accordion items.");
+      }
+      if (
+        !Array.isArray(items) ||
+        !items.length ||
+        items.length > 40 ||
+        items.some(
+          (item) =>
+            !item ||
+            typeof item.id !== "string" ||
+            !item.id ||
+            item.id.length > 100 ||
+            typeof item.title !== "string" ||
+            typeof item.content !== "string",
+        ) ||
+        new Set(items.map((item) => item.id)).size !== items.length
+      )
+        throw new Error("Invalid accordion items.");
+      props.accordionItems = JSON.stringify(
+        items.map((item) => ({
+          id: item.id,
+          title: cleanText(item.title),
+          content: cleanText(item.content),
+        })),
+      );
+    }
+    for (const key of [
+      "accordionHeaderBg",
+      "accordionContentBg",
+      "accordionBorderColor",
+    ])
+      if (props[key] && !/^#[a-f0-9]{6}([a-f0-9]{2})?$/i.test(props[key]))
+        throw new Error("Invalid accordion colour.");
+    for (const key of [
+      "accordionGap",
+      "accordionRadius",
+      "accordionHeaderPadding",
+      "accordionContentPadding",
+    ])
+      if (
+        props[key] !== undefined &&
+        (!Number.isFinite(Number(props[key])) ||
+          Number(props[key]) < 0 ||
+          Number(props[key]) > 200)
+      )
+        throw new Error("Invalid accordion spacing.");
     if (props.freeFlowStyles) {
       const original = JSON.parse(props.freeFlowStyles);
       if (!original || Array.isArray(original) || typeof original !== "object")

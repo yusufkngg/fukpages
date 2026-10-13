@@ -1,3 +1,4 @@
+import { getUiLocale, t } from "./i18n.ts";
 import { useStudio } from "./studio";
 import { useState, useEffect } from "react";
 import { api, json } from "./api";
@@ -27,13 +28,25 @@ export function WorkflowPanel({
     (a) => a.type === "image" && JSON.stringify(page).includes(a.id),
   );
   const [history, setHistory] = useState<
-      { id: string; version: number; created: number; reason: string }[]
+      {
+        id: string;
+        version: number;
+        created: number;
+        reason: string;
+      }[]
     >([]),
     [publications, setPublications] = useState<
-      { id: string; published: number }[]
+      {
+        id: string;
+        published: number;
+      }[]
     >([]),
     [submissions, setSubmissions] = useState<
-      { id: string; data: Record<string, string>; created: number }[]
+      {
+        id: string;
+        data: Record<string, string>;
+        created: number;
+      }[]
     >([]),
     [preview, setPreview] = useState(""),
     [seoPublication, setSeoPublication] = useState<{
@@ -44,10 +57,19 @@ export function WorkflowPanel({
     [publishAt, setPublishAt] = useState(""),
     [unpublishAt, setUnpublishAt] = useState(""),
     [metrics, setMetrics] = useState<
-      { event: string; count: number; day: string }[]
+      {
+        event: string;
+        count: number;
+        day: string;
+      }[]
     >([]);
   const [timings, setTimings] = useState<
-    { name: string; duration: number; bytes: number; cached: boolean }[]
+    {
+      name: string;
+      duration: number;
+      bytes: number;
+      cached: boolean;
+    }[]
   >([]);
   const load = async () => {
     const [a, b, c, d] = await Promise.all([
@@ -74,15 +96,15 @@ export function WorkflowPanel({
   const warnings = qualityIssues(page);
   return (
     <div className="library-scroll feature-panel">
-      <h3>SEO ve URL</h3>
+      <h3>{t("SEO ve URL")}</h3>
       {(["slug", "title", "description", "image"] as const).map((k) => (
         <label key={k}>
           {
             {
-              slug: "URL kısa adı",
-              title: "SEO başlığı",
-              description: "Meta açıklama",
-              image: "Sosyal paylaşım görseli URL",
+              slug: t("URL kısa adı"),
+              title: t("SEO başlığı"),
+              description: t("Meta açıklama"),
+              image: t("Sosyal paylaşım görseli URL"),
             }[k]
           }
           <input
@@ -105,11 +127,11 @@ export function WorkflowPanel({
             }))
           }
         />{" "}
-        Arama motorlarında indekslenmesin
+        {t("Arama motorlarında indekslenmesin")}
       </label>
       <p>
-        Yerel URL:{" "}
-        {seo.slug ? `/p/${storeId}/${seo.slug}` : "Önce kısa adres gir."}
+        {t("Yerel URL:")}{" "}
+        {seo.slug ? `/p/${storeId}/${seo.slug}` : t("Önce kısa adres gir.")}
       </p>
       <button
         disabled={seoBusy}
@@ -117,12 +139,12 @@ export function WorkflowPanel({
           setSeoBusy(true);
           try {
             if (!(await save())) return;
-            const result = await api<{ path: string; seoTitle: string }>(
-              `/pages/${pageId}/publish`,
-              { method: "POST", body: "{}" },
-            );
+            const result = await api<{
+              path: string;
+              seoTitle: string;
+            }>(`/pages/${pageId}/publish`, { method: "POST", body: "{}" });
             setSeoPublication(result);
-            notify("SEO ayarları ve sayfa yayını güncellendi.");
+            notify(t("SEO ayarları ve sayfa yayını güncellendi."));
           } catch (e) {
             notify((e as Error).message, true);
           } finally {
@@ -130,35 +152,38 @@ export function WorkflowPanel({
           }
         }}
       >
-        {seoBusy ? "Yayın güncelleniyor…" : "SEO’yu kaydet ve yayını güncelle"}
+        {seoBusy
+          ? t("Yayın güncelleniyor…")
+          : t("SEO’yu kaydet ve yayını güncelle")}
       </button>
       <small>
-        Kaydet taslağı günceller. Bu düğme ziyaretçinin gördüğü başlık ve URL’yi
-        de yayımlar.
+        {t(
+          "Kaydet taslağı günceller. Bu düğme ziyaretçinin gördüğü başlık ve URL’yi de yayımlar.",
+        )}
       </small>
       {seoPublication && (
         <p data-seo-publication>
           <b>{seoPublication.seoTitle}</b>
           <br />
           <a href={seoPublication.path} target="_blank" rel="noreferrer">
-            Güncellenen sayfayı aç ↗
+            {t("Güncellenen sayfayı aç ↗")}
           </a>
         </p>
       )}
-      <h3>Kalite kontrolü</h3>
+      <h3>{t("Kalite kontrolü")}</h3>
       {warnings.length ? (
         warnings.map((w, i) => (
           <button
             className="feature-warning quality-issue"
             key={i}
             onClick={() => selectNode?.(w.nodeId)}
-            title="İlgili öğeyi düzenle"
+            title={t("İlgili öğeyi düzenle")}
           >
             {w.message} ↗
           </button>
         ))
       ) : (
-        <p>Belge kontrolleri geçti ✓</p>
+        <p>{t("Belge kontrolleri geçti ✓")}</p>
       )}
       <button
         onClick={() => {
@@ -169,21 +194,30 @@ export function WorkflowPanel({
             ...document.querySelectorAll(".editable-surface .content-block"),
           ].filter((el) => el.scrollWidth > el.clientWidth + 2);
           notify(
-            `${width.toFixed(0)} px görünümde ${bad.length} taşan öğe bulundu.${bad.length ? " Mobil genişlikte de kontrol et." : ""}`,
+            t("{p0} px görünümde {p1} taşan öğe bulundu.{p2}", {
+              p0: width.toFixed(0),
+              p1: bad.length,
+              p2: bad.length ? t(" Mobil genişlikte de kontrol et.") : "",
+            }),
           );
         }}
       >
-        Görünümde taşmayı kontrol et
+        {t("Görünümde taşmayı kontrol et")}
       </button>
       <p>
-        Görsel yükü: {usedImages.length} dosya ·{" "}
-        {(usedImages.reduce((sum, a) => sum + a.bytes, 0) / 1024).toFixed(0)} KB
-        ana dosya. Cihaz boyutları ve geç yükleme kullanılır; bu bir hız testi
-        puanı değildir.
+        {t("Görsel yükü:") + " "}
+        {usedImages.length}
+        {" " + t("dosya ·")}{" "}
+        {(usedImages.reduce((sum, a) => sum + a.bytes, 0) / 1024).toFixed(0)}
+        {" " +
+          t(
+            "KB ana dosya. Cihaz boyutları ve geç yükleme kullanılır; bu bir hız testi puanı değildir.",
+          )}
       </p>
       <p>
-        Tasarım: hazır · Veri: yerel katalog · Yayınlama: yerel · Shopify:
-        ertelendi
+        {t(
+          "Tasarım: hazır · Veri: yerel katalog · Yayınlama: yerel · Shopify: ertelendi",
+        )}
       </p>
       <button
         onClick={() => {
@@ -201,7 +235,7 @@ export function WorkflowPanel({
             entries
               .filter((e) => urls.has(e.name))
               .map((e) => ({
-                name: new URL(e.name).pathname.split("/").pop() || "Görsel",
+                name: new URL(e.name).pathname.split("/").pop() || t("Görsel"),
                 duration: e.duration,
                 bytes: e.encodedBodySize,
                 cached: e.transferSize === 0,
@@ -209,22 +243,25 @@ export function WorkflowPanel({
           );
         }}
       >
-        Görsel yükleme sürelerini ölç
+        {t("Görsel yükleme sürelerini ölç")}
       </button>
       <div data-image-timings>
-        {timings.map((t, i) => (
+        {timings.map((timing, i) => (
           <p key={i}>
-            {t.name} · {t.duration.toFixed(1)} ms ·{" "}
-            {(t.bytes / 1024).toFixed(1)} KB{t.cached ? " · önbellek" : ""}
+            {timing.name} · {timing.duration.toFixed(1)} ms ·{" "}
+            {(timing.bytes / 1024).toFixed(1)} KB
+            {timing.cached ? t(" · önbellek") : ""}
           </p>
         ))}
       </div>
-      <h3>Paylaşılabilir önizleme</h3>
+      <h3>{t("Paylaşılabilir önizleme")}</h3>
       <button
         onClick={async () => {
           try {
             if (!(await save())) return;
-            const r = await api<{ path: string }>(`/pages/${pageId}/preview`, {
+            const r = await api<{
+              path: string;
+            }>(`/pages/${pageId}/preview`, {
               method: "POST",
               body: "{}",
             });
@@ -234,25 +271,25 @@ export function WorkflowPanel({
           }
         }}
       >
-        7 günlük bağlantı oluştur
+        {t("7 günlük bağlantı oluştur")}
       </button>
       {preview && (
         <a href={preview} target="_blank" rel="noreferrer">
           {preview}
         </a>
       )}
-      <h3>Yerel yayın zamanlaması</h3>
+      <h3>{t("Yerel yayın zamanlaması")}</h3>
       <label>
-        Yayınla
+        {t("Yayınla")}
         <input
-          aria-label="Planlanan yayın"
+          aria-label={t("Planlanan yayın")}
           type="datetime-local"
           value={publishAt}
           onChange={(e) => setPublishAt(e.target.value)}
         />
       </label>
       <label>
-        Yayından kaldır
+        {t("Yayından kaldır")}
         <input
           type="datetime-local"
           value={unpublishAt}
@@ -272,54 +309,54 @@ export function WorkflowPanel({
                   : null,
               }),
             });
-            notify("Yerel yayın planlandı. Sunucu çalışırken uygulanır.");
+            notify(t("Yerel yayın planlandı. Sunucu çalışırken uygulanır."));
           } catch (e) {
             notify((e as Error).message, true);
           }
         }}
       >
-        Zamanlamayı kaydet
+        {t("Zamanlamayı kaydet")}
       </button>
       <button
         onClick={async () => {
           try {
             await api(`/pages/${pageId}/publish`, { method: "DELETE" });
-            notify("Yerel yayın kaldırıldı.");
+            notify(t("Yerel yayın kaldırıldı."));
           } catch (e) {
             notify((e as Error).message, true);
           }
         }}
       >
-        Yerel yayını kaldır
+        {t("Yerel yayını kaldır")}
       </button>
-      <h3>Kalıcı sürüm geçmişi</h3>
+      <h3>{t("Kalıcı sürüm geçmişi")}</h3>
       <button onClick={() => void load().catch((e) => notify(e.message, true))}>
-        Listeyi yenile
+        {t("Listeyi yenile")}
       </button>
       {history.map((h) => (
         <div className="feature-card" key={h.id}>
           <b>
             v{h.version} · {h.reason}
           </b>
-          <small>{new Date(h.created).toLocaleString("tr-TR")}</small>
+          <small>{new Date(h.created).toLocaleString(getUiLocale())}</small>
           <button
             onClick={async () => {
               try {
-                const r = await api<{ document: PageDocument }>(
-                  `/pages/${pageId}/history/${h.id}`,
-                );
+                const r = await api<{
+                  document: PageDocument;
+                }>(`/pages/${pageId}/history/${h.id}`);
                 commit(() => r.document);
-                notify("Eski sürüm taslağa alındı. Kaydet veya geri al.");
+                notify(t("Eski sürüm taslağa alındı. Kaydet veya geri al."));
               } catch (e) {
                 notify((e as Error).message, true);
               }
             }}
           >
-            Taslağa geri yükle
+            {t("Taslağa geri yükle")}
           </button>
         </div>
       ))}
-      <h3>Yerel yayın geçmişi</h3>
+      <h3>{t("Yerel yayın geçmişi")}</h3>
       {publications.map((h) => (
         <button
           key={h.id}
@@ -329,19 +366,20 @@ export function WorkflowPanel({
                 method: "POST",
                 body: "{}",
               });
-              notify("Önceki yerel yayın geri yüklendi.");
+              notify(t("Önceki yerel yayın geri yüklendi."));
             } catch (e) {
               notify((e as Error).message, true);
             }
           }}
         >
-          {new Date(h.published).toLocaleString("tr-TR")} · Yayına geri dön
+          {new Date(h.published).toLocaleString(getUiLocale())}
+          {" " + t("· Yayına geri dön")}
         </button>
       ))}
-      <h3>Form gönderimleri</h3>
+      <h3>{t("Form gönderimleri")}</h3>
       {submissions.map((s) => (
         <div className="feature-card" key={s.id}>
-          <small>{new Date(s.created).toLocaleString("tr-TR")}</small>
+          <small>{new Date(s.created).toLocaleString(getUiLocale())}</small>
           {Object.entries(s.data).map(([k, v]) => (
             <p key={k}>
               {k}: {String(v)}
@@ -349,7 +387,7 @@ export function WorkflowPanel({
           ))}
         </div>
       ))}
-      <h3>Yerel ölçüm</h3>
+      <h3>{t("Yerel ölçüm")}</h3>
       {metrics.map((m, i) => (
         <p key={i}>
           {m.day} · {m.event}: {m.count}

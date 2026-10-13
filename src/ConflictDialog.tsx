@@ -1,3 +1,4 @@
+import { t, localized } from "./i18n.ts";
 import { useState } from "react";
 import { Dialog } from "./Dialog";
 import {
@@ -33,25 +34,25 @@ export function ConflictDialog({
     findBlock(value.base.nodes, id)?.name ||
     id;
   const fieldLabel = (path: string) => {
-    if (path === "sayfa.name") return "Sayfa adı";
+    if (path === "sayfa.name") return t("Sayfa adı");
     const ids = [...path.matchAll(/\[([\w-]+)\]/g)].map((m) => m[1]);
     const key = path.split(".").at(-1) || "";
-    const labels: Record<string, string> = {
-      order: "Öğe sırası",
-      html: "Metin",
-      text: "Düğme metni",
-      src: "Görsel",
-      name: "Öğe adı",
-      fontSize: "Yazı boyutu",
-      color: "Metin rengi",
-      backgroundColor: "Arka plan",
-      href: "Bağlantı",
-      children: "Alt öğeler",
-    };
-    return `${ids.length ? blockName(ids.at(-1)!) + " · " : "Sayfa · "}${labels[key] || key}`;
+    const labels: Record<string, string> = localized({
+      order: t("Öğe sırası"),
+      html: t("Metin"),
+      text: t("Düğme metni"),
+      src: t("Görsel"),
+      name: t("Öğe adı"),
+      fontSize: t("Yazı boyutu"),
+      color: t("Metin rengi"),
+      backgroundColor: t("Arka plan"),
+      href: t("Bağlantı"),
+      children: t("Alt öğeler"),
+    });
+    return `${ids.length ? blockName(ids.at(-1)!) + " · " : t("Sayfa · ")}${labels[key] || key}`;
   };
   const describe = (v: unknown): string => {
-    if (v === undefined) return "Silindi";
+    if (v === undefined) return t("Silindi");
     if (Array.isArray(v))
       return v
         .map((id) =>
@@ -59,7 +60,7 @@ export function ConflictDialog({
         )
         .join(" → ");
     if (v && typeof v === "object" && "name" in v)
-      return String(v.name) + " · Bölümün içeriği değişti";
+      return String(v.name) + t(" · Bölümün içeriği değişti");
     return typeof v === "string" ? v : JSON.stringify(v);
   };
   const submit = async (document: PageDocument) => {
@@ -74,25 +75,28 @@ export function ConflictDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      label="Kayıt çakışmasını çöz"
+      label={t("Kayıt çakışmasını çöz")}
       className="conflict-dialog"
     >
-      <h2>Değişikliklerini karşılaştır</h2>
+      <h2>{t("Değişikliklerini karşılaştır")}</h2>
       <p>
-        Farklı alanlardaki değişiklikler birlikte korunur. Aynı alan değiştiyse
-        hangi değeri kullanacağını seç. Yerel kopyan bu tarayıcıda korunuyor.
+        {t(
+          "Farklı alanlardaki değişiklikler birlikte korunur. Aynı alan değiştiyse hangi değeri kullanacağını seç. Yerel kopyan bu tarayıcıda korunuyor.",
+        )}
       </p>
       <div className="conflict-actions">
         <button onClick={() => downloadDocument(value.local, "yerel")}>
-          Yerel kopyayı indir
+          {t("Yerel kopyayı indir")}
         </button>
         <button onClick={() => downloadDocument(value.remote, "sunucu")}>
-          Sunucu kopyasını indir
+          {t("Sunucu kopyasını indir")}
         </button>
       </div>
       {!result.conflicts.length && (
         <p>
-          Alan çakışması yok. İki taraftaki değişiklikler birleştirilebilir.
+          {t(
+            "Alan çakışması yok. İki taraftaki değişiklikler birleştirilebilir.",
+          )}
         </p>
       )}
       {result.conflicts.map((c) => (
@@ -107,7 +111,8 @@ export function ConflictDialog({
                 setChoices((old) => ({ ...old, [c.path]: "local" }))
               }
             />{" "}
-            Bu sekmedeki değer <pre>{describe(c.local)}</pre>
+            {t("Bu sekmedeki değer") + " "}
+            <pre>{describe(c.local)}</pre>
           </label>
           <label>
             <input
@@ -118,7 +123,8 @@ export function ConflictDialog({
                 setChoices((old) => ({ ...old, [c.path]: "remote" }))
               }
             />{" "}
-            Sunucudaki değer <pre>{describe(c.remote)}</pre>
+            {t("Sunucudaki değer") + " "}
+            <pre>{describe(c.remote)}</pre>
           </label>
         </fieldset>
       ))}
@@ -126,10 +132,10 @@ export function ConflictDialog({
         disabled={busy || pending.length > 0}
         onClick={() => void submit(result.document)}
       >
-        Seçimleri birleştir
+        {t("Seçimleri birleştir")}
       </button>
       <button disabled={busy} onClick={() => void submit(value.remote)}>
-        Sunucudaki sürümü kullan
+        {t("Sunucudaki sürümü kullan")}
       </button>
     </Dialog>
   );

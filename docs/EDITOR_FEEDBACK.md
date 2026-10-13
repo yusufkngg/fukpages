@@ -1,4 +1,4 @@
-# Editör geri bildirimleri — 0.4.0
+# Editör geri bildirimleri — 0.4.0 / 0.5.0
 
 Bu sürüm ekran görüntülerinde bildirilen düzenleme sorunlarını ve ana sayfa,
 ürün ve koleksiyon yönetimini kapsar. Katalog, atamalar, yayınlar ve sepet
@@ -12,7 +12,7 @@ demo verileriyle çalışır; Shopify bağlantısı bu aşamada yapılmaz.
 | Düğme taşınamıyor ve boyutlandırılamıyor | `Serbest yerleştir` veya üst öğenin yerleşim modu. Gerçek sürükleme, ölçek, sınırlar, ok/Shift+ok hareketi ve kenardan genişlik/yükseklik değişimi kontrol edildi. |
 | Mobil düzen bağımsız olmalı | Masaüstü serbest konum mobil akışı bozmaz. Mobil konum, akışa dönüş ve tekrar normal boyutlandırma masaüstü koordinatını değiştirmez. Tablet de ayrı ayarlanır. |
 | Kolonlar görünmüyor | Yeni satır iki boş, görünür kolonla başlar; üçüncüsü eklenir. Ayırıcılarla oran değişir. |
-| Paneller yoğun ve uzatılamıyor | Kısa araçlar, açık aralıklar; iki yan panel genişliği sürüklenip hatırlanır. Bölüm ayarları dikey uzatılır; gerçek pointer kontrolleri geçti. |
+| Paneller yoğun ve uzatılamıyor | Kısa araçlar, açık aralıklar; 0.5’te ortak sol panelin genişliği sürüklenip hatırlanır. Layer tree ayrı taşınır/boyutlandırılır; bölüm ayarları seçili bölümde açılır. |
 | Sağ tık menüsü kalıyor | Dışarı sol tık, Escape ve kaydırma kapatır; sol tık hedefi seçer. |
 | Üç sayfa türü, genel liste ve geçiş | Ana sayfa/ürün/koleksiyon sekmeleri, arama, oluşturma, bağımsız taslak çoğaltma, atamalar/yayın durumu ve editörde sayfa geçişi. |
 | Ürün/koleksiyon atama | Çoklu yerel hedef; ikinci şablona aynı hedef, yanlış mağaza/hedef ve eski sürüm reddedilir. Kopyanın yayını/atamaları boş kalır. |
@@ -22,9 +22,11 @@ demo verileriyle çalışır; Shopify bağlantısı bu aşamada yapılmaz.
 | Padding/margin için 10 çalışmıyor | Birimsiz uzunluk px olur. Çok karakterli yazma, bağlı dört kenar, rem birimi, mobil override ve kayıt/tekrar açma/yayın kontrol edildi. Eski belge de renderer'da düzeltilir; line-height, opacity, font-weight birimsiz kalır. |
 | Kalite uyarıları | Linkler ve H1 sayısı kontrol edilir. Uyarı ilgili öğeyi seçip içerik ayarını açar. |
 
+Yeni dil, sol panel, kısayol, ikon ve metin davranışları: [EDITOR_UI.md](EDITOR_UI.md).
+
 ## Kanıt ve kapsam
 
-- `npm test`: 47 test. Atama çakışması/rol/mağaza/sürüm sınırları, bağımsız
+- `npm test`: 52 test. Atama çakışması/rol/mağaza/sürüm sınırları, bağımsız
   kimlikler ve iç bağlantılar; katalog görsellerinin ilgili etkin yayınla
   sınırlanması, mağaza durunca yayının kapanması, birimsiz CSS uzunlukları.
 - `npm run test:feedback`: gerçek Chromium/Netlify Function/resmi yerel Blobs;

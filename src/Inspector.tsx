@@ -1,12 +1,19 @@
+import { t } from "./i18n.ts";
+import { SpacingDiagram } from "./SpacingDiagram";
+import { IconPicker } from "./IconPicker";
+import { AccordionItemsPanel } from "./AccordionItems";
+import { TextStyleControls } from "./TextStyleControls";
+import { LayoutChoices } from "./LayoutChoices";
+import { setColumnCount } from "./columnLayouts";
 import { useState, useEffect } from "react";
 import {
   AlignCenter,
   AlignLeft,
   AlignRight,
+  ArrowLeft,
   ArrowDown,
   ArrowUp,
   Copy,
-  Link2,
   RotateCcw,
   Settings2,
   Trash2,
@@ -24,7 +31,12 @@ import {
 } from "./model";
 import { plain } from "./Renderer";
 import { NodeExtras } from "./NodeExtras";
-import { resolveBrandStyles, useStudio, type Asset } from "./studio";
+import {
+  resolveBrandStyles,
+  fontFamilyFor,
+  useStudio,
+  type Asset,
+} from "./studio";
 import { blockIcons } from "./icons";
 import { normalizeLink } from "./links";
 import { freeHeight, placedStyle } from "./freePlacement";
@@ -32,6 +44,7 @@ import { StyleInput } from "./StyleInput";
 import { normalizeStyleValue } from "./styleValues";
 type Props = {
   node?: Block;
+  back: () => void;
   openMedia: () => void;
   storeId: string;
   assets: Asset[];
@@ -46,6 +59,7 @@ type Props = {
 };
 export function Inspector({
   node,
+  back,
   openMedia,
   storeId,
   assets,
@@ -60,7 +74,7 @@ export function Inspector({
 }: Props) {
   const [tab, setTab] = useState("style");
   useEffect(() => {
-    if (contentIntent) setTab("content");
+    if (contentIntent) setTab("style");
   }, [contentIntent]);
   const [linked, setLinked] = useState(true);
   const { brand } = useStudio();
@@ -68,14 +82,15 @@ export function Inspector({
     return (
       <aside className="inspector">
         <div className="inspector-heading">
-          Öğe ayarları <Settings2 size={15} />
+          {t("Öğe ayarları") + " "}
+          <Settings2 size={15} />
         </div>
         <div className="empty-inspector">
           <MouseGraphic />
-          <h3>Her ayrıntı senin elinde.</h3>
-          <p>Düzenlemek için tasarım alanından bir öğe seç.</p>
+          <h3>{t("Her ayrıntı senin elinde.")}</h3>
+          <p>{t("Düzenlemek için tasarım alanından bir öğe seç.")}</p>
           <small>
-            İpucu: Metne çift tıklayarak doğrudan düzenleyebilirsin.
+            {t("İpucu: Metne çift tıklayarak doğrudan düzenleyebilirsin.")}
           </small>
         </div>
       </aside>
@@ -118,13 +133,13 @@ export function Inspector({
       <span>
         {label}
         {device !== "desktop" && key in own && (
-          <i className="override-dot" title="Bu cihazda özel değer" />
+          <i className="override-dot" title={t("Bu cihazda özel değer")} />
         )}{" "}
         {key in own && (
           <button
             className="field-reset"
-            title="Değeri sıfırla"
-            aria-label={`${label} sıfırla`}
+            title={t("Değeri sıfırla")}
+            aria-label={t("{p0} sıfırla", { p0: label })}
             onClick={(event) => {
               event.preventDefault();
               reset(key);
@@ -165,7 +180,7 @@ export function Inspector({
       <div className="color-field">
         <input
           type="color"
-          aria-label={`${label} seçici`}
+          aria-label={t("{p0} seçici", { p0: label })}
           value={
             /^#[a-f0-9]{6}$/i.test(String(effective[key]))
               ? String(effective[key])
@@ -180,8 +195,8 @@ export function Inspector({
           onChange={(event) => style(key, event.target.value)}
         />
         <button
-          title="Rengi sıfırla"
-          aria-label={`${label} sıfırla`}
+          title={t("Rengi sıfırla")}
+          aria-label={t("{p0} sıfırla", { p0: label })}
           onClick={(event) => {
             event.preventDefault();
             reset(key);
@@ -225,74 +240,32 @@ export function Inspector({
       )}
     </label>
   );
-  function spacing(prefix: "padding" | "margin") {
-    return (
-      <div className="spacing-group">
-        <div className="spacing-title">
-          {prefix === "padding" ? "İç boşluk · padding" : "Dış boşluk · margin"}
-          <button
-            className={linked ? "active" : ""}
-            title="Dört kenarı birlikte değiştir"
-            onClick={() => setLinked(!linked)}
-          >
-            <Link2 size={13} />
-          </button>
-        </div>
-        <div className="spacing-grid">
-          {["Top", "Right", "Bottom", "Left"].map((side, index) => (
-            <label key={side}>
-              <StyleInput
-                key={`${nodeId}:${device}:${prefix}:${side}`}
-                label={`${prefix} ${side}`}
-                value={effective[prefix + side]}
-                placeholder="0px"
-                onChange={(value) =>
-                  update((current) => {
-                    const values = { ...current.styles[device] };
-                    (linked
-                      ? ["Top", "Right", "Bottom", "Left"]
-                      : [side]
-                    ).forEach(
-                      (s) =>
-                        (values[prefix + s] = normalizeStyleValue(
-                          prefix + s,
-                          value,
-                        )),
-                    );
-                    return {
-                      ...current,
-                      styles: { ...current.styles, [device]: values },
-                    };
-                  }, `spacing:${nodeId}:${device}:${prefix}`)
-                }
-              />
-              <small>{["Üst", "Sağ", "Alt", "Sol"][index]}</small>
-            </label>
-          ))}
-        </div>
-      </div>
-    );
-  }
   return (
     <aside className="inspector">
       <div className="inspector-heading">
+        <button
+          aria-label={t("Back to elements")}
+          title={t("Back to elements")}
+          onClick={back}
+        >
+          <ArrowLeft size={16} />
+        </button>
         <span>
           <Icon size={16} /> {labels[node.kind]}
         </span>
         <div className="icon-actions">
-          <button title="Kopyala" onClick={duplicate}>
+          <button title={t("Kopyala")} onClick={duplicate}>
             <Copy size={14} />
           </button>
-          <button title="Sil" onClick={remove}>
+          <button title={t("Sil")} onClick={remove}>
             <Trash2 size={14} />
           </button>
         </div>
       </div>
       <div className="inspector-tabs">
         {[
-          ["content", "İçerik"],
-          ["style", "Tasarım"],
-          ["advanced", "Gelişmiş"],
+          ["style", t("Ayarlar")],
+          ["advanced", t("Gelişmiş")],
         ].map(([id, name]) => (
           <button
             key={id}
@@ -305,10 +278,11 @@ export function Inspector({
       </div>
       <div className="device-notice">
         <span className={`device-dot ${device}`} />
-        {deviceNames[device]} ayarları
+        {deviceNames[device]}
+        {" " + t("ayarları")}
         {device !== "desktop" && (
           <button
-            title="Bu cihazın tüm stil değişikliklerini sıfırla"
+            title={t("Bu cihazın tüm stil değişikliklerini sıfırla")}
             onClick={() =>
               update((current) => ({
                 ...current,
@@ -321,25 +295,80 @@ export function Inspector({
         )}
       </div>
       <div className="inspector-scroll">
-        {tab === "content" && node && (
-          <NodeExtras
+        {tab === "style" && node.kind === "icon" && (
+          <IconPicker
             node={node}
             update={update}
-            openMedia={openMedia}
-            assets={assets}
-            storeId={storeId}
-            device={device}
+            fit={() =>
+              update((n) => ({
+                ...n,
+                styles: {
+                  ...n.styles,
+                  [device]: {
+                    ...n.styles[device],
+                    width: "fit-content",
+                    height: "auto",
+                    lineHeight: 1,
+                    display: "inline-flex",
+                  },
+                },
+              }))
+            }
           />
         )}
-        {tab === "content" && (
+        {tab === "style" && node.kind === "accordion" && (
+          <AccordionItemsPanel node={node} update={update} />
+        )}
+        {tab === "style" &&
+          ["heading", "text", "button", "badge", "icon"].includes(
+            node.kind,
+          ) && (
+            <TextStyleControls
+              styles={effective}
+              fonts={[
+                fontFamilyFor(
+                  brand,
+                  node.kind === "heading"
+                    ? "heading"
+                    : node.kind === "button"
+                      ? "button"
+                      : "body",
+                ),
+                "Arial, sans-serif",
+                "Georgia, serif",
+                "Verdana, sans-serif",
+                ...assets
+                  .filter((a) => a.type === "font")
+                  .map((a) => `${a.family}, ${brand.fonts.fallback}`),
+              ]}
+              change={style}
+            />
+          )}
+        {tab === "style" && ["section", "row"].includes(node.kind) && (
+          <section className="simple-column-layout">
+            <h3>{t("Layout")}</h3>
+            <LayoutChoices
+              count={
+                (node.kind === "row"
+                  ? node
+                  : node.children.find((n) => n.kind === "row")
+                )?.children.filter((n) => n.kind === "column").length || 1
+              }
+              change={(count) =>
+                update((current) => setColumnCount(current, count, device))
+              }
+            />
+          </section>
+        )}
+        {tab === "style" && (
           <>
             <details open>
-              <summary>Öğe içeriği</summary>
+              <summary>{t("Öğe içeriği")}</summary>
               <div className="settings-body">
                 <label className="control">
-                  <span>Katman adı</span>
+                  <span>{t("Katman adı")}</span>
                   <input
-                    aria-label="Katman adı"
+                    aria-label={t("Katman adı")}
                     value={node.name}
                     onChange={(event) =>
                       update(
@@ -350,12 +379,12 @@ export function Inspector({
                   />
                 </label>
                 {["heading", "text"].includes(node.kind) &&
-                  textProp("html", "Metin içeriği", true)}
+                  textProp("html", t("Metin içeriği"), true)}
                 {node.kind === "heading" && (
                   <label className="control">
-                    <span>HTML etiketi</span>
+                    <span>{t("HTML etiketi")}</span>
                     <select
-                      aria-label="HTML etiketi"
+                      aria-label={t("HTML etiketi")}
                       value={String(node.props.tag)}
                       onChange={(event) => prop("tag", event.target.value)}
                     >
@@ -370,27 +399,29 @@ export function Inspector({
                 {["button", "badge", "icon"].includes(node.kind) &&
                   textProp(
                     "text",
-                    node.kind === "icon" ? "İkon karakteri" : "Yazı",
+                    node.kind === "icon" ? t("İkon karakteri") : t("Yazı"),
                   )}
                 {["image", "video", "product"].includes(node.kind) &&
                   textProp(
                     "src",
-                    node.kind === "video" ? "Video URL" : "Görsel URL",
+                    node.kind === "video" ? t("Video URL") : t("Görsel URL"),
                   )}
                 {node.kind === "image" && (
                   <>
-                    {textProp("alt", "Alternatif metin")}
+                    {textProp("alt", t("Alternatif metin"))}
                     <p className="setting-help">
-                      Görseller için HTTPS adresi veya yerel varlık yolu kullan.
+                      {t(
+                        "Görseller için HTTPS adresi veya yerel varlık yolu kullan.",
+                      )}
                     </p>
                   </>
                 )}
                 {node.kind === "button" && (
                   <>
                     <label className="control">
-                      <span>Bağlantı</span>
+                      <span>{t("Bağlantı")}</span>
                       <input
-                        aria-label="Bağlantı"
+                        aria-label={t("Bağlantı")}
                         placeholder="https://… veya /sayfa"
                         value={String(
                           node.props.action === "navigate" || !node.props.action
@@ -420,11 +451,11 @@ export function Inspector({
                         }}
                       />
                       <small>
-                        Adres girildiğinde düğme bu bağlantıya gider.
+                        {t("Adres girildiğinde düğme bu bağlantıya gider.")}
                       </small>
                     </label>
                     <label className="toggle-row">
-                      <span>Yeni sekmede aç</span>
+                      <span>{t("Yeni sekmede aç")}</span>
                       <input
                         type="checkbox"
                         checked={!!node.props.targetBlank}
@@ -436,10 +467,10 @@ export function Inspector({
                   </>
                 )}
                 {["input", "textarea"].includes(node.kind) &&
-                  textProp("placeholder", "Yer tutucu metin")}
+                  textProp("placeholder", t("Yer tutucu metin"))}
                 {node.kind === "input" && (
                   <label className="control">
-                    <span>Alan türü</span>
+                    <span>{t("Alan türü")}</span>
                     <select
                       value={String(node.props.inputType)}
                       onChange={(event) =>
@@ -453,28 +484,33 @@ export function Inspector({
                   </label>
                 )}
                 {node.kind === "list" &&
-                  textProp("items", "Liste öğeleri (her satır bir öğe)", true)}
+                  textProp(
+                    "items",
+                    t("Liste öğeleri (her satır bir öğe)"),
+                    true,
+                  )}
                 {["product", "accordion"].includes(node.kind) && (
                   <>
-                    {textProp("title", "Başlık")}
-                    {textProp("description", "Açıklama", true)}
+                    {textProp("title", t("Başlık"))}
+                    {textProp("description", t("Açıklama"), true)}
                   </>
                 )}
                 {node.kind === "product" && (
                   <>
-                    {textProp("price", "Fiyat")}
-                    {textProp("comparePrice", "Eski fiyat")}
+                    {textProp("price", t("Fiyat"))}
+                    {textProp("comparePrice", t("Eski fiyat"))}
                     <p className="setting-help">
-                      Bu kart örnek veridir. Gerçek ürün ve sepet işlemleri
-                      Shopify bağlantısı gerektirir.
+                      {t(
+                        "Bu kart örnek veridir. Gerçek ürün ve sepet işlemleri Shopify bağlantısı gerektirir.",
+                      )}
                     </p>
                   </>
                 )}
                 {node.kind === "countdown" && (
                   <label className="control">
-                    <span>Bitiş zamanı</span>
+                    <span>{t("Bitiş zamanı")}</span>
                     <input
-                      aria-label="Bitiş zamanı"
+                      aria-label={t("Bitiş zamanı")}
                       type="datetime-local"
                       value={String(node.props.endDate)}
                       onChange={(event) => prop("endDate", event.target.value)}
@@ -490,7 +526,9 @@ export function Inspector({
                   "spacer",
                 ].includes(node.kind) && (
                   <p className="setting-help">
-                    Bu öğenin ölçü ve görünümünü Tasarım sekmesinden düzenle.
+                    {t(
+                      "Bu öğenin ölçü ve görünümünü Ayarlar sekmesinden düzenle.",
+                    )}
                   </p>
                 )}
               </div>
@@ -501,37 +539,41 @@ export function Inspector({
           <>
             <details open>
               <summary>
-                Yerleşim <SlidersHorizontal size={13} />
+                {t("Yerleşim") + " "}
+                <SlidersHorizontal size={13} />
               </summary>
               <div className="settings-body">
                 <div className="control-grid">
-                  {input("width", "Genişlik", "100%")}
-                  {input("height", "Yükseklik")}
-                  {input("maxWidth", "Maks. genişlik")}
-                  {input("minHeight", "Min. yükseklik")}
-                  {input("order", "Bu cihazda sıralama", "0")}
-                  {input("flexBasis", "Kolon genişliği", "50%")}
+                  {input("width", t("Genişlik"), "100%")}
+                  {input("height", t("Yükseklik"))}
+                  {input("maxWidth", t("Maks. genişlik"))}
+                  {input("minHeight", t("Min. yükseklik"))}
+                  {input("order", t("Bu cihazda sıralama"), "0")}
+                  {input("flexBasis", t("Kolon genişliği"), "50%")}
                 </div>
                 {["section", "row", "column", "box"].includes(node.kind) && (
                   <>
                     <label className="control">
-                      <span>Yerleşim modu · {deviceNames[device]}</span>
+                      <span>
+                        {t("Yerleşim modu ·") + " "}
+                        {deviceNames[device]}
+                      </span>
                       <select
-                        aria-label="Yerleşim modu"
+                        aria-label={t("Yerleşim modu")}
                         value={freeHeight(node, device) ? "free" : "flow"}
                         onChange={(e) =>
                           setLayout(node.id, e.target.value === "free")
                         }
                       >
-                        <option value="flow">Otomatik akış</option>
-                        <option value="free">Serbest yerleştirme</option>
+                        <option value="flow">{t("Otomatik akış")}</option>
+                        <option value="free">{t("Serbest yerleştirme")}</option>
                       </select>
                     </label>
                     {freeHeight(node, device) && (
                       <label className="control">
-                        <span>Serbest alan yüksekliği</span>
+                        <span>{t("Serbest alan yüksekliği")}</span>
                         <input
-                          aria-label="Serbest alan yüksekliği"
+                          aria-label={t("Serbest alan yüksekliği")}
                           type="number"
                           min={100}
                           max={5000}
@@ -558,154 +600,201 @@ export function Inspector({
                       </label>
                     )}
                     <small className="setting-help">
-                      Serbest modda öğeleri tutup taşı; kenar tutamaçlarıyla
-                      boyutlandır. Her cihazın yerleşimi ayrıdır.
+                      {t(
+                        "Serbest modda öğeleri tutup taşı; kenar tutamaçlarıyla boyutlandır. Her cihazın yerleşimi ayrıdır.",
+                      )}
                     </small>
                   </>
                 )}
                 {["section", "row", "column", "box"].includes(node.kind) && (
                   <>
-                    {select("display", "Düzen", [
+                    {select("display", t("Düzen"), [
                       ["flex", "Flex"],
                       ["grid", "Grid"],
                       ["block", "Block"],
                     ])}
-                    {select("flexDirection", "Yön", [
-                      ["row", "Yatay"],
-                      ["column", "Dikey"],
-                      ["row-reverse", "Yatay ters"],
-                      ["column-reverse", "Dikey ters"],
+                    {select("flexDirection", t("Yön"), [
+                      ["row", t("Yatay")],
+                      ["column", t("Dikey")],
+                      ["row-reverse", t("Yatay ters")],
+                      ["column-reverse", t("Dikey ters")],
                     ])}
-                    {select("justifyContent", "Dağılım", [
-                      ["flex-start", "Başlangıç"],
-                      ["center", "Ortala"],
-                      ["flex-end", "Bitiş"],
-                      ["space-between", "Araya dağıt"],
-                      ["space-around", "Çevreye dağıt"],
+                    {select("justifyContent", t("Dağılım"), [
+                      ["flex-start", t("Başlangıç")],
+                      ["center", t("Ortala")],
+                      ["flex-end", t("Bitiş")],
+                      ["space-between", t("Araya dağıt")],
+                      ["space-around", t("Çevreye dağıt")],
                     ])}
-                    {select("alignItems", "Hizalama", [
-                      ["stretch", "Esnet"],
-                      ["flex-start", "Başlangıç"],
-                      ["center", "Ortala"],
-                      ["flex-end", "Bitiş"],
+                    {select("alignItems", t("Hizalama"), [
+                      ["stretch", t("Esnet")],
+                      ["flex-start", t("Başlangıç")],
+                      ["center", t("Ortala")],
+                      ["flex-end", t("Bitiş")],
                     ])}
                     <div className="control-grid">
-                      {input("gap", "Öğe aralığı", "16px")}
-                      {select("flexWrap", "Sarma", [
-                        ["nowrap", "Tek satır"],
-                        ["wrap", "Alt satıra geç"],
+                      {input("gap", t("Öğe aralığı"), "16px")}
+                      {select("flexWrap", t("Sarma"), [
+                        ["nowrap", t("Tek satır")],
+                        ["wrap", t("Alt satıra geç")],
                       ])}
                     </div>
                     {effective.display === "grid" &&
-                      input("gridTemplateColumns", "Grid kolonları", "1fr 1fr")}
+                      input(
+                        "gridTemplateColumns",
+                        t("Grid kolonları"),
+                        "1fr 1fr",
+                      )}
                   </>
                 )}
                 {node.kind === "image" &&
-                  select("objectFit", "Görsel yerleşimi", [
-                    ["contain", "Sığdır"],
-                    ["cover", "Doldur"],
-                    ["fill", "Esnet"],
+                  select("objectFit", t("Görsel yerleşimi"), [
+                    ["contain", t("Sığdır")],
+                    ["cover", t("Doldur")],
+                    ["fill", t("Esnet")],
                   ])}
               </div>
             </details>
             <details open>
-              <summary>Boşluklar</summary>
+              <summary>{t("Boşluklar")}</summary>
               <div className="settings-body">
-                {spacing("padding")}
-                {spacing("margin")}
+                <SpacingDiagram
+                  identity={`${nodeId}:${device}`}
+                  styles={effective}
+                  linked={linked}
+                  toggle={() => setLinked(!linked)}
+                  change={(prefix, side, value) =>
+                    update((current) => {
+                      const values = { ...current.styles[device] };
+                      (linked
+                        ? ["Top", "Right", "Bottom", "Left"]
+                        : [side]
+                      ).forEach(
+                        (s) =>
+                          (values[prefix + s] = normalizeStyleValue(
+                            prefix + s,
+                            value,
+                          )),
+                      );
+                      return {
+                        ...current,
+                        styles: { ...current.styles, [device]: values },
+                      };
+                    }, `spacing:${nodeId}:${device}:${prefix}`)
+                  }
+                />
               </div>
             </details>
+            {!["heading", "text", "button", "badge", "icon"].includes(
+              node.kind,
+            ) && (
+              <>
+                <details>
+                  <summary>{t("Tipografi")}</summary>
+                  <div className="settings-body">
+                    {select("fontFamily", t("Yazı tipi"), [
+                      ...[
+                        ...new Set(
+                          assets
+                            .filter((a) => a.type === "font")
+                            .map((a) => a.family),
+                        ),
+                      ].map(
+                        (f) =>
+                          [`${f}, ${brand.fonts.fallback}`, String(f)] as [
+                            string,
+                            string,
+                          ],
+                      ),
+                      ["var(--font-heading)", t("Marka başlık fontu")],
+                      ["var(--font-body)", t("Marka gövde fontu")],
+                      ["var(--font-button)", t("Marka düğme fontu")],
+                      ["Arial, sans-serif", "Arial"],
+                      ["Georgia, serif", "Georgia"],
+                      ["Verdana, sans-serif", "Verdana"],
+                      ["Courier New, monospace", "Monospace"],
+                    ])}
+                    <div className="control-grid">
+                      {input("fontSize", t("Yazı boyutu"), "16px")}
+                      {select("fontWeight", t("Kalınlık"), [
+                        ["400", "Regular"],
+                        ["500", "Medium"],
+                        ["600", "Semibold"],
+                        ["700", "Bold"],
+                        ["800", "Extra bold"],
+                      ])}
+                      {input("lineHeight", t("Satır yüksekliği"), "1.5")}
+                      {input("letterSpacing", t("Harf aralığı"), "0px")}
+                    </div>
+                    <div className="alignment-buttons">
+                      {[
+                        ["left", AlignLeft],
+                        ["center", AlignCenter],
+                        ["right", AlignRight],
+                      ].map(([value, Alignment]) => {
+                        const Icon = Alignment as typeof AlignLeft;
+                        return (
+                          <button
+                            key={String(value)}
+                            title={t("Metin hizası: {p0}", { p0: value })}
+                            className={
+                              effective.textAlign === value ? "active" : ""
+                            }
+                            onClick={() => style("textAlign", String(value))}
+                          >
+                            <Icon size={15} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {select("textTransform", t("Harf biçimi"), [
+                      ["none", t("Normal")],
+                      ["uppercase", t("BÜYÜK HARF")],
+                      ["lowercase", t("küçük harf")],
+                      ["capitalize", t("Baş Harfler")],
+                    ])}
+                    {color("color", t("Metin rengi"))}
+                  </div>
+                </details>
+              </>
+            )}
             <details open>
-              <summary>Tipografi</summary>
+              <summary>{t("Arka plan ve kenarlık")}</summary>
               <div className="settings-body">
-                {select("fontFamily", "Yazı tipi", [
-                  ...[
-                    ...new Set(
-                      assets
-                        .filter((a) => a.type === "font")
-                        .map((a) => a.family),
-                    ),
-                  ].map(
-                    (f) =>
-                      [`${f}, ${brand.fonts.fallback}`, String(f)] as [
-                        string,
-                        string,
-                      ],
-                  ),
-                  ["var(--font-heading)", "Marka başlık fontu"],
-                  ["var(--font-body)", "Marka gövde fontu"],
-                  ["var(--font-button)", "Marka düğme fontu"],
-                  ["Arial, sans-serif", "Arial"],
-                  ["Georgia, serif", "Georgia"],
-                  ["Verdana, sans-serif", "Verdana"],
-                  ["Courier New, monospace", "Monospace"],
-                ])}
+                {color("backgroundColor", t("Arka plan"))}
                 <div className="control-grid">
-                  {input("fontSize", "Yazı boyutu", "16px")}
-                  {select("fontWeight", "Kalınlık", [
-                    ["400", "Regular"],
-                    ["500", "Medium"],
-                    ["600", "Semibold"],
-                    ["700", "Bold"],
-                    ["800", "Extra bold"],
-                  ])}
-                  {input("lineHeight", "Satır yüksekliği", "1.5")}
-                  {input("letterSpacing", "Harf aralığı", "0px")}
+                  {input("borderWidth", t("Kenarlık kalınlığı"), "0px")}
+                  {input("borderRadius", t("Köşe yuvarlaklığı"), "0px")}
                 </div>
-                <div className="alignment-buttons">
-                  {[
-                    ["left", AlignLeft],
-                    ["center", AlignCenter],
-                    ["right", AlignRight],
-                  ].map(([value, Alignment]) => {
-                    const Icon = Alignment as typeof AlignLeft;
-                    return (
-                      <button
-                        key={String(value)}
-                        title={`Metin hizası: ${value}`}
-                        className={
-                          effective.textAlign === value ? "active" : ""
-                        }
-                        onClick={() => style("textAlign", String(value))}
-                      >
-                        <Icon size={15} />
-                      </button>
-                    );
-                  })}
-                </div>
-                {select("textTransform", "Harf biçimi", [
-                  ["none", "Normal"],
-                  ["uppercase", "BÜYÜK HARF"],
-                  ["lowercase", "küçük harf"],
-                  ["capitalize", "Baş Harfler"],
+                {select("borderStyle", t("Kenarlık biçimi"), [
+                  ["solid", t("Düz")],
+                  ["dashed", t("Kesik")],
+                  ["dotted", t("Noktalı")],
+                  ["none", t("Yok")],
                 ])}
-                {color("color", "Metin rengi")}
-              </div>
-            </details>
-            <details open>
-              <summary>Arka plan ve kenarlık</summary>
-              <div className="settings-body">
-                {color("backgroundColor", "Arka plan")}
-                <div className="control-grid">
-                  {input("borderWidth", "Kenarlık kalınlığı", "0px")}
-                  {input("borderRadius", "Köşe yuvarlaklığı", "0px")}
-                </div>
-                {select("borderStyle", "Kenarlık biçimi", [
-                  ["solid", "Düz"],
-                  ["dashed", "Kesik"],
-                  ["dotted", "Noktalı"],
-                  ["none", "Yok"],
-                ])}
-                {color("borderColor", "Kenarlık rengi")}
-                {input("boxShadow", "Gölge", "0 8px 24px #00000015")}
+                {color("borderColor", t("Kenarlık rengi"))}
+                {input("boxShadow", t("Gölge"), "0 8px 24px #00000015")}
               </div>
             </details>
           </>
         )}
+        {tab === "style" && node && (
+          <details className="content-behaviour">
+            <summary>{t("Content and behaviour")}</summary>
+            <NodeExtras
+              node={node}
+              update={update}
+              openMedia={openMedia}
+              assets={assets}
+              storeId={storeId}
+              device={device}
+            />
+          </details>
+        )}
         {tab === "advanced" && (
           <>
             <details open>
-              <summary>Cihaz görünürlüğü</summary>
+              <summary>{t("Cihaz görünürlüğü")}</summary>
               <div className="settings-body">
                 {(["desktop", "tablet", "mobile"] as Device[]).map((key) => (
                   <label className="toggle-row" key={key}>
@@ -719,7 +808,9 @@ export function Inspector({
                     </span>
                     <input
                       type="checkbox"
-                      aria-label={`${deviceNames[key]} görünürlük`}
+                      aria-label={t("{p0} görünürlük", {
+                        p0: deviceNames[key],
+                      })}
                       checked={!node.hidden[key]}
                       onChange={(event) =>
                         update((current) => ({
@@ -736,33 +827,33 @@ export function Inspector({
               </div>
             </details>
             <details open>
-              <summary>Konum ve efektler</summary>
+              <summary>{t("Konum ve efektler")}</summary>
               <div className="settings-body">
-                {select("position", "Konum", [
-                  ["relative", "Normal"],
+                {select("position", t("Konum"), [
+                  ["relative", t("Normal")],
                   ["absolute", "Absolute"],
                   ["sticky", "Sticky"],
                 ])}
                 <div className="control-grid">
-                  {input("top", "Üst konum")}
-                  {input("left", "Sol konum")}
-                  {input("zIndex", "Katman sırası", "auto")}
-                  {input("opacity", "Opaklık", "1")}
+                  {input("top", t("Üst konum"))}
+                  {input("left", t("Sol konum"))}
+                  {input("zIndex", t("Katman sırası"), "auto")}
+                  {input("opacity", t("Opaklık"), "1")}
                 </div>
-                {select("overflow", "Taşma", [
-                  ["visible", "Görünür"],
-                  ["hidden", "Gizle"],
-                  ["auto", "Kaydır"],
+                {select("overflow", t("Taşma"), [
+                  ["visible", t("Görünür")],
+                  ["hidden", t("Gizle")],
+                  ["auto", t("Kaydır")],
                 ])}
                 <label className="control">
-                  <span>Animasyon</span>
+                  <span>{t("Animasyon")}</span>
                   <select
-                    aria-label="Animasyon"
+                    aria-label={t("Animasyon")}
                     value={String(node.props.animation ?? "none")}
                     onChange={(event) => prop("animation", event.target.value)}
                   >
                     {[
-                      ["none", "Yok"],
+                      ["none", t("Yok")],
                       ["fade", "Fade in"],
                       ["slide", "Slide up"],
                       ["zoom", "Zoom in"],
@@ -773,25 +864,27 @@ export function Inspector({
                     ))}
                   </select>
                 </label>
-                {textProp("cssId", "HTML kimliği (ID)")}
+                {textProp("cssId", t("HTML kimliği (ID)"))}
               </div>
             </details>
           </>
         )}
         <div className="layer-order">
           <button onClick={() => move(-1)}>
-            <ArrowUp size={13} /> Yukarı
+            <ArrowUp size={13} />
+            {" " + t("Yukarı")}
           </button>
           <button onClick={() => move(1)}>
-            <ArrowDown size={13} /> Aşağı
+            <ArrowDown size={13} />
+            {" " + t("Aşağı")}
           </button>
         </div>
       </div>
       <div className="inspector-footer">
         <span>●</span>{" "}
         {device === "desktop"
-          ? "Temel stil · tüm cihazlara aktarılır"
-          : "Özel değerler yalnızca bu cihazda geçerli"}
+          ? t("Temel stil · tüm cihazlara aktarılır")
+          : t("Özel değerler yalnızca bu cihazda geçerli")}
       </div>
     </aside>
   );

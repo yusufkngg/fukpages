@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import { ExperimentResults } from "./ExperimentResults";
 import { TransferPanel } from "./TransferPanel";
 import { useState, useEffect } from "react";
@@ -36,11 +37,21 @@ export function GrowthPanel({
     [source, setSource] = useState(""),
     [translation, setTranslation] = useState(""),
     [reviews, setReviews] = useState<
-      { reviewer: string; decision: string; note: string }[]
+      {
+        reviewer: string;
+        decision: string;
+        note: string;
+      }[]
     >([]),
     [integrations, setIntegrations] = useState<{
-      ai: { configured: boolean; model: string };
-      forms: { configured: boolean; destination: string };
+      ai: {
+        configured: boolean;
+        model: string;
+      };
+      forms: {
+        configured: boolean;
+        destination: string;
+      };
     } | null>(null);
   useEffect(() => {
     api<PageSummary[]>(`/stores/${storeId}/pages`)
@@ -88,11 +99,11 @@ export function GrowthPanel({
   walk(page.nodes);
   return (
     <div className="library-scroll feature-panel">
-      <h3>Dil ve çeviriler</h3>
+      <h3>{t("Dil ve çeviriler")}</h3>
       <label>
-        Dil kodu
+        {t("Dil kodu")}
         <input
-          aria-label="Çeviri dili"
+          aria-label={t("Çeviri dili")}
           value={locale}
           onChange={(e) => setLocale(e.target.value)}
         />
@@ -100,7 +111,7 @@ export function GrowthPanel({
       <button
         onClick={() => {
           if (!/^[a-z]{2}(-[A-Z]{2})?$/.test(locale)) {
-            notify("Dil kodu en, tr veya en-US biçiminde olmalı.", true);
+            notify(t("Dil kodu en, tr veya en-US biçiminde olmalı."), true);
             return;
           }
           commit((p) => ({
@@ -116,12 +127,12 @@ export function GrowthPanel({
           }));
         }}
       >
-        Dili ekle
+        {t("Dili ekle")}
       </button>
       <label>
-        Çevrilecek öğe
+        {t("Çevrilecek öğe")}
         <select
-          aria-label="Çevrilecek öğe"
+          aria-label={t("Çevrilecek öğe")}
           value={source}
           onChange={(e) => {
             setSource(e.target.value);
@@ -134,7 +145,7 @@ export function GrowthPanel({
             setTranslation(JSON.stringify(old, null, 2));
           }}
         >
-          <option value="">Öğe seç</option>
+          <option value="">{t("Öğe seç")}</option>
           {nodes.map((n) => (
             <option key={n.id} value={n.id}>
               {n.name}
@@ -143,11 +154,12 @@ export function GrowthPanel({
         </select>
       </label>
       <p>
-        Çeviri JSON alanları: html, text, title, description, alt, placeholder,
-        label, items, options ve submitLabel.
+        {t(
+          "Çeviri JSON alanları: html, text, title, description, alt, placeholder, label, items, options ve submitLabel.",
+        )}
       </p>
       <textarea
-        aria-label="Çeviri JSON"
+        aria-label={t("Çeviri JSON")}
         value={translation}
         onChange={(e) => setTranslation(e.target.value)}
       />
@@ -174,23 +186,23 @@ export function GrowthPanel({
                 },
               })),
             }));
-            notify("Çeviri taslağa eklendi.");
+            notify(t("Çeviri taslağa eklendi."));
           } catch {
-            notify("Geçerli çeviri JSON’u gir.", true);
+            notify(t("Geçerli çeviri JSON’u gir."), true);
           }
         }}
       >
-        Çeviriyi uygula
+        {t("Çeviriyi uygula")}
       </button>
-      <h3>Yerel A/B testi ve huni</h3>
+      <h3>{t("Yerel A/B testi ve huni")}</h3>
       <label>
-        İkinci yayındaki sayfa
+        {t("İkinci yayındaki sayfa")}
         <select
-          aria-label="İkinci test sayfası"
+          aria-label={t("İkinci test sayfası")}
           value={target}
           onChange={(e) => setTarget(e.target.value)}
         >
-          <option value="">Sayfa seç</option>
+          <option value="">{t("Sayfa seç")}</option>
           {pages
             .filter((p) => p.id !== pageId)
             .map((p) => (
@@ -204,48 +216,46 @@ export function GrowthPanel({
         onClick={async () => {
           try {
             if (!(await save())) return;
-            const r = await api<{ path: string }>(
-              `/stores/${storeId}/experiments`,
-              {
-                method: "POST",
-                body: json({
-                  name: page.name + " A/B",
-                  a: pageId,
-                  b: target,
-                  split: 50,
-                }),
-              },
-            );
+            const r = await api<{
+              path: string;
+            }>(`/stores/${storeId}/experiments`, {
+              method: "POST",
+              body: json({
+                name: page.name + " A/B",
+                a: pageId,
+                b: target,
+                split: 50,
+              }),
+            });
             setLinks((l) => [...l, r.path]);
-            notify("Yerel %50 / %50 testi oluşturuldu.");
+            notify(t("Yerel %50 / %50 testi oluşturuldu."));
           } catch (e) {
             notify((e as Error).message, true);
           }
         }}
       >
-        %50 / %50 A/B testi oluştur
+        {t("%50 / %50 A/B testi oluştur")}
       </button>
       <button
         onClick={async () => {
           try {
-            const r = await api<{ path: string }>(
-              `/stores/${storeId}/funnels`,
-              {
-                method: "POST",
-                body: json({
-                  name: page.name + " akışı",
-                  pages: [pageId, target],
-                }),
-              },
-            );
+            const r = await api<{
+              path: string;
+            }>(`/stores/${storeId}/funnels`, {
+              method: "POST",
+              body: json({
+                name: page.name + t(" akışı"),
+                pages: [pageId, target],
+              }),
+            });
             setLinks((l) => [...l, r.path]);
-            notify("İki adımlı yerel huni oluşturuldu.");
+            notify(t("İki adımlı yerel huni oluşturuldu."));
           } catch (e) {
             notify((e as Error).message, true);
           }
         }}
       >
-        İki adımlı huni oluştur
+        {t("İki adımlı huni oluştur")}
       </button>
       <ExperimentResults
         storeId={storeId}
@@ -257,25 +267,27 @@ export function GrowthPanel({
           {new URL(l, window.location.origin).href}
         </a>
       ))}
-      <p>Ödeme ve satın alma sonrası Shopify teklifleri bu aşamada kapalı.</p>
-      <h3>AI tasarım üretimi</h3>
+      <p>
+        {t("Ödeme ve satın alma sonrası Shopify teklifleri bu aşamada kapalı.")}
+      </p>
+      <h3>{t("AI tasarım üretimi")}</h3>
       <p>
         {integrations?.ai.configured
-          ? `${integrations.ai.model} hazır`
-          : "AI sağlayıcısı henüz yapılandırılmadı."}
+          ? t("{p0} hazır", { p0: integrations.ai.model })
+          : t("AI sağlayıcısı henüz yapılandırılmadı.")}
       </p>
       <textarea
-        aria-label="AI tasarım isteği"
-        placeholder="Oluşturulacak sayfayı anlat"
+        aria-label={t("AI tasarım isteği")}
+        placeholder={t("Oluşturulacak sayfayı anlat")}
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
       />
       <select
-        aria-label="AI referans görseli"
+        aria-label={t("AI referans görseli")}
         value={image}
         onChange={(e) => setImage(e.target.value)}
       >
-        <option value="">Görsel kullanma</option>
+        <option value="">{t("Görsel kullanma")}</option>
         {assets
           .filter((a) => a.type === "image" && !a.archived)
           .map((a) => (
@@ -289,15 +301,14 @@ export function GrowthPanel({
         onClick={async () => {
           setBusy(true);
           try {
-            const r = await api<{ document: PageDocument }>(
-              `/stores/${storeId}/ai`,
-              {
-                method: "POST",
-                body: json({ prompt, assetId: image || undefined }),
-              },
-            );
+            const r = await api<{
+              document: PageDocument;
+            }>(`/stores/${storeId}/ai`, {
+              method: "POST",
+              body: json({ prompt, assetId: image || undefined }),
+            });
             commit(() => ({ ...r.document, name: page.name, type: page.type }));
-            notify("AI tasarımı taslağa alındı. Kontrol edip kaydet.");
+            notify(t("AI tasarımı taslağa alındı. Kontrol edip kaydet."));
           } catch (e) {
             notify((e as Error).message, true);
           } finally {
@@ -306,14 +317,15 @@ export function GrowthPanel({
         }}
       >
         {busy
-          ? "Üretiliyor…"
+          ? t("Üretiliyor…")
           : image
-            ? "Görselden düzenlenebilir tasarım"
-            : "AI ile sayfa oluştur"}
+            ? t("Görselden düzenlenebilir tasarım")
+            : t("AI ile sayfa oluştur")}
       </button>
-      <h3>Form hedefi</h3>
+      <h3>{t("Form hedefi")}</h3>
       <p>
-        {integrations?.forms.destination || "Uygulama içi gönderim kayıtları"}
+        {integrations?.forms.destination ||
+          t("Uygulama içi gönderim kayıtları")}
       </p>
       <TransferPanel
         pageId={pageId}
@@ -322,16 +334,19 @@ export function GrowthPanel({
         save={save}
         notify={notify}
       />
-      <h3>Müşteri önizleme/onayları</h3>
+      <h3>{t("Müşteri önizleme/onayları")}</h3>
       <p>
-        Sayfa panelindeki paylaşılabilir önizlemede müşteri yorum bırakabilir.
-        Yönetim erişimi yalnızca sana aittir.
+        {t(
+          "Sayfa panelindeki paylaşılabilir önizlemede müşteri yorum bırakabilir. Yönetim erişimi yalnızca sana aittir.",
+        )}
       </p>
       {reviews.map((r, i) => (
         <div className="feature-card" key={i}>
           <b>
             {r.reviewer} ·{" "}
-            {r.decision === "approve" ? "Onaylandı" : "Değişiklik istendi"}
+            {r.decision === "approve"
+              ? t("Onaylandı")
+              : t("Değişiklik istendi")}
           </b>
           <p>{r.note}</p>
         </div>
@@ -345,16 +360,16 @@ export function PreviewReview({ token }: { token: string }) {
     [message, setMessage] = useState("");
   return (
     <aside className="preview-review">
-      <b>Önizleme değerlendirmesi</b>
+      <b>{t("Önizleme değerlendirmesi")}</b>
       <input
-        aria-label="Değerlendiren adı"
-        placeholder="Adın"
+        aria-label={t("Değerlendiren adı")}
+        placeholder={t("Adın")}
         value={reviewer}
         onChange={(e) => setReviewer(e.target.value)}
       />
       <input
-        aria-label="Değerlendirme notu"
-        placeholder="Not"
+        aria-label={t("Değerlendirme notu")}
+        placeholder={t("Not")}
         value={note}
         onChange={(e) => setNote(e.target.value)}
       />
@@ -367,13 +382,13 @@ export function PreviewReview({ token }: { token: string }) {
                 method: "POST",
                 body: json({ reviewer, note, decision: d }),
               });
-              setMessage("Değerlendirme kaydedildi.");
+              setMessage(t("Değerlendirme kaydedildi."));
             } catch (e) {
               setMessage((e as Error).message);
             }
           }}
         >
-          {d === "approve" ? "Onayla" : "Değişiklik iste"}
+          {d === "approve" ? t("Onayla") : t("Değişiklik iste")}
         </button>
       ))}
       <small role="status">{message}</small>

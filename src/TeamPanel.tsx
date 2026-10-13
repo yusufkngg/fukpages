@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import { useState, useEffect } from "react";
 import { api, json } from "./api";
 import type { Store } from "./model";
@@ -29,13 +30,14 @@ export function TeamPanel({
   }, []);
   return (
     <div className="library-scroll feature-panel">
-      <h3>İsteğe bağlı ajans hesapları</h3>
+      <h3>{t("İsteğe bağlı ajans hesapları")}</h3>
       <p>
-        Başlangıçta yalnızca ana yönetici vardır. Ek hesaplar yalnızca burada
-        oluşturulur; genel kayıt kapalıdır.
+        {t(
+          "Başlangıçta yalnızca ana yönetici vardır. Ek hesaplar yalnızca burada oluşturulur; genel kayıt kapalıdır.",
+        )}
       </p>
       <label>
-        Kullanıcı adı
+        {t("Kullanıcı adı")}
         <input
           autoComplete="off"
           value={login}
@@ -43,9 +45,9 @@ export function TeamPanel({
         />
       </label>
       <label>
-        Şifre
+        {t("Şifre")}
         <input
-          aria-label="Yeni hesap şifresi"
+          aria-label={t("Yeni hesap şifresi")}
           type="password"
           autoComplete="new-password"
           minLength={12}
@@ -54,15 +56,15 @@ export function TeamPanel({
         />
       </label>
       <label>
-        Rol
+        {t("Rol")}
         <select value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="viewer">İzleyici · salt okunur tasarım</option>
+          <option value="viewer">{t("İzleyici · salt okunur tasarım")}</option>
           <option value="editor">
-            Düzenleyici · yetkili mağaza taslakları
+            {t("Düzenleyici · yetkili mağaza taslakları")}
           </option>
         </select>
       </label>
-      <p>Yetkili mağazalar</p>
+      <p>{t("Yetkili mağazalar")}</p>
       {stores.map((s) => (
         <label key={s.id}>
           <input
@@ -87,13 +89,15 @@ export function TeamPanel({
             setPassword("");
             setLogin("");
             await reload();
-            notify("Hesap oluşturuldu. Yönetim yetkisi ana yöneticide kalır.");
+            notify(
+              t("Hesap oluşturuldu. Yönetim yetkisi ana yöneticide kalır."),
+            );
           } catch (e) {
             notify((e as Error).message, true);
           }
         }}
       >
-        Hesabı oluştur
+        {t("Hesabı oluştur")}
       </button>
       {accounts.map((a) => (
         <div key={a.id} className="feature-card">
@@ -113,13 +117,15 @@ export function TeamPanel({
                   body: json({ active: !a.active }),
                 });
                 await reload();
-                notify("Hesap durumu değiştirildi; eski oturumlar kapatıldı.");
+                notify(
+                  t("Hesap durumu değiştirildi; eski oturumlar kapatıldı."),
+                );
               } catch (e) {
                 notify((e as Error).message, true);
               }
             }}
           >
-            {a.active ? "Devre dışı bırak" : "Etkinleştir"}
+            {a.active ? t("Devre dışı bırak") : t("Etkinleştir")}
           </button>
         </div>
       ))}

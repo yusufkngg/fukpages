@@ -2,6 +2,10 @@ export function freezeBrandDocument(document, brand) {
   const values = (device) => {
     const out = {};
     for (const [k, v] of Object.entries(brand.colors)) out["--brand-" + k] = v;
+    for (const [k, v] of Object.entries(
+      brand.spacing || { xxs: 2, xs: 4, sm: 8, md: 16, lg: 24, xl: 40 },
+    ))
+      out["--space-" + k] = v + "px";
     for (const [k, v] of Object.entries(brand.fonts))
       out["--font-" + k] =
         k === "fallback" ? v : `${v.split(",")[0]}, ${brand.fonts.fallback}`;

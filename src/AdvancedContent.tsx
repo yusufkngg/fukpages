@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import { useState, useEffect, type ReactNode } from "react";
 import { Dialog, scrollBehavior } from "./Dialog";
 import { trackEvent } from "./metrics";
@@ -93,7 +94,7 @@ export function FormContent({
       onSubmit={async (e) => {
         e.preventDefault();
         if (editable || previewToken) {
-          setState("Önizlemede gönderim kapalı. Formu yerel yayında dene.");
+          setState(t("Önizlemede gönderim kapalı. Formu yerel yayında dene."));
           return;
         }
         if (busy) return;
@@ -111,7 +112,9 @@ export function FormContent({
               requestId,
             }),
           });
-          setState(String(node.props.successMessage || "Gönderimin alındı."));
+          setState(
+            String(node.props.successMessage || t("Gönderimin alındı.")),
+          );
           const target = String(node.props.redirect || "");
           if (/^(https?:\/\/|\/(?!\/))/.test(target))
             window.location.href = target;
@@ -123,10 +126,10 @@ export function FormContent({
       }}
     >
       <small className="form-destination">
-        Hedef:{" "}
+        {t("Hedef:")}{" "}
         {node.props.destination === "webhook"
           ? formDestination
-          : "Uygulama içi gönderim kayıtları"}
+          : t("Uygulama içi gönderim kayıtları")}
       </small>
       {children}
       <label className="form-honeypot" aria-hidden="true">
@@ -134,7 +137,9 @@ export function FormContent({
         <input name="companyWebsite" tabIndex={-1} autoComplete="off" />
       </label>
       <button type="submit" disabled={busy}>
-        {busy ? "Gönderiliyor…" : String(node.props.submitLabel || "Gönder")}
+        {busy
+          ? t("Gönderiliyor…")
+          : String(node.props.submitLabel || t("Gönder"))}
       </button>
       <p role="status">{state}</p>
     </form>
@@ -172,7 +177,7 @@ function Popup({
     <>
       {node.props.trigger === "button" && (
         <button onClick={() => setOpen(true)}>
-          {String(node.props.text || "Aç")}
+          {String(node.props.text || t("Aç"))}
         </button>
       )}
       <Dialog
@@ -312,7 +317,7 @@ export function AdvancedContent({
             aria-labelledby={`${node.id}-tab-${active}`}
           >
             {items[active]?.split("|").slice(1).join("|") ||
-              String(p.description || "Sekme içeriği")}
+              String(p.description || t("Sekme içeriği"))}
           </div>
         </div>
       );
@@ -322,13 +327,13 @@ export function AdvancedContent({
           {images[active % images.length] && (
             <img
               src={images[active % images.length]}
-              alt={String(p.alt || `Slayt ${active + 1}`)}
+              alt={String(p.alt || t("Slayt {p0}", { p0: active + 1 }))}
               loading="lazy"
             />
           )}
           <p>{items[active % items.length]}</p>
           <button
-            aria-label="Önceki slayt"
+            aria-label={t("Önceki slayt")}
             onClick={() =>
               setActive(
                 (active + images.length - 1) % Math.max(1, images.length),
@@ -338,7 +343,7 @@ export function AdvancedContent({
             ←
           </button>
           <button
-            aria-label="Sonraki slayt"
+            aria-label={t("Sonraki slayt")}
             onClick={() => setActive((active + 1) % Math.max(1, images.length))}
           >
             →
@@ -368,7 +373,7 @@ export function AdvancedContent({
               >
                 <img
                   src={u}
-                  alt={String(p.alt || `Görsel ${n + 1}`)}
+                  alt={String(p.alt || t("Görsel {p0}", { p0: n + 1 }))}
                   loading="lazy"
                 />
               </button>
@@ -377,7 +382,7 @@ export function AdvancedContent({
           <Dialog
             open={open && !editable}
             onClose={() => setOpen(false)}
-            label="Görseli büyüt"
+            label={t("Görseli büyüt")}
           >
             <img src={images[active]} alt={String(p.alt || "")} />
           </Dialog>
@@ -387,7 +392,7 @@ export function AdvancedContent({
       return (
         <div aria-label={`${p.rating} / 5`}>
           ★★★★★ <b>{String(p.rating)} / 5</b> · {String(p.count)}{" "}
-          {String(p.text || "değerlendirme")}
+          {String(p.text || t("değerlendirme"))}
         </div>
       );
     case "comparison":
@@ -418,15 +423,15 @@ export function AdvancedContent({
       return (
         <div className="before-after">
           <div>
-            <img src={images[1]} alt="Sonra" />
+            <img src={images[1]} alt={t("Sonra")} />
             <img
               src={images[0]}
-              alt="Önce"
+              alt={t("Önce")}
               style={{ clipPath: `inset(0 ${100 - (active || 50)}% 0 0)` }}
             />
           </div>
           <label>
-            Önce / sonra
+            {t("Önce / sonra")}
             <input
               type="range"
               min={1}
@@ -451,27 +456,27 @@ export function AdvancedContent({
           }}
         >
           {copied
-            ? "Kopyalandı ✓"
-            : `${p.text || "Kuponu kopyala"} ${p.couponCode || ""}`}
+            ? t("Kopyalandı ✓")
+            : `${p.text || t("Kuponu kopyala")} ${p.couponCode || ""}`}
         </button>
       );
     case "shipping":
       return (
         <div>
-          <b>{String(p.title || "Teslimat ve iade")}</b>
-          <p>{String(p.description || "Teslimat koşullarını düzenle.")}</p>
+          <b>{String(p.title || t("Teslimat ve iade"))}</b>
+          <p>{String(p.description || t("Teslimat koşullarını düzenle."))}</p>
         </div>
       );
     case "videoPopup":
       return (
         <>
           <button onClick={() => setOpen(true)}>
-            {String(p.text || "Videoyu izle")}
+            {String(p.text || t("Videoyu izle"))}
           </button>
           <Dialog
             open={open && !editable}
             onClose={() => setOpen(false)}
-            label="Video"
+            label={t("Video")}
           >
             <video src={assetUrl(p.src, previewToken)} controls autoPlay />
           </Dialog>
@@ -480,23 +485,25 @@ export function AdvancedContent({
     case "backToTop":
       return (
         <button
-          aria-label="Yukarı dön"
+          aria-label={t("Yukarı dön")}
           onClick={() =>
             !editable && window.scrollTo({ top: 0, behavior: scrollBehavior() })
           }
         >
-          {String(p.text || "↑ Yukarı dön")}
+          {String(p.text || t("↑ Yukarı dön"))}
         </button>
       );
     case "breadcrumb":
     case "mobileMenu":
       return (
         <nav
-          aria-label={node.kind === "breadcrumb" ? "Breadcrumb" : "Mobil menü"}
+          aria-label={
+            node.kind === "breadcrumb" ? "Breadcrumb" : t("Mobil menü")
+          }
         >
           {node.kind === "mobileMenu" && (
             <button onClick={() => setOpen(!open)}>
-              ☰ {String(p.title || "Menü")}
+              ☰ {String(p.title || t("Menü"))}
             </button>
           )}
           {(node.kind === "breadcrumb" || open || editable) &&
@@ -536,7 +543,7 @@ export function AdvancedContent({
                     /^(https?:\/\/|\/(?!\/)|#)/.test(href || "") ? href : "#"
                   }
                 >
-                  Devamını oku
+                  {t("Devamını oku")}
                 </a>
               </article>
             );
@@ -546,7 +553,7 @@ export function AdvancedContent({
     case "customCode":
       return (
         <iframe
-          title={String(p.title || "Kontrollü HTML")}
+          title={String(p.title || t("Kontrollü HTML"))}
           sandbox="allow-same-origin"
           srcDoc={
             "<style>" +
@@ -559,7 +566,7 @@ export function AdvancedContent({
               .join("") +
             `body{font-family:${fontFamilyFor(brand, "body")};color:${brand.colors.text}}h1,h2,h3,h4,h5,h6{font-family:${fontFamilyFor(brand, "heading")}}button,a{font-family:${fontFamilyFor(brand, "button")}}</style>` +
             DOMPurify.sanitize(
-              String(p.code || "<p>HTML içeriğini düzenle.</p>"),
+              String(p.code || t("<p>HTML içeriğini düzenle.</p>")),
             )
           }
         />
@@ -567,8 +574,8 @@ export function AdvancedContent({
     case "appEmbed":
       return (
         <div className="integration-placeholder">
-          {String(p.title || "Uygulama bileşeni")} · Dış hizmet bağlantısı
-          yapılandırılmadı.
+          {String(p.title || t("Uygulama bileşeni"))}
+          {" " + t("· Dış hizmet bağlantısı yapılandırılmadı.")}
         </div>
       );
     default:

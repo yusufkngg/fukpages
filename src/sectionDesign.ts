@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import { cloneBlock, mapBlock, type Block, type Device } from "./model";
 import { createSectionPreset, sectionPresets } from "./sections";
 const layoutKeys = new Set([
@@ -147,14 +148,14 @@ export function sectionDependencies(section: Block) {
         !section.props.productId,
     )
   )
-    messages.push("Yerel katalogdan ürün seçilmeli.");
+    messages.push(t("Yerel katalogdan ürün seçilmeli."));
   if (nodes.some((n) => n.kind === "collectionGrid" && !n.props.collectionId))
-    messages.push("Koleksiyon seçilmeli veya tüm ürünler kullanılmalı.");
+    messages.push(t("Koleksiyon seçilmeli veya tüm ürünler kullanılmalı."));
   if (nodes.some((n) => n.kind === "appEmbed"))
-    messages.push("Uygulama sağlayıcısı yapılandırılmalı.");
+    messages.push(t("Uygulama sağlayıcısı yapılandırılmalı."));
   if (nodes.some((n) => n.kind === "image" && !n.props.src))
-    messages.push("Eksik görsel eklenmeli.");
+    messages.push(t("Eksik görsel eklenmeli."));
   if (nodes.some((n) => n.kind === "video" || n.kind === "videoPopup"))
-    messages.push("Video kaynağını kontrol et.");
+    messages.push(t("Video kaynağını kontrol et."));
   return messages;
 }

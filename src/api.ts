@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 let csrfToken = "";
 const uploadIds = new WeakMap<File, string>();
 export function setCsrf(value: string) {
@@ -19,21 +20,21 @@ export function uploadFiles(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `/api${path}`);
-    xhr.timeout = 60_000;
+    xhr.timeout = 60000;
     xhr.ontimeout = () =>
-      reject(new Error("Yükleme zaman aşımına uğradı. Tekrar dene."));
+      reject(new Error(t("Yükleme zaman aşımına uğradı. Tekrar dene.")));
     xhr.setRequestHeader("X-CSRF-Token", csrfToken);
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) progress(Math.round((e.loaded / e.total) * 100));
     };
-    xhr.onerror = () => reject(new Error("Bağlantı kesildi. Tekrar dene."));
+    xhr.onerror = () => reject(new Error(t("Bağlantı kesildi. Tekrar dene.")));
     xhr.onload = () => {
       try {
         const result = JSON.parse(xhr.responseText);
         if (xhr.status >= 200 && xhr.status < 300) resolve(result);
-        else reject(new Error(result.error || "Yükleme başarısız."));
+        else reject(new Error(result.error || t("Yükleme başarısız.")));
       } catch {
-        reject(new Error("Yükleme yanıtı okunamadı."));
+        reject(new Error(t("Yükleme yanıtı okunamadı.")));
       }
     };
     const data = new FormData();
@@ -69,8 +70,8 @@ export async function api<T>(
   } catch {
     throw new ApiError(
       options.signal?.reason?.name === "TimeoutError"
-        ? "Sunucu zamanında yanıt vermedi. Tekrar dene."
-        : "Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.",
+        ? t("Sunucu zamanında yanıt vermedi. Tekrar dene.")
+        : t("Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene."),
       0,
     );
   }
@@ -80,15 +81,18 @@ export async function api<T>(
   } catch {
     throw new ApiError(
       options.signal?.reason?.name === "TimeoutError"
-        ? "Sunucu zamanında yanıt vermedi. Tekrar dene."
+        ? t("Sunucu zamanında yanıt vermedi. Tekrar dene.")
         : response.status >= 500
-          ? "Sunucu şu anda çalışmıyor. Biraz sonra tekrar dene."
-          : "Sunucunun yanıtı okunamadı. İşlemi tekrar dene.",
+          ? t("Sunucu şu anda çalışmıyor. Biraz sonra tekrar dene.")
+          : t("Sunucunun yanıtı okunamadı. İşlemi tekrar dene."),
       response.status,
     );
   }
   if (!response.ok)
-    throw new ApiError(result.error ?? "İşlem tamamlanamadı.", response.status);
+    throw new ApiError(
+      result.error ?? t("İşlem tamamlanamadı."),
+      response.status,
+    );
   return result;
 }
 export const json = (body: unknown) => JSON.stringify(body);
@@ -97,6 +101,6 @@ export class ApiError extends Error {
     message: string,
     public status: number,
   ) {
-    super(message);
+    super(t(message));
   }
 }

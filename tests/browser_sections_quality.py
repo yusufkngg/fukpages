@@ -49,7 +49,7 @@ with browser_fixture() as f:
                 print(f'CHECK: {case} presets {start+1}–{start+len(chunk)} at {width}px',flush=True)
     (artifacts/'section-quality.json').write_text(json.dumps({'checks':checks,'presets':60,'cases':3,'widths':[1440,820,390,320],'failures':failures,'page_errors':errors},ensure_ascii=False,indent=2))
     for label,images in shots.items():
-        gallery=browser.new_page(viewport={'width':1500,'height':1000})
+        gallery=browser.new_page(viewport={'width':1500,'height':1000});gallery.add_init_script("localStorage.setItem('fp-ui-language','tr')")
         html='<html lang="tr"><style>*{box-sizing:border-box}body{font:12px Arial;margin:0;padding:18px;background:#e9eee2}.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.card{background:white;border-radius:8px;padding:8px;min-height:210px}.card img{width:100%;height:175px;object-fit:contain;object-position:top}.card b{display:block;margin:8px 0}</style><h1>FukPages · 60 bölüm · '+label+'</h1><div class="grid">'+''.join('<div class="card"><b>'+name+'</b><img src="data:image/png;base64,'+data+'"></div>' for name,data in images)+'</div></html>'
         gallery.set_content(html);gallery.evaluate('()=>Promise.all([...document.images].map(i=>i.decode()))');gallery.screenshot(path=str(artifacts/f'section-quality-{label}.png'),full_page=True);gallery.close()
     assert not errors,errors

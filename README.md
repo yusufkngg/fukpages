@@ -20,6 +20,33 @@ Canlı demo: https://fukpages.netlify.app/ . Giriş ekranı, API, demo mağaza v
 yerel sepet masaüstü/mobilde canlı olarak doğrulandı. Yönetici şifresi
 Netlify ortam ayarlarından sağlanır; gerçek sahip oturumu bu testte açılmadı.
 
+## 0.5 geliştirmeleri
+
+- Arayüz varsayılan İngilizce. Dişli simgesi → **Settings → Language → Türkçe**
+  tercihi tarayıcıda saklanır; sayfa içeriği ve SEO metni çevrilmez.
+- İkonlu sol menü; **Sections / Elements**, görsel satır kartları ve tek,
+  genişliği ayarlanabilen sol ayar paneli. **Settings / Advanced** ayrımı;
+  font, boyut, kalın/italik/altı çizili, renk ve hizalama ilk sırada.
+- Metne tek tık seçim; çift tık düzenleme. İkon kutusu varsayılan olarak
+  glyph'e sığar; ikon seçici ve **Fit to icon** kontrolü bulunur.
+- Ctrl/Cmd X/C/V, S, D, Z/Shift+Z; Ctrl+Y, seçim/grup ve ok tuşları.
+  **Settings → Keyboard shortcuts** yardımını aç. Kes/yapıştır aynı sayfada
+  kimlikleri korur; kopyalar ve sayfalar arası yapıştırma yeni kimlik kullanır.
+- Satırın içinde doğrudan metin ve ikon. Bölüm/satır için 1–6 kolon;
+  azaltırken içerik korunur. Görsel padding/margin diyagramı ve cihaz ayarları.
+- Taşınan ve boyutlandırılan **Layers** ağacı, arama ve cihaz bazında görünürlük.
+- **Global Styles** renkler, fontlar, tipografi ve altı boşluk token'ı.
+  **Update all pages** veya Ctrl+S ile markayı kaydet; özel font yüklemesi korunur.
+- Çok öğeli accordion: düzenleme, çoğaltma, sıralama, kaldırma; başlık/içerik
+  arka planı, padding, kenarlık, köşe ve aralık ayarları. Yerel yayında çalışır.
+- İkonlu mevcut tema bölüm kartları ve **Choose templates / Add blank section**.
+  Gerçek Shopify bölüm verisi bağlantı aşamasını gerektirir.
+
+52 otomatik test; yeni arayüz kabul akışı `npm run test:ui`. İngilizce ve Türkçe
+editör açılışı, kalıcı dil tercihi, içerik korunması, native kes/yapıştır, ikon
+ölçüsü, çift tık, layer tree boyutlandırma ve accordion yayını kontrol edilir.
+[Davranışlar ve ekran görüntüleri](docs/EDITOR_UI.md).
+
 ## 0.4 geliştirmeleri
 
 - Ana sayfa, ürün ve koleksiyon sekmeleri; arama, bağımsız taslak çoğaltma ve

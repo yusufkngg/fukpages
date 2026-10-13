@@ -1,3 +1,4 @@
+import { getUiLocale, getUiLanguage, t } from "./i18n.ts";
 import { useCallback, useEffect, useState } from "react";
 import { api, json } from "./api";
 import { Dialog } from "./Dialog";
@@ -28,7 +29,10 @@ export function AssignmentDialog({
     [busy, setBusy] = useState(false);
   useEffect(() => {
     let active = true;
-    api<{ ids: string[]; version: number }>(`/pages/${page.id}/assignments`)
+    api<{
+      ids: string[];
+      version: number;
+    }>(`/pages/${page.id}/assignments`)
       .then((r) => {
         if (active) {
           setIds(r.ids);
@@ -44,26 +48,26 @@ export function AssignmentDialog({
   }, [page.id]);
   const options =
     page.type === "home"
-      ? [{ id: "home", title: "Mağazanın ana sayfası" }]
+      ? [{ id: "home", title: t("Mağazanın ana sayfası") }]
       : page.type === "product"
         ? catalog.products
         : catalog.collections;
   return (
     <Dialog
       open
-      label="Sayfa atamaları"
+      label={t("Sayfa atamaları")}
       onClose={close}
       className="page-assignment-dialog"
     >
       <h2>{page.name}</h2>
       <p>
         {page.type === "product"
-          ? "Bu tasarımı kullanacak ürünleri seç."
+          ? t("Bu tasarımı kullanacak ürünleri seç.")
           : page.type === "collection"
-            ? "Bu tasarımı kullanacak koleksiyonları seç."
-            : "Bu sayfayı mağazanın ana sayfası olarak seç."}
+            ? t("Bu tasarımı kullanacak koleksiyonları seç.")
+            : t("Bu sayfayı mağazanın ana sayfası olarak seç.")}
       </p>
-      <small>Yerel demo kataloğu · Shopify’a atama yapılmaz.</small>
+      <small>{t("Yerel demo kataloğu · Shopify’a atama yapılmaz.")}</small>
       <div className="assignment-options">
         {options.map((item) => (
           <label key={item.id}>
@@ -85,13 +89,14 @@ export function AssignmentDialog({
         ))}
         {!options.length && (
           <p>
-            Önce yerel kataloğa{" "}
-            {page.type === "product" ? "ürün" : "koleksiyon"} ekle.
+            {t("Önce yerel kataloğa")}{" "}
+            {page.type === "product" ? t("ürün") : "koleksiyon"}
+            {" " + t("ekle.")}
           </p>
         )}
       </div>
       <button disabled={version === null || busy} onClick={() => setIds([])}>
-        Tüm atamaları kaldır
+        {t("Tüm atamaları kaldır")}
       </button>
       {error && (
         <p role="alert" className="form-error">
@@ -99,7 +104,7 @@ export function AssignmentDialog({
         </p>
       )}
       <footer>
-        <button onClick={close}>Vazgeç</button>
+        <button onClick={close}>{t("Vazgeç")}</button>
         <button
           className="primary-button"
           disabled={version === null || busy}
@@ -120,7 +125,7 @@ export function AssignmentDialog({
             }
           }}
         >
-          {busy ? "Kaydediliyor…" : "Atamaları kaydet"}
+          {busy ? t("Kaydediliyor…") : t("Atamaları kaydet")}
         </button>
       </footer>
     </Dialog>
@@ -165,17 +170,23 @@ export function PageManager({
         (tab === "other" &&
           !["home", "product", "collection"].includes(p.type)) ||
         p.type === tab) &&
-      p.name.toLocaleLowerCase("tr").includes(search.toLocaleLowerCase("tr")),
+      p.name
+        .toLocaleLowerCase(getUiLanguage())
+        .includes(search.toLocaleLowerCase(getUiLanguage())),
   );
   return (
-    <section className="page-manager" aria-label="Sayfa yönetimi">
-      <div className="page-type-tabs" role="tablist" aria-label="Sayfa türleri">
+    <section className="page-manager" aria-label={t("Sayfa yönetimi")}>
+      <div
+        className="page-type-tabs"
+        role="tablist"
+        aria-label={t("Sayfa türleri")}
+      >
         {[
-          ["all", "Tümü"],
-          ["home", "Ana sayfa"],
-          ["product", "Ürün sayfaları"],
-          ["collection", "Koleksiyon sayfaları"],
-          ["other", "Diğer"],
+          ["all", t("Tümü")],
+          ["home", t("Ana sayfa")],
+          ["product", t("Ürün sayfaları")],
+          ["collection", t("Koleksiyon sayfaları")],
+          ["other", t("Diğer")],
         ].map(([id, name]) => (
           <button
             role="tab"
@@ -200,17 +211,17 @@ export function PageManager({
       </div>
       <div className="page-manager-controls">
         <input
-          aria-label="Sayfa ara"
-          placeholder="Sayfa ara…"
+          aria-label={t("Sayfa ara")}
+          placeholder={t("Sayfa ara…")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         {writable &&
           (
             [
-              ["home", "Yeni ana sayfa"],
-              ["product", "Yeni ürün sayfası"],
-              ["collection", "Yeni koleksiyon sayfası"],
+              ["home", t("Yeni ana sayfa")],
+              ["product", t("Yeni ürün sayfası")],
+              ["collection", t("Yeni koleksiyon sayfası")],
             ] as [PageType, string][]
           ).map(([type, label]) => (
             <button
@@ -225,7 +236,7 @@ export function PageManager({
                   });
                   setTab(type);
                   await reload();
-                  notify(label + " oluşturuldu.");
+                  notify(label + t(" oluşturuldu."));
                 } catch (e) {
                   notify((e as Error).message, true);
                 } finally {
@@ -239,17 +250,17 @@ export function PageManager({
       </div>
       <div className="page-table">
         <div className="page-table-header">
-          <span>Sayfa adı</span>
-          <span>Tür / atamalar</span>
-          <span>Yayın durumu</span>
-          <span>İşlemler</span>
+          <span>{t("Sayfa adı")}</span>
+          <span>{t("Tür / atamalar")}</span>
+          <span>{t("Yayın durumu")}</span>
+          <span>{t("İşlemler")}</span>
         </div>
         {filtered.map((p) => (
           <div className="page-table-row" key={p.id} data-page-id={p.id}>
             <span>
               <b>{p.name}</b>
               <small>
-                {new Date(p.updated).toLocaleString("tr-TR", {
+                {new Date(p.updated).toLocaleString(getUiLocale(), {
                   timeZone: "Europe/Istanbul",
                 })}
               </small>
@@ -261,18 +272,18 @@ export function PageManager({
                   ? p.assignments
                       .map((id) =>
                         p.type === "home"
-                          ? "Ana sayfa"
+                          ? t("Ana sayfa")
                           : (p.type === "product"
                               ? catalog.products
                               : catalog.collections
                             ).find((v) => v.id === id)?.title || id,
                       )
                       .join(", ")
-                  : "Atama yok"}
+                  : t("Atama yok")}
               </small>
             </span>
             <span className="page-publication-state">
-              {p.published ? "Yayında" : "Taslak"}
+              {p.published ? t("Yayında") : t("Taslak")}
               {p.published &&
                 p.assignments?.map((id) => (
                   <a
@@ -281,7 +292,7 @@ export function PageManager({
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Mağazada aç ↗
+                    {t("Mağazada aç ↗")}
                   </a>
                 ))}
             </span>
@@ -290,12 +301,12 @@ export function PageManager({
                 disabled={store.status !== "active"}
                 onClick={() => open(p.id)}
               >
-                {role === "viewer" ? "Görüntüle" : "Düzenle"}
+                {role === "viewer" ? t("Görüntüle") : t("Düzenle")}
               </button>
               {writable && (
                 <>
                   <button
-                    aria-label={`${p.name} çoğalt`}
+                    aria-label={t("{p0} çoğalt", { p0: p.name })}
                     disabled={busy}
                     onClick={async () => {
                       setBusy(true);
@@ -306,7 +317,9 @@ export function PageManager({
                         });
                         await reload();
                         notify(
-                          "Sayfa çoğaltıldı. Kopya taslaktır ve atamaları boştur.",
+                          t(
+                            "Sayfa çoğaltıldı. Kopya taslaktır ve atamaları boştur.",
+                          ),
                         );
                       } catch (e) {
                         notify((e as Error).message, true);
@@ -315,10 +328,12 @@ export function PageManager({
                       }
                     }}
                   >
-                    Çoğalt
+                    {t("Çoğalt")}
                   </button>
                   {["home", "product", "collection"].includes(p.type) && (
-                    <button onClick={() => setAssign(p)}>Atamalar</button>
+                    <button onClick={() => setAssign(p)}>
+                      {t("Atamalar")}
+                    </button>
                   )}
                 </>
               )}
@@ -327,7 +342,7 @@ export function PageManager({
         ))}
         {!filtered.length && (
           <div className="dashboard-empty">
-            <p>Bu türde eşleşen sayfa yok.</p>
+            <p>{t("Bu türde eşleşen sayfa yok.")}</p>
           </div>
         )}
       </div>
@@ -340,7 +355,9 @@ export function PageManager({
           saved={() => {
             void reload();
             notify(
-              "Atamalar kaydedildi. Sayfanın yayınlanan sürümü yerel hedefte açılır.",
+              t(
+                "Atamalar kaydedildi. Sayfanın yayınlanan sürümü yerel hedefte açılır.",
+              ),
             );
           }}
         />

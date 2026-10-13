@@ -30,6 +30,7 @@ export interface Asset {
   usage?: { id: string; name: string; scope: string }[];
 }
 export interface Brand {
+  spacing?: Record<string, number>;
   colors: Record<string, string>;
   fonts: Record<string, string>;
   typography: Record<string, number>;
@@ -41,6 +42,7 @@ export interface Brand {
   };
 }
 export const defaultBrand: Brand = {
+  spacing: { xxs: 2, xs: 4, sm: 8, md: 16, lg: 24, xl: 40 },
   colors: {
     primary: "#17241c",
     secondary: "#d8e8b7",
@@ -117,6 +119,10 @@ export function resolveBrandStyles(
   device: Device = "desktop",
 ) {
   const values: Record<string, string> = {};
+  for (const [key, value] of Object.entries(
+    brand.spacing || defaultBrand.spacing!,
+  ))
+    values[`--space-${key}`] = value + "px";
   for (const [k, v] of Object.entries(brand.colors)) values["--brand-" + k] = v;
   for (const k of Object.keys(brand.fonts))
     values["--font-" + k] = fontFamilyFor(brand, k);
@@ -176,6 +182,9 @@ export function StudioProvider({
       )
       .join("");
     const vars = [
+      ...Object.entries(b.spacing || defaultBrand.spacing!).map(
+        ([key, value]) => `--space-${key}:${value}px`,
+      ),
       ...Object.entries(b.colors).map(([k, v]) => `--brand-${k}:${v}`),
       ...Object.keys(b.fonts).map((k) => `--font-${k}:${fontFamilyFor(b, k)}`),
       ...Object.entries(b.typography)

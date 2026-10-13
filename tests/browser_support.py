@@ -7,7 +7,7 @@ from urllib.request import urlopen
 from playwright.sync_api import sync_playwright, expect
 ROOT = Path(__file__).resolve().parents[1]
 @contextmanager
-def browser_fixture(lose_upload_response=False, netlify=False):
+def browser_fixture(lose_upload_response=False, netlify=False, ui_language="tr"):
     with TemporaryDirectory(prefix='fukpages-browser-review-') as temp:
         password = secrets.token_urlsafe(32)
         hashed = subprocess.run(['node','--input-type=module','-e',"import {hashPassword} from './server/auth.mjs';let p='';for await(const c of process.stdin)p+=c;process.stdout.write(hashPassword(p));"],cwd=ROOT,input=password,text=True,capture_output=True,check=True).stdout
@@ -28,6 +28,13 @@ def browser_fixture(lose_upload_response=False, netlify=False):
                 else: raise AssertionError('Temporary server failed to start')
                 with sync_playwright() as p:
                     browser=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox'])
+                    if ui_language is not None:
+                        original_context=browser.new_context
+                        def localized_context(**options):
+                            context=original_context(**options)
+                            context.add_init_script("localStorage.setItem('fp-ui-language',"+repr(ui_language)+")")
+                            return context
+                        browser.new_context=localized_context
                     owner=browser.new_context(viewport={'width':1680,'height':1050})
                     login=owner.request.post(base+'/api/auth/login',data={'login':'owner','password':password});assert login.status==200
                     csrf=login.json()['csrf']
@@ -53,3 +60,8 @@ def open_editor(page,base,name):
     page.get_by_role('button',name='Sayfaları yönet',exact=True).first.click()
     page.locator('.page-table-row').filter(has_text=name).get_by_role('button',name='Düzenle',exact=True).click()
     expect(page.get_by_label('Sayfa adı')).to_be_visible()
+
+
+def open_actions(page):
+    details=page.locator('.selection-actions')
+    if details.get_attribute('open') is None: details.locator(':scope > summary').click()

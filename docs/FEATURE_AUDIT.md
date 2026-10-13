@@ -1,10 +1,11 @@
-# Özellik denetimi — FukPages 0.4
+# Özellik denetimi — FukPages 0.5
 
 Kullanıcının özgün özellik listesi [REQUESTED_FEATURES.md](REQUESTED_FEATURES.md) içinde korunur. 155 madde için durum ve kanıt [requirements.json](requirements.json) içinde saklanır. Shopify bağlantısı bu aşamada yapılmaz; AI ve e-posta/CRM sağlayıcısı henüz seçilmedi.
 
 ## Doğrulama
 
-- `npm test`: 47 test; HTTP/SQLite, gerçek medya/font dönüşümü, rol sınırları, form, SEO, sürüm/senkron bölüm, aktarım, A/B, taslak birleştirme, sayfa atamaları/çoğaltma, birimsiz boşluklar ve Netlify sunucusuz kayıt/çakışma.
+- `npm test`: 52 test; HTTP/SQLite, gerçek medya/font dönüşümü, rol sınırları, form, SEO, sürüm/senkron bölüm, aktarım, A/B, taslak birleştirme, sayfa atamaları/çoğaltma, birimsiz boşluklar ve Netlify sunucusuz kayıt/çakışma.
+- `npm run test:ui`: varsayılan İngilizce, Türkçe ile yeniden editör açılışı, kalıcı tercih/içerik korunması, sade sol ayar paneli, çift tık, native kes/yapıştır, ikon ölçüsü, floating layer tree taşıma/boyutlandırma/görünürlük, global marka kaydı ve accordion yayını. [EDITOR_UI.md](EDITOR_UI.md).
 - `npm run test:feedback`: bağlantı, pano, serbest konum, boyutlandırma, cihaz bağımsızlığı, kolonlar, paneller, bölüm ekleme, padding/margin, SEO ve üç temel sayfa türü. Gerçek Chromium/Netlify Function/resmi **yerel** Blobs kullanılır. Ayrıntılar: [EDITOR_FEEDBACK.md](EDITOR_FEEDBACK.md).
 - `npm run test:responsive`: 320–4256 px arasında 13 genişlikte tam ekran bölüm arka planı, ortalı/sınırlı içerik, taşma ve gerçek breakpoint kontrolü; canlı marka genişliği değişimi, özel flex/grid ve aktarımda kaynak container korunması. Önceki sola hizalı 1200 px hata bu testte başarısız olur.
 - `npm run build`: TypeScript ve Vite üretim derlemesi.
@@ -27,7 +28,7 @@ Testler geçici şifre/veritabanı ve örnek veriler kullanır. Gerçek yönetic
 | Bölüm düzeni değiştirme | Uyumlu düzen değişikliğinde içerik, öğe kimlikleri, bağlantılar, görünürlük korunur; ek içerik sessizce üretilmez. |
 | Tekrarlanan kartlar | Metinleri değiştir, sırasını değiştir, çoğalt, kaldır; kopyalarda iç bağlantılar yeni kimliklere eşlenir. |
 | Bölüm önizlemesi | Gerçek sayfa renderer'ı ile marka/font ve masaüstü/tablet/mobil görünümü; önizlemede eylemler çalıştırılmaz. |
-| Netlify prototipi | Şifreli panel `/`, örnek mağaza `/p/demo/demo-store`; SQLite+medya koşullu Blobs kaydı; soğuk başlangıç, yarışan kayıt, kayıp upload cevabı, parola değişimi ve mağaza durdurma testleri. Canlı API/giriş ekranı/demo mağaza/sepet kontrolü geçti; gerçek owner oturumu açılmadı. |
+| Netlify prototipi | Şifreli panel `/`, örnek mağaza `/p/demo/home`; SQLite+medya koşullu Blobs kaydı; soğuk başlangıç, yarışan kayıt, kayıp upload cevabı, parola değişimi ve mağaza durdurma testleri. Canlı API/giriş ekranı/demo mağaza/sepet kontrolü geçti; gerçek owner oturumu açılmadı. |
 
 ## Durum sayıları
 

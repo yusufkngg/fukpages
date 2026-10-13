@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import { useState, useEffect } from "react";
 import { api } from "./api";
 import { PageRenderer } from "./Renderer";
@@ -22,8 +23,12 @@ export function Viewer({
     [error, setError] = useState("");
   useEffect(() => {
     Promise.all([
-      api<{ document: PageDocument }>(`/pages/${pageId}`),
-      api<{ brand: Brand }>(`/stores/${store.id}/brand`),
+      api<{
+        document: PageDocument;
+      }>(`/pages/${pageId}`),
+      api<{
+        brand: Brand;
+      }>(`/stores/${store.id}/brand`),
       api<Asset[]>(`/stores/${store.id}/assets`),
       api<Catalog>(`/stores/${store.id}/catalog`),
     ])
@@ -34,8 +39,8 @@ export function Viewer({
   }, [pageId, store.id]);
   return (
     <div>
-      <button onClick={back}>Mağazalara dön</button>
-      <p>İzleyici · Salt okunur tasarım</p>
+      <button onClick={back}>{t("Mağazalara dön")}</button>
+      <p>{t("İzleyici · Salt okunur tasarım")}</p>
       {data ? (
         <StudioProvider
           page={data.document}
@@ -44,7 +49,7 @@ export function Viewer({
           <PageRenderer document={data.document} device="desktop" />
         </StudioProvider>
       ) : (
-        <p>{error || "Yükleniyor…"}</p>
+        <p>{error || t("Yükleniyor…")}</p>
       )}
     </div>
   );

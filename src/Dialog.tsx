@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
@@ -80,7 +81,7 @@ export function Dialog({
         {dismissible && (
           <button
             className="modal-close"
-            aria-label={`${label} kapat`}
+            aria-label={t("{p0} kapat", { p0: label })}
             onClick={onClose}
           >
             ×

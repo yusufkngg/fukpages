@@ -20,7 +20,11 @@ export function placedStyle(
   device: Device,
   parentFree = false,
 ): Styles {
-  const style = { ...effectiveStyle(node, device) } as Styles;
+  const iconDefaults: Styles =
+    node.kind === "icon"
+      ? { display: "inline-flex", width: "fit-content", lineHeight: 1 }
+      : {};
+  const style = { ...iconDefaults, ...effectiveStyle(node, device) } as Styles;
   if (parentFree)
     return {
       ...style,
@@ -38,7 +42,7 @@ export function placedStyle(
     ...(device === "mobile" ? ["mobile"] : []),
   ] as Device[])
     Object.assign(result, flowStyle(node, d));
-  return normalizeStyles(result);
+  return { ...iconDefaults, ...normalizeStyles(result) };
 }
 const geometryKeys = [
   "position",

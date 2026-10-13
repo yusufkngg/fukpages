@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import { useCallback, useEffect, useState } from "react";
 import { api, json } from "./api";
 type Experiment = {
@@ -42,25 +43,28 @@ export function ExperimentResults({
   const percent = (n: number) => `${(n * 100).toFixed(1)}%`;
   return (
     <div className="experiment-results" data-experiment-results>
-      <h3>A/B sonuçları</h3>
-      <button onClick={() => void load()}>Test sonuçlarını yenile</button>
-      {!experiments.length && <p>Henüz yerel A/B testi yok.</p>}
+      <h3>{t("A/B sonuçları")}</h3>
+      <button onClick={() => void load()}>
+        {t("Test sonuçlarını yenile")}
+      </button>
+      {!experiments.length && <p>{t("Henüz yerel A/B testi yok.")}</p>}
       {experiments.map((e) => (
         <article key={e.id}>
-          <b>{e.name}</b> · {e.active ? "Aktif" : "Durduruldu"} · %{e.split}/%
+          <b>{e.name}</b> · {e.active ? t("Aktif") : t("Durduruldu")} · %
+          {e.split}/%
           {100 - e.split}
           <a href={`/?experiment=${e.id}`} target="_blank" rel="noreferrer">
-            Testi aç
+            {t("Testi aç")}
           </a>
           <table>
             <caption>{e.results.goal}</caption>
             <thead>
               <tr>
-                <th>Varyant</th>
-                <th>Ziyaretçi</th>
-                <th>Tıklayan</th>
-                <th>Sepete ekleyen</th>
-                <th>Oran · %95 aralık</th>
+                <th>{t("Varyant")}</th>
+                <th>{t("Ziyaretçi")}</th>
+                <th>{t("Tıklayan")}</th>
+                <th>{t("Sepete ekleyen")}</th>
+                <th>{t("Oran · %95 aralık")}</th>
               </tr>
             </thead>
             <tbody>
@@ -74,16 +78,16 @@ export function ExperimentResults({
                     {percent(v.cartRate)} ·{" "}
                     {v.visitors
                       ? v.interval.map(percent).join(" – ")
-                      : "Trafik bekleniyor"}
+                      : t("Trafik bekleniyor")}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
           <p>
-            Gözlenen B/A farkı:{" "}
+            {t("Gözlenen B/A farkı:")}{" "}
             {e.results.observedLift === null
-              ? "A varyantında dönüşüm bekleniyor"
+              ? t("A varyantında dönüşüm bekleniyor")
               : percent(e.results.observedLift)}
           </p>
           <small>{e.results.note}</small>
@@ -100,7 +104,7 @@ export function ExperimentResults({
               }
             }}
           >
-            {e.active ? "Testi durdur" : "Testi devam ettir"}
+            {e.active ? t("Testi durdur") : t("Testi devam ettir")}
           </button>
         </article>
       ))}

@@ -1,3 +1,6 @@
+import { getUiLocale, getUiLanguage, t } from "./i18n.ts";
+import { FloatingPanel } from "./FloatingPanel";
+import { UiSettingsButton } from "./UiSettings";
 import { ColumnHandles, resizeColumns } from "./ColumnHandles";
 import { SectionDesign } from "./SectionDesign";
 import { PageBar } from "./PageBar";
@@ -50,6 +53,7 @@ import {
   Copy,
   Download,
   Eye,
+  EyeOff,
   GripVertical,
   Layers,
   LayoutTemplate,
@@ -134,7 +138,6 @@ import {
   type PageDocument,
   type Store,
 } from "./model";
-
 interface PageResponse {
   id: string;
   document: PageDocument;
@@ -150,10 +153,18 @@ interface EditorProps {
   notify: (message: string, error?: boolean) => void;
   openPage: (id: string) => void;
 }
-function PaletteItem({ kind, onAdd }: { kind: Kind; onAdd: () => void }) {
+function PaletteItem({
+  kind,
+  columns,
+  onAdd,
+}: {
+  kind: Kind;
+  columns?: number;
+  onAdd: () => void;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `palette:${kind}`,
-    data: { kind },
+    id: `palette:${kind}:${columns ?? "default"}`,
+    data: { kind, columns },
   });
   const Icon = blockIcons[kind];
   return (
@@ -163,11 +174,36 @@ function PaletteItem({ kind, onAdd }: { kind: Kind; onAdd: () => void }) {
       {...listeners}
       className={`palette-card ${isDragging ? "dragging" : ""}`}
       onClick={onAdd}
-      title={`${labels[kind]} ekle veya sürükle`}
-      data-palette={kind}
+      title={t("{p0} ekle veya sürükle", { p0: labels[kind] })}
+      data-palette={
+        kind !== "row" || columns === undefined || columns === 2
+          ? kind
+          : undefined
+      }
+      data-row-columns={columns}
     >
-      <Icon size={24} strokeWidth={1.5} />
-      <span>{labels[kind]}</span>
+      <span className="palette-visual">
+        {kind === "row" && columns !== undefined ? (
+          <span className="row-visual">
+            {columns ? (
+              Array.from({ length: columns }, (_, i) => <i key={i} />)
+            ) : (
+              <>
+                <i className="mini-icon" />
+                <i className="mini-text" />
+              </>
+            )}
+          </span>
+        ) : (
+          <Icon size={32} strokeWidth={1.5} />
+        )}
+      </span>
+      <span>
+        {labels[kind]}
+        {kind === "row" && columns !== undefined && (
+          <small>{columns ? `${columns} ${t("columns")}` : t("Inline")}</small>
+        )}
+      </span>
       <Plus size={11} className="palette-add" />
     </button>
   );
@@ -324,7 +360,7 @@ function CanvasNode({
         <div className="block-toolbar">
           <span>{node.name}</span>
           <button
-            title="Öğeyi sürükle"
+            title={t("Öğeyi sürükle")}
             disabled={locked}
             {...(!parentFree ? drag.attributes : {})}
             {...(!parentFree ? drag.listeners : {})}
@@ -339,7 +375,7 @@ function CanvasNode({
             <GripVertical size={13} />
           </button>
           <button
-            title="Öğeyi çoğalt"
+            title={t("Öğeyi çoğalt")}
             onClick={(event) => {
               event.stopPropagation();
               duplicate(node.id);
@@ -348,7 +384,7 @@ function CanvasNode({
             <Copy size={12} />
           </button>
           <button
-            title="Öğeyi sil"
+            title={t("Öğeyi sil")}
             onClick={(event) => {
               event.stopPropagation();
               remove(node.id);
@@ -417,7 +453,7 @@ function CanvasNode({
             {!node.children.length && (
               <div className="empty-container">
                 <Plus size={16} />
-                <span>Öğeyi buraya bırak</span>
+                <span>{t("Öğeyi buraya bırak")}</span>
               </div>
             )}
           </>
@@ -440,6 +476,9 @@ function Layer({
   select,
   dragging,
   search = "",
+  visibility,
+  device,
+  inheritedLocked = false,
 }: {
   node: Block;
   parent?: string | null;
@@ -449,13 +488,17 @@ function Layer({
   select: (id: string, multi?: boolean) => void;
   dragging: boolean;
   search?: string;
+  visibility: (id: string) => void;
+  device: Device;
+  inheritedLocked?: boolean;
 }) {
+  const locked = inheritedLocked || !!node.props.locked;
   const [open, setOpen] = useState(depth > 0);
   const expanded = open || Boolean(search.trim());
   const drag = useDraggable({
     id: `layer:${node.id}`,
     data: { nodeId: node.id },
-    disabled: !!node.props.locked,
+    disabled: locked,
   });
   const drop = useDroppable({
     id: `layer-inside:${node.id}`,
@@ -467,6 +510,7 @@ function Layer({
     <>
       <div
         ref={drop.setNodeRef}
+        data-layer-id={node.id}
         className={`layer-row ${selected === node.id ? "active" : ""} ${drop.isOver ? "drop-active" : ""}`}
         style={{ paddingLeft: depth * 14 + 10 }}
       >
@@ -488,7 +532,7 @@ function Layer({
         />
         <button
           className="layer-toggle"
-          aria-label="Katmanı aç veya kapat"
+          aria-label={t("Katmanı aç veya kapat")}
           aria-expanded={expanded}
           onClick={() => setOpen(!open)}
         >
@@ -512,6 +556,15 @@ function Layer({
           <Icon size={14} />
           <span>{node.name}</span>
         </button>
+        <button
+          className="layer-visibility"
+          disabled={locked}
+          aria-label={`${t("Visibility")}: ${node.name}`}
+          aria-pressed={!node.hidden[device]}
+          onClick={() => visibility(node.id)}
+        >
+          {node.hidden[device] ? <EyeOff size={13} /> : <Eye size={13} />}
+        </button>
         <span className="layer-kind">
           {depth === 0 && node.kind === "section" && (
             <i className="fp-section-tag">FP</i>
@@ -525,8 +578,8 @@ function Layer({
             (child) =>
               !search ||
               JSON.stringify(child)
-                .toLocaleLowerCase("tr")
-                .includes(search.toLocaleLowerCase("tr")),
+                .toLocaleLowerCase(getUiLanguage())
+                .includes(search.toLocaleLowerCase(getUiLanguage())),
           )
           .map((child) => (
             <Layer
@@ -539,6 +592,10 @@ function Layer({
               select={select}
               dragging={dragging}
               search={search}
+
+              visibility={visibility}
+              device={device}
+              inheritedLocked={locked}
             />
           ))}
     </>
@@ -555,15 +612,15 @@ function EmptyPage({ add }: { add: () => void }) {
       className={`empty-page ${isOver ? "drop-inside" : ""}`}
     >
       <Plus size={32} />
-      <h2>İlk bölümünü ekle.</h2>
-      <p>Kütüphaneden bir öğeyi buraya sürükle.</p>
+      <h2>{t("İlk bölümünü ekle.")}</h2>
+      <p>{t("Kütüphaneden bir öğeyi buraya sürükle.")}</p>
       <button
         onClick={(event) => {
           event.stopPropagation();
           add();
         }}
       >
-        Bölüm ekle
+        {t("Bölüm ekle")}
       </button>
     </div>
   );
@@ -592,10 +649,14 @@ export function Editor({
   }, [refreshCatalog, notify]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [formDestination, setFormDestination] = useState(
-    "Webhook yapılandırılmadı",
+    t("Webhook yapılandırılmadı"),
   );
   useEffect(() => {
-    api<{ forms: { webhookLabel: string } }>(`/stores/${store.id}/integrations`)
+    api<{
+      forms: {
+        webhookLabel: string;
+      };
+    }>(`/stores/${store.id}/integrations`)
       .then((r) => setFormDestination(r.forms.webhookLabel))
       .catch((e) => notify(e.message, true));
   }, [store.id, notify]);
@@ -608,7 +669,10 @@ export function Editor({
   );
   useEffect(() => {
     void refreshAssets().catch((e) => notify(e.message, true));
-    api<{ brand: Brand; version: number }>(`/stores/${store.id}/brand`)
+    api<{
+      brand: Brand;
+      version: number;
+    }>(`/stores/${store.id}/brand`)
       .then((r) => {
         setBrand(r.brand);
         setBrandVersion(r.version);
@@ -648,6 +712,7 @@ export function Editor({
   }, [contextMenu]);
   const selectMany = useCallback((id: string, multi = false) => {
     setSelected(id);
+    setLibrary("properties");
     setSelection((old) =>
       multi
         ? old.includes(id)
@@ -668,7 +733,9 @@ export function Editor({
       element?.focus({ preventScroll: true });
     });
   }, []);
-  const [library, setLibrary] = useState("sections");
+  const [library, setLibrary] = useState("blocks");
+  const [layersOpen, setLayersOpen] = useState(false);
+  const [layerSearch, setLayerSearch] = useState("");
   const [savedSections, setSavedSections] = useState<SavedSection[]>([]);
   const [themeStatus, setThemeStatus] = useState<ThemeStatus>({
     configured: false,
@@ -723,7 +790,9 @@ export function Editor({
     let current = true;
     Promise.all([
       api<PageResponse>(`/pages/${pageId}`),
-      api<{ draftScope: string }>("/auth/status"),
+      api<{
+        draftScope: string;
+      }>("/auth/status"),
     ])
       .then(([result, status]) => {
         if (!current) return;
@@ -787,7 +856,10 @@ export function Editor({
       void refreshAssets().catch((e) => notify(e.message, true));
   }, [library, refreshAssets, notify]);
   useEffect(() => {
-    if (selected) setNativeSelected(null);
+    if (selected) {
+      setNativeSelected(null);
+      setLibrary("properties");
+    }
   }, [selected]);
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -844,12 +916,14 @@ export function Editor({
     const invalid = invalidLink(current.nodes);
     if (invalid) {
       setSaveError(
-        `${invalid.name}: geçerli bir bağlantı gir. Değerin taslakta korundu.`,
+        t("{p0}: geçerli bir bağlantı gir. Değerin taslakta korundu.", {
+          p0: invalid.name,
+        }),
       );
       return false;
     }
     if (recovery) {
-      notify("Önce kurtarılabilir yerel kopyayı seç.", true);
+      notify(t("Önce kurtarılabilir yerel kopyayı seç."), true);
       return false;
     }
     if (conflict) {
@@ -864,13 +938,13 @@ export function Editor({
     setSaving(true);
     setSaveError("");
     try {
-      const result = await api<{ version: number; document: PageDocument }>(
-        `/pages/${pageId}`,
-        {
-          method: "PUT",
-          body: json({ document: current, version: version.current }),
-        },
-      );
+      const result = await api<{
+        version: number;
+        document: PageDocument;
+      }>(`/pages/${pageId}`, {
+        method: "PUT",
+        body: json({ document: current, version: version.current }),
+      });
       version.current = result.version;
       const canonical = JSON.stringify(result.document);
       savedRef.current = canonical;
@@ -980,7 +1054,7 @@ export function Editor({
   const remove = useCallback(
     (id: string) => {
       if (isLocked(pageRef.current?.nodes || [], id)) {
-        notify("Kilitli öğeyi önce aç.");
+        notify(t("Kilitli öğeyi önce aç."));
         return;
       }
       commit((document) => ({
@@ -991,19 +1065,26 @@ export function Editor({
     },
     [commit],
   );
-  const createElement = (kind: Kind) => {
+  const createElement = (kind: Kind, columns = 2) => {
     const node = createBlock(kind);
     if (kind === "row")
-      node.children = [createBlock("column"), createBlock("column")].map(
-        (child) => ({
-          ...child,
-          styles: {
-            ...child.styles,
-            desktop: { ...child.styles.desktop, width: "50%" },
-            mobile: { ...child.styles.mobile, width: "100%" },
-          },
-        }),
-      );
+      node.children = Array.from({ length: columns }, () =>
+        createBlock("column"),
+      ).map((child) => ({
+        ...child,
+        styles: {
+          ...child.styles,
+          desktop: { ...child.styles.desktop, width: 100 / columns + "%" },
+          mobile: { ...child.styles.mobile, width: "100%" },
+        },
+      }));
+    if (kind === "row" && columns === 0)
+      Object.assign(node.styles.desktop, {
+        alignItems: "center",
+        gap: "8px",
+        flexWrap: "wrap",
+        minHeight: "48px",
+      });
     return node;
   };
   const prepareForParent = (node: Block, parent: string | null) => {
@@ -1031,7 +1112,12 @@ export function Editor({
     );
     const geometry: Record<
       string,
-      { left: number; top: number; width: number; height: number }
+      {
+        left: number;
+        top: number;
+        width: number;
+        height: number;
+      }
     > = {};
     if (element && enabled) {
       const wrapper = element.querySelector<HTMLElement>(
@@ -1069,9 +1155,9 @@ export function Editor({
       ),
     }));
   };
-  const add = (kind: Kind) => {
+  const add = (kind: Kind, columns?: number) => {
     if (!pageRef.current) return;
-    const node = createElement(kind),
+    const node = createElement(kind, columns),
       selectedNode = findBlock(pageRef.current.nodes, selected);
     const parent =
       selectedNode && isContainer(selectedNode.kind)
@@ -1088,7 +1174,7 @@ export function Editor({
       nodes: insertBlock(document.nodes, parent, siblings.length, node),
     }));
     showNewNode(node.id);
-    notify(`${labels[kind]} eklendi`);
+    notify(t("Added {p0}", { p0: labels[kind] }));
   };
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
@@ -1107,10 +1193,32 @@ export function Editor({
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        void save();
+        if (library === "brand")
+          document
+            .querySelector<HTMLButtonElement>("[data-global-style-save]")
+            ?.click();
+        else void save();
         return;
       }
       if (typing) return;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        redo();
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+        event.preventDefault();
+        const ids = pageRef.current?.nodes.map((n) => n.id) || [];
+        setSelection(ids);
+        setSelected(ids[0] || null);
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "g") {
+        event.preventDefault();
+        command(event.shiftKey ? "ungroup" : "group");
+        return;
+      }
+
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
         event.preventDefault();
         event.shiftKey ? redo() : undo();
@@ -1125,7 +1233,24 @@ export function Editor({
       }
       if ((event.key === "Delete" || event.key === "Backspace") && selected) {
         event.preventDefault();
-        remove(selected);
+        const ids = rootSelection(
+          pageRef.current?.nodes || [],
+          selection.includes(selected) ? selection : [selected],
+        );
+        if (ids.length > 1) {
+          const movable = ids.filter(
+            (id) => !isLocked(pageRef.current?.nodes || [], id),
+          );
+          commit((d) => ({
+            ...d,
+            nodes: movable.reduce(
+              (nodes, id) => removeBlock(nodes, id),
+              d.nodes,
+            ),
+          }));
+          setSelection([]);
+          setSelected(null);
+        } else remove(selected);
       }
       if (
         selected &&
@@ -1232,7 +1357,18 @@ export function Editor({
     };
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
-  }, [selected, undo, redo, duplicate, remove, save, device, commit]);
+  }, [
+    selected,
+    selection,
+    library,
+    undo,
+    redo,
+    duplicate,
+    remove,
+    save,
+    device,
+    commit,
+  ]);
   const addAsset = useCallback(
     (asset: Asset, mode = "replace", anchor = selected) => {
       if (asset.type !== "image") return;
@@ -1240,7 +1376,7 @@ export function Editor({
       if (!current) return;
       const old = findBlock(current.nodes, anchor);
       if (old && isLocked(current.nodes, old.id)) {
-        notify("Hedef öğe kilitli.", true);
+        notify(t("Hedef öğe kilitli."), true);
         return;
       }
       if (mode === "background" && old) {
@@ -1264,7 +1400,7 @@ export function Editor({
         return;
       }
       if (mode === "mobile") {
-        notify("Önce mobil görsel eklenecek öğeyi seç.", true);
+        notify(t("Önce mobil görsel eklenecek öğeyi seç."), true);
         return;
       }
       if (mode !== "add" && old?.kind === "image" && !old.props.locked) {
@@ -1315,7 +1451,7 @@ export function Editor({
       for (const result of r.results)
         if (result.ok && result.asset)
           anchor = addAsset(result.asset, "add", anchor) || anchor;
-        else notify(result.error || "Görsel yüklenemedi.", true);
+        else notify(result.error || t("Görsel yüklenemedi."), true);
       await refreshAssets();
     } catch (e) {
       notify((e as Error).message, true);
@@ -1330,23 +1466,44 @@ export function Editor({
         return;
       const current = pageRef.current;
       if (!current) return;
-      const blocks = clipboardBlocks(
-        current,
+      const ids = rootSelection(
+        current.nodes,
         selection.includes(selected) ? selection : [selected],
       );
+      if (e.type === "cut" && ids.some((id) => isLocked(current.nodes, id))) {
+        e.preventDefault();
+        notify(t("Kilitli öğeyi önce aç."), true);
+        return;
+      }
+      const blocks = clipboardBlocks(current, ids);
       if (!blocks.length) return;
       e.preventDefault();
       const payload = JSON.stringify({
         format: "fukpages-blocks",
         version: 1,
+        operation: e.type === "cut" ? "cut" : "copy",
+        sourcePageId: pageId,
         blocks,
       });
-      e.clipboardData?.setData("text/plain", payload);
+      if (!e.clipboardData || payload.length > 1024 * 1024) {
+        notify(t("Kopyalanan içerik çok büyük."), true);
+        return;
+      }
+      e.clipboardData.setData("text/plain", payload);
       e.clipboardData?.setData("application/x-fukpages-blocks", payload);
       try {
         localStorage.setItem("fp-block-clipboard", JSON.stringify(blocks));
       } catch {}
-      notify("Öğe kopyalandı. Ctrl+V ile yapıştırabilirsin.");
+      if (e.type === "cut") {
+        const parent = locateBlock(current.nodes, selected)?.parent || null;
+        commit((d) => ({
+          ...d,
+          nodes: ids.reduce((nodes, id) => removeBlock(nodes, id), d.nodes),
+        }));
+        setSelected(parent);
+        setSelection(parent ? [parent] : []);
+        notify(t("Element cut. Paste with Ctrl+V."));
+      } else notify(t("Öğe kopyalandı. Ctrl+V ile yapıştırabilirsin."));
     };
     const paste = (e: ClipboardEvent) => {
       if (typing(e.target)) return;
@@ -1359,34 +1516,61 @@ export function Editor({
         void (async () => {
           try {
             if (text.length > 1024 * 1024)
-              throw new Error("Kopyalanan içerik çok büyük.");
+              throw new Error(t("Kopyalanan içerik çok büyük."));
             const data = JSON.parse(text);
             if (
               data.format !== "fukpages-blocks" ||
               data.version !== 1 ||
               !Array.isArray(data.blocks)
             )
-              throw new Error("Geçersiz pano içeriği.");
+              throw new Error(t("Geçersiz pano içeriği."));
             const current = pageRef.current;
             if (!current) return;
-            const valid = await api<{ document: PageDocument }>(
-              "/documents/validate",
-              {
-                method: "POST",
-                body: json({ document: { ...current, nodes: data.blocks } }),
-              },
-            );
+            const valid = await api<{
+              document: PageDocument;
+            }>("/documents/validate", {
+              method: "POST",
+              body: json({ document: { ...current, nodes: data.blocks } }),
+            });
             const latest = pageRef.current!;
             const anchor = findBlock(latest.nodes, selected),
               parent =
                 anchor && isContainer(anchor.kind)
                   ? anchor.id
                   : locateBlock(latest.nodes, selected || "")?.parent || null;
-            const copied = pasteBlocks(latest, valid.document.nodes, parent);
+            if (parent && isLocked(latest.nodes, parent))
+              throw new Error(t("Hedef kilitli."));
+            const allIds = (nodes: Block[]): string[] =>
+              nodes.flatMap((n) => [n.id, ...allIds(n.children)]);
+            const moved =
+              data.operation === "cut" &&
+              data.sourcePageId === pageId &&
+              allIds(valid.document.nodes).every(
+                (id) => !findBlock(latest.nodes, id),
+              );
+            const copied = moved
+              ? {
+                  page: {
+                    ...latest,
+                    nodes: valid.document.nodes.reduce(
+                      (nodes, n) =>
+                        insertBlock(
+                          nodes,
+                          parent,
+                          (parent ? findBlock(nodes, parent)?.children : nodes)
+                            ?.length || 0,
+                          n,
+                        ),
+                      latest.nodes,
+                    ),
+                  },
+                  ids: valid.document.nodes.map((n) => n.id),
+                }
+              : pasteBlocks(latest, valid.document.nodes, parent);
             commit(() => copied.page);
             setSelection(copied.ids);
             setSelected(copied.ids[0] || null);
-            notify("Kopyalanan öğeler eklendi.");
+            notify(t("Kopyalanan öğeler eklendi."));
           } catch (error) {
             notify((error as Error).message, true);
           }
@@ -1417,7 +1601,7 @@ export function Editor({
         try {
           if (/^data:image\/(png|jpeg|webp|gif|avif);base64,/i.test(url)) {
             if (url.length > 5 * 1024 * 1024)
-              throw new Error("Panodaki görsel 4 MB sınırını aşıyor.");
+              throw new Error(t("Panodaki görsel 4 MB sınırını aşıyor."));
             const [prefix, data] = url.split(","),
               bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
             await dropFiles([
@@ -1469,9 +1653,11 @@ export function Editor({
       })();
     };
     window.addEventListener("copy", copy);
+    window.addEventListener("cut", copy);
     window.addEventListener("paste", paste);
     return () => {
       window.removeEventListener("copy", copy);
+      window.removeEventListener("cut", copy);
       window.removeEventListener("paste", paste);
     };
   });
@@ -1484,7 +1670,7 @@ export function Editor({
       (event.active.data.current?.nodeId &&
         isLocked(pageRef.current.nodes, event.active.data.current.nodeId))
     ) {
-      notify("Kilitli öğeler taşınamaz.");
+      notify(t("Kilitli öğeler taşınamaz."));
       return;
     }
     const { parent, index } = target as {
@@ -1506,7 +1692,10 @@ export function Editor({
       setSelected(section.id);
     } else if (event.active.data.current?.kind) {
       const node = prepareForParent(
-        createElement(event.active.data.current.kind as Kind),
+        createElement(
+          event.active.data.current.kind as Kind,
+          event.active.data.current.columns,
+        ),
         parent,
       );
       commit((document) => ({
@@ -1529,7 +1718,9 @@ export function Editor({
       ["header", "footer"].includes(String(section.props.sectionRole))
     ) {
       notify(
-        "Header/footer temadan geliyor. Özel bir header/footer eklemek için Tema panelinden tema düzenini kapat.",
+        t(
+          "Header/footer temadan geliyor. Özel bir header/footer eklemek için Tema panelinden tema düzenini kapat.",
+        ),
       );
       return false;
     }
@@ -1542,7 +1733,11 @@ export function Editor({
     commit((document) => insertSection(document, section, selected));
     setNativeSelected(null);
     showNewNode(section.id);
-    notify(`${section.name} eklendi; tüm alt öğeleri düzenleyebilirsin.`);
+    notify(
+      t("{p0} eklendi; tüm alt öğeleri düzenleyebilirsin.", {
+        p0: section.name,
+      }),
+    );
   };
   const addSaved = (saved: Block) => {
     const section = fromSavedSection(saved);
@@ -1550,7 +1745,7 @@ export function Editor({
     commit((document) => insertSection(document, section, selected));
     setNativeSelected(null);
     showNewNode(section.id);
-    notify("Kaydedilen bölüm eklendi. Bu kopya bağımsız düzenlenir.");
+    notify(t("Kaydedilen bölüm eklendi. Bu kopya bağımsız düzenlenir."));
   };
   const saveSection = async (name: string, synchronized = false) => {
     const document = pageRef.current;
@@ -1575,7 +1770,7 @@ export function Editor({
             },
           })),
         }));
-      notify("Bölüm kütüphanene kaydedildi.");
+      notify(t("Bölüm kütüphanene kaydedildi."));
       return true;
     } catch (error) {
       notify((error as Error).message, true);
@@ -1589,16 +1784,15 @@ export function Editor({
     if (!section?.props.linkedSectionId) return;
     try {
       if (!(await save())) return;
-      const r = await api<{ affectedPages: string[] }>(
-        `/stores/${store.id}/sections/${section.props.linkedSectionId}/sync`,
-        {
-          method: "PUT",
-          body: json({
-            section,
-            version: Number(section.props.linkedVersion || 1),
-          }),
-        },
-      );
+      const r = await api<{
+        affectedPages: string[];
+      }>(`/stores/${store.id}/sections/${section.props.linkedSectionId}/sync`, {
+        method: "PUT",
+        body: json({
+          section,
+          version: Number(section.props.linkedVersion || 1),
+        }),
+      });
       const fetched = await api<PageResponse>(`/pages/${pageId}`);
       version.current = fetched.version;
       pageRef.current = fetched.document;
@@ -1609,7 +1803,9 @@ export function Editor({
         await api<SavedSection[]>(`/stores/${store.id}/sections`),
       );
       notify(
-        `${r.affectedPages.length} sayfanın taslağı güncellendi. Yayınlar değişmedi.`,
+        t("{p0} sayfanın taslağı güncellendi. Yayınlar değişmedi.", {
+          p0: r.affectedPages.length,
+        }),
       );
     } catch (e) {
       notify((e as Error).message, true);
@@ -1619,7 +1815,7 @@ export function Editor({
     try {
       await api(`/stores/${store.id}/sections/${id}`, { method: "DELETE" });
       setSavedSections((current) => current.filter((item) => item.id !== id));
-      notify("Kütüphane kaydı kaldırıldı; sayfalardaki kopyalar korunur.");
+      notify(t("Kütüphane kaydı kaldırıldı; sayfalardaki kopyalar korunur."));
     } catch (error) {
       notify((error as Error).message, true);
     }
@@ -1661,7 +1857,7 @@ export function Editor({
       setThemeStatus(status);
       if (current.themeLayout?.useShell && status.snapshot)
         bindTheme(status.snapshot, true);
-      notify("Shopify bölüm sırası okundu. Özel tasarımların korunuyor.");
+      notify(t("Shopify bölüm sırası okundu. Özel tasarımların korunuyor."));
     } catch (error) {
       notify((error as Error).message, true);
     } finally {
@@ -1691,8 +1887,10 @@ export function Editor({
       setThemeStatus(status);
       notify(
         status.configured
-          ? "Mağaza adresi kaydedildi. Temayı senkronize edebilirsin."
-          : "Mağaza adresi kaydedildi. Tema okuma erişimi henüz yapılandırılmadı.",
+          ? t("Mağaza adresi kaydedildi. Temayı senkronize edebilirsin.")
+          : t(
+              "Mağaza adresi kaydedildi. Tema okuma erişimi henüz yapılandırılmadı.",
+            ),
       );
     } catch (error) {
       notify((error as Error).message, true);
@@ -1711,25 +1909,27 @@ export function Editor({
     link.click();
     URL.revokeObjectURL(url);
     setMenu(false);
-    notify("Tasarım JSON olarak dışa aktarıldı");
+    notify(t("Tasarım JSON olarak dışa aktarıldı"));
   };
   async function importPage(file?: File) {
     if (!file) return;
     try {
       if (file.size > 1024 * 1024)
-        throw new Error("Dosya 1 MB sınırını aşıyor.");
+        throw new Error(t("Dosya 1 MB sınırını aşıyor."));
       const input = JSON.parse(await file.text());
-      const result = await api<{ document: PageDocument }>(
-        "/documents/validate",
-        { method: "POST", body: json({ document: input }) },
-      );
+      const result = await api<{
+        document: PageDocument;
+      }>("/documents/validate", {
+        method: "POST",
+        body: json({ document: input }),
+      });
       commit(() => result.document);
       setSelected(
         firstHeading(result.document.nodes) ||
           result.document.nodes[0]?.id ||
           null,
       );
-      notify("Tasarım içe aktarıldı");
+      notify(t("Tasarım içe aktarıldı"));
     } catch (error) {
       notify((error as Error).message, true);
     }
@@ -1740,10 +1940,10 @@ export function Editor({
     setPublishing(true);
     try {
       if (!(await save()))
-        throw new Error("Yayınlamadan önce taslak kaydedilmeli.");
+        throw new Error(t("Yayınlamadan önce taslak kaydedilmeli."));
       await api(`/pages/${pageId}/publish`, { method: "POST", body: "{}" });
       setPublished(true);
-      notify("Yerel önizleme yayınlandı. Shopify’a gönderilmedi.");
+      notify(t("Yerel önizleme yayınlandı. Shopify’a gönderilmedi."));
     } catch (error) {
       notify((error as Error).message, true);
     } finally {
@@ -1753,16 +1953,19 @@ export function Editor({
   if (!page)
     return (
       <div className="loading-screen">
-        <Loader2 className="spin" /> Editör hazırlanıyor…
+        <Loader2 className="spin" />
+        {" " + t("Editör hazırlanıyor…")}
       </div>
     );
   const restoreRecovery = async () => {
     if (!recovery) return;
     try {
-      const validated = await api<{ document: PageDocument }>(
-        "/documents/validate",
-        { method: "POST", body: json({ document: recovery.document }) },
-      );
+      const validated = await api<{
+        document: PageDocument;
+      }>("/documents/validate", {
+        method: "POST",
+        body: json({ document: recovery.document }),
+      });
       if (JSON.stringify(recovery.base) !== savedRef.current) {
         setConflict({
           base: recovery.base,
@@ -1804,6 +2007,7 @@ export function Editor({
   const selectNative = (id: string) => {
     setSelected(null);
     setNativeSelected(id);
+    setLibrary("properties");
   };
   const viewWidth = customWidth || widths[device];
   const scale = Math.max(0.15, Math.min(1, available / viewWidth) * zoom);
@@ -1841,7 +2045,7 @@ export function Editor({
         const parent = locateBlock(current.nodes, node.id)?.parent;
         const target = isContainer(node.kind) ? node.id : parent;
         if (target) changeFreeLayout(target, true);
-        else notify("Önce öğeyi bir bölüm veya kutu içine yerleştir.");
+        else notify(t("Önce öğeyi bir bölüm veya kutu içine yerleştir."));
       } else if (action === "addColumn" && node.kind === "row") {
         changeSelected((n) => ({
           ...n,
@@ -2001,7 +2205,7 @@ export function Editor({
           <header className="studio-topbar">
             <button
               className="brand"
-              title="Mağazalara dön"
+              title={t("Mağazalara dön")}
               onClick={async () => {
                 if (await save()) back();
               }}
@@ -2019,7 +2223,7 @@ export function Editor({
                 {store.name} <ChevronRight size={10} /> {pageNames[page.type]}
               </span>
               <input
-                aria-label="Sayfa adı"
+                aria-label={t("Sayfa adı")}
                 value={page.name}
                 onChange={(event) =>
                   commit(
@@ -2031,16 +2235,16 @@ export function Editor({
             </div>
             <div className="history-controls">
               <button
-                title="Geri al (Ctrl+Z)"
-                aria-label="Geri al"
+                title={t("Geri al (Ctrl+Z)")}
+                aria-label={t("Geri al")}
                 disabled={!past.current.length}
                 onClick={undo}
               >
                 <Undo2 size={17} />
               </button>
               <button
-                title="İleri al (Ctrl+Shift+Z)"
-                aria-label="İleri al"
+                title={t("İleri al (Ctrl+Shift+Z)")}
+                aria-label={t("İleri al")}
                 disabled={!future.current.length}
                 onClick={redo}
               >
@@ -2069,7 +2273,7 @@ export function Editor({
                 </button>
               ))}
               <input
-                aria-label="Önizleme genişliği"
+                aria-label={t("Önizleme genişliği")}
                 type="number"
                 min={280}
                 max={2560}
@@ -2082,20 +2286,21 @@ export function Editor({
                 }
               />
               <button
-                title="Cihaz genişliğine dön"
+                title={t("Cihaz genişliğine dön")}
                 onClick={() => setCustomWidth(null)}
               >
                 ↺
               </button>
             </div>
             <div className="topbar-end">
+              <UiSettingsButton />
               <span
                 className={`save-indicator ${saveError ? "error" : ""}`}
                 title={
                   saveError ||
                   (clean
-                    ? "Tüm değişiklikler kaydedildi"
-                    : "Kaydedilmemiş değişiklikler")
+                    ? t("Tüm değişiklikler kaydedildi")
+                    : t("Kaydedilmemiş değişiklikler"))
                 }
               >
                 {saving ? (
@@ -2106,22 +2311,23 @@ export function Editor({
                   <span className="unsaved-dot" />
                 )}
                 {saveError
-                  ? "Kaydedilemedi"
+                  ? t("Kaydedilemedi")
                   : saving
-                    ? "Kaydediliyor"
+                    ? t("Kaydediliyor")
                     : clean
-                      ? "Kaydedildi"
-                      : "Değiştirildi"}
+                      ? t("Kaydedildi")
+                      : t("Değiştirildi")}
               </span>
               <button
                 className="top-action"
                 onClick={() => void save()}
                 disabled={saving}
               >
-                Kaydet
+                {t("Kaydet")}
               </button>
               <button className="top-action" onClick={() => setPreview(true)}>
-                <Eye size={14} /> Önizle
+                <Eye size={14} />
+                {" " + t("Önizle")}
               </button>
               <button
                 className="publish-button"
@@ -2133,13 +2339,13 @@ export function Editor({
                 ) : (
                   <span className="publish-dot" />
                 )}
-                {published ? "Yerel yayın güncelle" : "Yerel yayın"}
+                {published ? t("Yerel yayın güncelle") : t("Yerel yayın")}
                 <ChevronDown size={12} />
               </button>
               <div className="more-menu">
                 <button
                   className="icon-button"
-                  aria-label="Tasarım işlemleri"
+                  aria-label={t("Tasarım işlemleri")}
                   onClick={() => setMenu(!menu)}
                 >
                   <MoreHorizontal size={18} />
@@ -2147,10 +2353,12 @@ export function Editor({
                 {menu && (
                   <div className="dropdown-menu">
                     <button onClick={exportPage}>
-                      <Download size={14} /> JSON dışa aktar
+                      <Download size={14} />
+                      {" " + t("JSON dışa aktar")}
                     </button>
                     <button onClick={() => importRef.current?.click()}>
-                      <Upload size={14} /> JSON içe aktar
+                      <Upload size={14} />
+                      {" " + t("JSON içe aktar")}
                     </button>
                     <button
                       onClick={() => {
@@ -2158,7 +2366,8 @@ export function Editor({
                         setMenu(false);
                       }}
                     >
-                      <LayoutTemplate size={14} /> Başlangıç şablonları
+                      <LayoutTemplate size={14} />
+                      {" " + t("Başlangıç şablonları")}
                     </button>
                   </div>
                 )}
@@ -2186,25 +2395,26 @@ export function Editor({
             <div className="recovery-banner" role="status" data-recovery-banner>
               {!recoveryWritable && (
                 <span>
-                  Tarayıcı kopyası kaydedilemiyor. Değişikliklerini JSON olarak
-                  indir.
+                  {t(
+                    "Tarayıcı kopyası kaydedilemiyor. Değişikliklerini JSON olarak indir.",
+                  )}
                 </span>
               )}
               {recovery && (
                 <>
                   <span>
-                    {new Date(recovery.updated).toLocaleString("tr-TR")} tarihli
-                    kaydedilmemiş taslak bulundu.
+                    {new Date(recovery.updated).toLocaleString(getUiLocale())}
+                    {" " + t("tarihli kaydedilmemiş taslak bulundu.")}
                   </span>
                   <button onClick={() => void restoreRecovery()}>
-                    Taslağı kurtar
+                    {t("Taslağı kurtar")}
                   </button>
                   <button
                     onClick={() =>
                       downloadDocument(recovery.document, "kurtarma")
                     }
                   >
-                    Kurtarma kopyasını indir
+                    {t("Kurtarma kopyasını indir")}
                   </button>
                   <button
                     onClick={() => {
@@ -2216,13 +2426,13 @@ export function Editor({
                       setRecovery(null);
                     }}
                   >
-                    Sunucu sürümüyle devam et
+                    {t("Sunucu sürümüyle devam et")}
                   </button>
                 </>
               )}
               {conflict && (
                 <button onClick={() => setConflictOpen(true)}>
-                  Kayıt çakışmasını çöz
+                  {t("Kayıt çakışmasını çöz")}
                 </button>
               )}
               {saveError && !conflict && (
@@ -2230,15 +2440,17 @@ export function Editor({
                   <span>
                     {saveError} ·{" "}
                     {recoveryWritable
-                      ? "Yerel kopyan bu tarayıcıda korunuyor."
-                      : "Tarayıcı kopyası kullanılamıyor."}
+                      ? t("Yerel kopyan bu tarayıcıda korunuyor.")
+                      : t("Tarayıcı kopyası kullanılamıyor.")}
                   </span>
-                  <button onClick={() => void save()}>Kaydı tekrar dene</button>
+                  <button onClick={() => void save()}>
+                    {t("Kaydı tekrar dene")}
+                  </button>
                 </>
               )}
               {page && (
                 <button onClick={() => downloadDocument(page, "yerel")}>
-                  Yerel kopyayı indir
+                  {t("Yerel kopyayı indir")}
                 </button>
               )}
             </div>
@@ -2246,23 +2458,26 @@ export function Editor({
           {recovery && (
             <Dialog
               open
-              label="Kaydedilmemiş taslağı kurtar"
+              label={t("Kaydedilmemiş taslağı kurtar")}
               onClose={() => {}}
               dismissible={false}
             >
-              <h2>Kaydedilmemiş taslağın korunuyor</h2>
+              <h2>{t("Kaydedilmemiş taslağın korunuyor")}</h2>
               <p>
-                Bu tarayıcıda{" "}
-                {new Date(recovery.updated).toLocaleString("tr-TR")} tarihli bir
-                kopya var. Düzenlemeye devam etmek için kullanacağın sürümü seç.
+                {t("Bu tarayıcıda")}{" "}
+                {new Date(recovery.updated).toLocaleString(getUiLocale())}
+                {" " +
+                  t(
+                    "tarihli bir kopya var. Düzenlemeye devam etmek için kullanacağın sürümü seç.",
+                  )}
               </p>
               <button onClick={() => void restoreRecovery()}>
-                Taslağı kurtar
+                {t("Taslağı kurtar")}
               </button>
               <button
                 onClick={() => downloadDocument(recovery.document, "kurtarma")}
               >
-                Kurtarma kopyasını indir
+                {t("Kurtarma kopyasını indir")}
               </button>
               <button
                 onClick={() => {
@@ -2274,7 +2489,7 @@ export function Editor({
                   setRecovery(null);
                 }}
               >
-                Sunucu sürümüyle devam et
+                {t("Sunucu sürümüyle devam et")}
               </button>
             </Dialog>
           )}
@@ -2286,10 +2501,12 @@ export function Editor({
               onClose={() => setConflictOpen(false)}
               apply={async (candidate) => {
                 try {
-                  const validated = await api<{ document: PageDocument }>(
-                    "/documents/validate",
-                    { method: "POST", body: json({ document: candidate }) },
-                  );
+                  const validated = await api<{
+                    document: PageDocument;
+                  }>("/documents/validate", {
+                    method: "POST",
+                    body: json({ document: candidate }),
+                  });
                   version.current = conflict.version;
                   savedRef.current = JSON.stringify(conflict.remote);
                   setSaved(savedRef.current);
@@ -2299,7 +2516,7 @@ export function Editor({
                   setRecovery(null);
                   setSaveError("");
                   notify(
-                    "Seçimlerin birleştirildi. Güncel sürüme kaydediliyor.",
+                    t("Seçimlerin birleştirildi. Güncel sürüme kaydediliyor."),
                   );
                 } catch (error) {
                   notify((error as Error).message, true);
@@ -2319,82 +2536,181 @@ export function Editor({
             <nav className="tool-rail">
               <div>
                 {[
-                  ["blocks", Plus, "Öğeler"],
-                  ["sections", LayoutTemplate, "Bölümler"],
-                  ["layers", Layers, "Katmanlar"],
-                  ["templates", LayoutTemplate, "Şablonlar"],
-                  ["theme", StoreIcon, "Tema"],
-                  ["media", Upload, "Medya"],
-                  ["brand", LayoutTemplate, "Marka"],
-                  ["workflow", MoreHorizontal, "Sayfa"],
-                  ["catalog", StoreIcon, "Ürünler"],
-                  ["growth", LayoutTemplate, "Akışlar"],
+                  ["blocks", Plus, t("Öğeler")],
+                  ["sections", LayoutTemplate, t("Bölümler")],
+                  ["layers", Layers, t("Katmanlar")],
+                  ["templates", LayoutTemplate, t("Şablonlar")],
+                  ["theme", StoreIcon, t("Tema")],
+                  ["media", Upload, t("Medya")],
+                  ["brand", LayoutTemplate, t("Marka")],
+                  ["workflow", MoreHorizontal, t("Sayfa")],
+                  ["catalog", StoreIcon, t("Ürünler")],
+                  ["growth", LayoutTemplate, t("Akışlar")],
                   ...(role === "owner"
-                    ? [["team", ShieldCheck, "Hesaplar"]]
+                    ? [["team", ShieldCheck, t("Hesaplar")]]
                     : []),
                 ].map(([id, Tool, title]) => {
                   const Icon = Tool as typeof Plus;
                   return (
                     <button
                       key={String(id)}
-                      className={library === id ? "active" : ""}
+                      className={
+                        library === id || (id === "layers" && layersOpen)
+                          ? "active"
+                          : ""
+                      }
                       title={String(title)}
-                      onClick={() => setLibrary(String(id))}
+                      onClick={() => {
+                        if (id === "layers") setLayersOpen((v) => !v);
+                        else setLibrary(String(id));
+                      }}
                     >
                       <Icon size={20} />
-                      <span>{String(title)}</span>
+                      <span className="rail-caption">{String(title)}</span>
                     </button>
                   );
                 })}
               </div>
               <button
-                title="Mağaza yönetimi"
+                title={t("Mağaza yönetimi")}
                 onClick={async () => {
                   if (await save()) back();
                 }}
               >
                 <ShieldCheck size={20} />
-                <span>Yönetim</span>
+                <span>{t("Yönetim")}</span>
               </button>
             </nav>
             <aside className="library">
-              <div className="library-heading">
+              {library === "properties" && (
+                <>
+                  <div className="inspector-container">
+                    {enclosingSection(page, selected) &&
+                      selectedNode?.kind === "section" &&
+                      !selectedThemeSection && (
+                        <SectionDesign
+                          key={enclosingSection(page, selected)!.id}
+                          section={enclosingSection(page, selected)!}
+                          update={(section) =>
+                            commit((d) => ({
+                              ...d,
+                              nodes: mapBlock(
+                                d.nodes,
+                                section.id,
+                                () => section,
+                              ),
+                            }))
+                          }
+                        />
+                      )}
+                    <SelectionTools
+                      node={selectedNode}
+                      count={
+                        selection.includes(selected || "")
+                          ? selection.length
+                          : 1
+                      }
+                      command={command}
+                      device={device}
+                    />
+                    {selectedThemeSection && selectedNativeSnapshot ? (
+                      <NativeThemeInspector
+                        section={selectedThemeSection}
+                        snapshot={selectedNativeSnapshot}
+                      />
+                    ) : (
+                      <Inspector
+                        node={selectedNode}
+                        back={() => setLibrary("blocks")}
+                        openMedia={() => setLibrary("media")}
+                        storeId={store.id}
+                        assets={assets}
+                        device={device}
+                        update={(change, key) => {
+                          changeSelected(change, key);
+                        }}
+                        duplicate={() => selected && duplicate(selected)}
+                        remove={() => selected && remove(selected)}
+                        move={moveSelected}
+                        setLayout={changeFreeLayout}
+                        contentIntent={contentIntent}
+                        parentFree={
+                          !!freeHeight(
+                            findBlock(
+                              page.nodes,
+                              locateBlock(page.nodes, selectedNode?.id || "")
+                                ?.parent || "",
+                            ),
+                            device,
+                          )
+                        }
+                      />
+                    )}
+                  </div>
+                </>
+              )}
+              <div
+                className="library-heading"
+                hidden={library === "properties"}
+              >
                 <div>
                   <h2>
                     {(
                       {
-                        media: "Medya kütüphanesi",
-                        brand: "Marka kiti",
-                        workflow: "SEO ve yayın",
-                        catalog: "Yerel ürünler",
-                        growth: "Diller ve akışlar",
+                        media: t("Medya kütüphanesi"),
+                        brand: t("Marka kiti"),
+                        workflow: t("SEO ve yayın"),
+                        catalog: t("Yerel ürünler"),
+                        growth: t("Diller ve akışlar"),
                       } as Record<string, string>
                     )[library] ||
                       (library === "sections"
-                        ? "Bölüm bölüm tasarla."
+                        ? t("Bölüm bölüm tasarla.")
                         : library === "theme"
-                          ? "Mağazanın teması."
+                          ? t("Mağazanın teması.")
                           : library === "blocks"
-                            ? "Bir şeyler oluştur."
+                            ? t("Bir şeyler oluştur.")
                             : library === "layers"
-                              ? "Katmanlar"
-                              : "İyi bir başlangıç.")}
+                              ? t("Katmanlar")
+                              : t("İyi bir başlangıç."))}
                   </h2>
                   <p>
                     {library === "workflow"
-                      ? "Başlık, adres ve yayın durumunu yönet."
+                      ? t("Başlık, adres ve yayın durumunu yönet.")
                       : library === "sections"
-                        ? "Hazır bir bölüm ekle, her ayrıntıyı düzenle."
+                        ? t("Hazır bir bölüm ekle, her ayrıntıyı düzenle.")
                         : library === "theme"
-                          ? "Header, footer ve mevcut bölüm sırası."
+                          ? t("Header, footer ve mevcut bölüm sırası.")
                           : library === "blocks"
-                            ? "Sürükle, bırak, kendine göre düzenle."
+                            ? t("Sürükle, bırak, kendine göre düzenle.")
                             : library === "layers"
-                              ? "Sayfanın yapısını yönet."
-                              : "Bir şablon seç, kendi hikâyeni anlat."}
+                              ? t("Sayfanın yapısını yönet.")
+                              : t("Bir şablon seç, kendi hikâyeni anlat.")}
                   </p>
                 </div>
               </div>
+              {["blocks", "sections"].includes(library) && (
+                <div
+                  className="element-browser-tabs"
+                  role="tablist"
+                  aria-label={t("Library")}
+                >
+                  <button
+                    role="tab"
+                    aria-selected={library === "sections"}
+                    onClick={() => setLibrary("sections")}
+                  >
+                    {t("Bölümler")}
+                  </button>
+                  <button
+                    role="tab"
+                    aria-selected={library === "blocks"}
+                    onClick={() => setLibrary("blocks")}
+                  >
+                    {t("Öğeler")}
+                  </button>
+                </div>
+              )}
               {library === "team" && role === "owner" && (
                 <TeamPanel notify={notify} />
               )}
@@ -2490,8 +2806,8 @@ export function Editor({
                   <label className="library-search">
                     <Search size={14} />
                     <input
-                      aria-label="Öğe ara"
-                      placeholder="Öğe ara…"
+                      aria-label={t("Öğe ara")}
+                      placeholder={t("Öğe ara…")}
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
                     />
@@ -2501,125 +2817,79 @@ export function Editor({
                     {groups.map((group) => {
                       const filtered = group.kinds.filter((kind) =>
                         labels[kind]
-                          .toLocaleLowerCase("tr")
-                          .includes(search.toLocaleLowerCase("tr")),
+                          .toLocaleLowerCase(getUiLanguage())
+                          .includes(search.toLocaleLowerCase(getUiLanguage())),
                       );
                       return (
                         !!filtered.length && (
-                          <section className="palette-group" key={group.name}>
-                            <h3>
+                          <details
+                            open
+                            className="palette-group"
+                            key={group.name}
+                          >
+                            <summary>
                               {group.name}
                               <ChevronDown size={12} />
-                            </h3>
+                            </summary>
                             <div className="palette-grid">
-                              {filtered.map((kind) => (
-                                <PaletteItem
-                                  key={kind}
-                                  kind={kind}
-                                  onAdd={() => add(kind)}
-                                />
-                              ))}
+                              {filtered.includes("row") &&
+                                [0, 1, 2, 3, 4].map((columns) => (
+                                  <PaletteItem
+                                    key={`row-${columns}`}
+                                    kind="row"
+                                    columns={columns}
+                                    onAdd={() => add("row", columns)}
+                                  />
+                                ))}
+                              {filtered
+                                .filter((kind) => kind !== "row")
+                                .map((kind) => (
+                                  <PaletteItem
+                                    key={kind}
+                                    kind={kind}
+                                    onAdd={() => add(kind)}
+                                  />
+                                ))}
                             </div>
-                          </section>
+                          </details>
                         )
                       );
                     })}
                     {!groups.some((group) =>
                       group.kinds.some((kind) =>
                         labels[kind]
-                          .toLocaleLowerCase("tr")
-                          .includes(search.toLocaleLowerCase("tr")),
+                          .toLocaleLowerCase(getUiLanguage())
+                          .includes(search.toLocaleLowerCase(getUiLanguage())),
                       ),
                     ) && (
-                      <p className="setting-help">Eşleşen öğe bulunamadı.</p>
+                      <p className="setting-help">
+                        {t("Eşleşen öğe bulunamadı.")}
+                      </p>
                     )}
                   </div>
                   <div className="library-tip">
                     <MousePointer2 size={15} />
                     <p>
-                      Öğeyi sürükle veya tıklayarak ekle.
+                      {t("Öğeyi sürükle veya tıklayarak ekle.")}
                       <br />
-                      <span>Metne çift tıkla ve yazmaya başla.</span>
+                      <span>{t("Metne çift tıkla ve yazmaya başla.")}</span>
                     </p>
                   </div>
                 </>
               )}
-              {library === "layers" && (
-                <div className="library-scroll layer-tree">
-                  <input
-                    aria-label="Katman ara"
-                    placeholder="Katman ara"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                  {useThemeShell &&
-                    themeSnapshot?.sections
-                      .filter((section) => section.region !== "footer")
-                      .map((section) => (
-                        <button
-                          key={section.id}
-                          className="outline-theme-row"
-                          onClick={() => selectNative(section.id)}
-                        >
-                          <Layers size={13} />
-                          <span>{section.name}</span>
-                          <LockKeyhole size={11} />
-                        </button>
-                      ))}
-                  {visibleNodes
-                    .filter(
-                      (node) =>
-                        !search ||
-                        JSON.stringify(node)
-                          .toLocaleLowerCase("tr")
-                          .includes(search.toLocaleLowerCase("tr")),
-                    )
-                    .map((node) => (
-                      <Layer
-                        key={node.id}
-                        node={node}
-                        index={page.nodes.findIndex(
-                          (item) => item.id === node.id,
-                        )}
-                        depth={0}
-                        selected={selected}
-                        select={selectLayer}
-                        dragging={!!dragging}
-                        search={search}
-                      />
-                    ))}
-                  {useThemeShell &&
-                    themeSnapshot?.sections
-                      .filter((section) => section.region === "footer")
-                      .map((section) => (
-                        <button
-                          key={section.id}
-                          className="outline-theme-row"
-                          onClick={() => selectNative(section.id)}
-                        >
-                          <Layers size={13} />
-                          <span>{section.name}</span>
-                          <LockKeyhole size={11} />
-                        </button>
-                      ))}
-                  {!page.nodes.length && (
-                    <p className="setting-help">İlk öğeni kütüphaneden ekle.</p>
-                  )}
-                </div>
-              )}
               {library === "templates" && (
                 <div className="library-scroll template-list">
                   {[
-                    ["Aura · Product launch", "aura", "Ürününü öne çıkar."],
+                    ["Aura · Product launch", "aura", t("Ürününü öne çıkar.")],
                     [
                       "Minimal · Editorial",
                       "editorial",
-                      "Sade tasarım, güçlü hikâye.",
+                      t("Sade tasarım, güçlü hikâye."),
                     ],
                     [
                       "Fresh · Summer sale",
                       "sale",
-                      "Kampanyanı canlı renklerle anlat.",
+                      t("Kampanyanı canlı renklerle anlat."),
                     ],
                   ].map(([name, id, description]) => (
                     <button
@@ -2655,7 +2925,9 @@ export function Editor({
                         commit(() => next);
                         setSelected(firstHeading(next.nodes));
                         notify(
-                          "Şablon uygulandı. Geri al ile önceki tasarıma dönebilirsin.",
+                          t(
+                            "Şablon uygulandı. Geri al ile önceki tasarıma dönebilirsin.",
+                          ),
                         );
                       }}
                     >
@@ -2679,7 +2951,8 @@ export function Editor({
                       <strong>{name}</strong>
                       <small>{description}</small>
                       <span className="template-use">
-                        Şablonu kullan <ChevronRight size={12} />
+                        {t("Şablonu kullan") + " "}
+                        <ChevronRight size={12} />
                       </span>
                     </button>
                   ))}
@@ -2715,12 +2988,15 @@ export function Editor({
               <div className="canvas-topline">
                 <span>
                   <span className="canvas-status-dot" />
-                  {deviceNames[device]} görünümü
+                  {deviceNames[device]}
+                  {" " + t("görünümü")}
                 </span>
                 <span>
                   {themeSnapshot
-                    ? `${themeSnapshot.themeName} · tema verisi okundu`
-                    : "Yerel taslak · Shopify bağlı değil"}
+                    ? t("{p0} · tema verisi okundu", {
+                        p0: themeSnapshot.themeName,
+                      })
+                    : t("Yerel taslak · Shopify bağlı değil")}
                 </span>
               </div>
               <div className="canvas-scroll" onClick={() => setSelected(null)}>
@@ -2838,15 +3114,25 @@ export function Editor({
                   </div>
                 </div>
                 <div className="canvas-bottom-add">
+                  <button onClick={() => setLibrary("sections")}>
+                    <LayoutTemplate size={20} />
+                    <span>
+                      <b>{t("Choose templates")}</b>
+                      <small>{t("Start with a ready-made section")}</small>
+                    </span>
+                  </button>
                   <button
-                    onClick={(event) => {
-                      event.stopPropagation();
+                    onClick={() => {
                       const node = createBlock("section");
-                      commit((document) => insertSection(document, node, null));
-                      setSelected(node.id);
+                      commit((d) => insertSection(d, node, null));
+                      showNewNode(node.id);
                     }}
                   >
-                    <Plus size={15} /> Yeni bölüm ekle
+                    <Plus size={20} />
+                    <span>
+                      <b>{t("Add blank section")}</b>
+                      <small>{t("Drag and drop elements")}</small>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -2854,7 +3140,7 @@ export function Editor({
                 <div>
                   <MousePointer2 size={12} />
                   <span>
-                    {selectedNode?.name ?? "Bir öğe seç"}
+                    {selectedNode?.name ?? t("Bir öğe seç")}
                     {selectedNode && (
                       <>
                         <ChevronRight size={10} />
@@ -2865,16 +3151,16 @@ export function Editor({
                 </div>
                 <div>
                   <button
-                    title="Uzaklaştır"
+                    title={t("Uzaklaştır")}
                     onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
                   >
                     <ZoomOut size={14} />
                   </button>
-                  <button onClick={() => setZoom(1)} title="Ekrana sığdır">
+                  <button onClick={() => setZoom(1)} title={t("Ekrana sığdır")}>
                     {Math.round(scale * 100)}%
                   </button>
                   <button
-                    title="Yakınlaştır"
+                    title={t("Yakınlaştır")}
                     onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
                   >
                     <ZoomIn size={14} />
@@ -2882,78 +3168,105 @@ export function Editor({
                 </div>
               </footer>
             </main>
-            <PanelSplitter
-              side="inspector"
-              width={panels.widths.inspector}
-              update={(width) => panels.update("inspector", width)}
-            />
-            <div className="inspector-container">
-              {enclosingSection(page, selected) && !selectedThemeSection && (
-                <SectionDesign
-                  key={enclosingSection(page, selected)!.id}
-                  section={enclosingSection(page, selected)!}
-                  update={(section) =>
-                    commit((d) => ({
-                      ...d,
-                      nodes: mapBlock(d.nodes, section.id, () => section),
-                    }))
-                  }
-                />
-              )}
-              <SelectionTools
-                node={selectedNode}
-                count={
-                  selection.includes(selected || "") ? selection.length : 1
-                }
-                command={command}
-                device={device}
-              />
-              {selectedThemeSection && selectedNativeSnapshot ? (
-                <NativeThemeInspector
-                  section={selectedThemeSection}
-                  snapshot={selectedNativeSnapshot}
-                />
-              ) : (
-                <Inspector
-                  node={selectedNode}
-                  openMedia={() => setLibrary("media")}
-                  storeId={store.id}
-                  assets={assets}
-                  device={device}
-                  update={(change, key) => {
-                    changeSelected(change, key);
-                  }}
-                  duplicate={() => selected && duplicate(selected)}
-                  remove={() => selected && remove(selected)}
-                  move={moveSelected}
-                  setLayout={changeFreeLayout}
-                  contentIntent={contentIntent}
-                  parentFree={
-                    !!freeHeight(
-                      findBlock(
-                        page.nodes,
-                        locateBlock(page.nodes, selectedNode?.id || "")
-                          ?.parent || "",
-                      ),
-                      device,
-                    )
-                  }
-                />
-              )}
-            </div>
           </div>
+          {layersOpen && (
+            <FloatingPanel
+              title={t("Katmanlar")}
+              close={() => setLayersOpen(false)}
+            >
+              <div className="library-scroll layer-tree">
+                <input
+                  aria-label={t("Katman ara")}
+                  placeholder={t("Katman ara")}
+                  value={layerSearch}
+                  onChange={(e) => setLayerSearch(e.target.value)}
+                />
+                {useThemeShell &&
+                  themeSnapshot?.sections
+                    .filter((section) => section.region !== "footer")
+                    .map((section) => (
+                      <button
+                        key={section.id}
+                        className="outline-theme-row"
+                        onClick={() => selectNative(section.id)}
+                      >
+                        <Layers size={13} />
+                        <span>{section.name}</span>
+                        <LockKeyhole size={11} />
+                      </button>
+                    ))}
+                {visibleNodes
+                  .filter(
+                    (node) =>
+                      !layerSearch ||
+                      JSON.stringify(node)
+                        .toLocaleLowerCase(getUiLanguage())
+                        .includes(
+                          layerSearch.toLocaleLowerCase(getUiLanguage()),
+                        ),
+                  )
+                  .map((node) => (
+                    <Layer
+                      key={node.id}
+                      node={node}
+                      index={page.nodes.findIndex(
+                        (item) => item.id === node.id,
+                      )}
+                      depth={0}
+                      selected={selected}
+                      select={selectLayer}
+                      dragging={!!dragging}
+                      search={layerSearch}
+
+                      visibility={(id) =>
+                        commit((d) => ({
+                          ...d,
+                          nodes: mapBlock(d.nodes, id, (n) => ({
+                            ...n,
+                            hidden: {
+                              ...n.hidden,
+                              [device]: !n.hidden[device],
+                            },
+                          })),
+                        }))
+                      }
+                      device={device}
+                    />
+                  ))}
+                {useThemeShell &&
+                  themeSnapshot?.sections
+                    .filter((section) => section.region === "footer")
+                    .map((section) => (
+                      <button
+                        key={section.id}
+                        className="outline-theme-row"
+                        onClick={() => selectNative(section.id)}
+                      >
+                        <Layers size={13} />
+                        <span>{section.name}</span>
+                        <LockKeyhole size={11} />
+                      </button>
+                    ))}
+                {!page.nodes.length && (
+                  <p className="setting-help">
+                    {t("İlk öğeni kütüphaneden ekle.")}
+                  </p>
+                )}
+              </div>
+            </FloatingPanel>
+          )}
           {contextMenu && (
             <div
               className="editor-context-menu"
               style={{ left: contextMenu.x, top: contextMenu.y }}
             >
               {[
-                ["copyStyle", "Stili kopyala"],
-                ["pasteStyle", "Stili yapıştır"],
-                ["copyBlocks", "Öğeleri kopyala"],
-                ["pasteBlocks", "Öğeleri yapıştır"],
-                ["parent", "Üst öğeyi seç"],
-                ["lock", "Kilidi değiştir"],
+                ["copyStyle", t("Stili kopyala")],
+                ["pasteStyle", t("Stili yapıştır")],
+                ["copyBlocks", t("Öğeleri kopyala")],
+                ["pasteBlocks", t("Öğeleri yapıştır")],
+                ["parent", t("Üst öğeyi seç")],
+                ["lock", t("Kilidi değiştir")],
               ].map(([id, label]) => (
                 <button
                   key={id}
@@ -2965,7 +3278,7 @@ export function Editor({
                   {label}
                 </button>
               ))}
-              <button onClick={() => setContextMenu(null)}>Kapat</button>
+              <button onClick={() => setContextMenu(null)}>{t("Kapat")}</button>
             </div>
           )}
           <input
@@ -2977,7 +3290,7 @@ export function Editor({
           />
           {selectedNode && ["text", "heading"].includes(selectedNode.kind) && (
             <div className="rich-format-toolbar">
-              <span>Metin</span>
+              <span>{t("Metin")}</span>
               {[
                 ["bold", "B"],
                 ["italic", "I"],
@@ -3013,7 +3326,7 @@ export function Editor({
                         ?.getAttribute("data-node-id") !== selected
                     ) {
                       notify(
-                        "Biçimlendirmek için tasarım alanındaki metni seç.",
+                        t("Biçimlendirmek için tasarım alanındaki metni seç."),
                       );
                       return;
                     }
@@ -3023,7 +3336,7 @@ export function Editor({
                   {label}
                 </button>
               ))}
-              <small>Metne çift tıkla</small>
+              <small>{t("Metne çift tıkla")}</small>
             </div>
           )}
         </div>
@@ -3033,7 +3346,7 @@ export function Editor({
               <GripVertical size={16} />
               {dragging.startsWith("palette:")
                 ? labels[dragging.split(":")[1] as Kind]
-                : "Öğeyi taşı"}
+                : t("Öğeyi taşı")}
               <Plus size={12} />
             </div>
           )}
@@ -3045,10 +3358,10 @@ export function Editor({
                 <span className="brand-mark">
                   <Layers size={18} />
                 </span>
-                <b>Önizleme</b>
+                <b>{t("Önizleme")}</b>
               </button>
               <span className="preview-label">
-                Yerel tasarım önizlemesi · Shopify bağlantısı yok
+                {t("Yerel tasarım önizlemesi · Shopify bağlantısı yok")}
               </span>
               <div className="device-switch">
                 {(
@@ -3073,7 +3386,7 @@ export function Editor({
               </div>
               <button
                 className="icon-button"
-                aria-label="Önizlemeyi kapat"
+                aria-label={t("Önizlemeyi kapat")}
                 onClick={() => setPreview(false)}
               >
                 <X size={20} />

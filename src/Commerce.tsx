@@ -1,3 +1,4 @@
+import { getUiLocale, t } from "./i18n.ts";
 import { Dialog } from "./Dialog";
 import { trackEvent } from "./metrics";
 import {
@@ -121,7 +122,7 @@ export function CommerceProvider({
       ),
       qty = quantity[productId] || 1;
     if (!product || !v) {
-      setMessage("Önce ürün ve varyant seç.");
+      setMessage(t("Önce ürün ve varyant seç."));
       return;
     }
     setCart((old) => {
@@ -130,7 +131,7 @@ export function CommerceProvider({
         ),
         sum = qty + (prior?.quantity || 0);
       if (sum > v.stock) {
-        setMessage("Bu varyant için yeterli stok yok.");
+        setMessage(t("Bu varyant için yeterli stok yok."));
         return old;
       }
       const next = [
@@ -151,7 +152,7 @@ export function CommerceProvider({
         },
       ];
       localStorage.setItem("fp-cart-" + storeId, JSON.stringify(next));
-      setMessage("Yerel sepete eklendi. Shopify ödeme bağlantısı kapalı.");
+      setMessage(t("Yerel sepete eklendi. Shopify ödeme bağlantısı kapalı."));
       trackEvent(pageId, "add_to_cart", eventId);
       return next;
     });
@@ -191,7 +192,7 @@ export function CommerceProvider({
               i.variant.stock,
         )
       ) {
-        setMessage("Pakette eksik ürün veya yetersiz stok var.");
+        setMessage(t("Pakette eksik ürün veya yetersiz stok var."));
         return old;
       }
       let next = [...old];
@@ -216,7 +217,7 @@ export function CommerceProvider({
         });
       }
       localStorage.setItem("fp-cart-" + storeId, JSON.stringify(next));
-      setMessage("Paket yerel sepete eklendi. Ödeme bağlantısı kapalı.");
+      setMessage(t("Paket yerel sepete eklendi. Ödeme bağlantısı kapalı."));
       trackEvent(pageId, "add_to_cart", eventId);
       return next;
     });
@@ -250,15 +251,20 @@ export function CommerceProvider({
       {message && (
         <div className="cart-status" role="alert">
           {message}
-          <button onClick={() => setMessage("")}>Kapat</button>
+          <button onClick={() => setMessage("")}>{t("Kapat")}</button>
         </div>
       )}
-      <Dialog open={open} onClose={() => setOpen(false)} label="Yerel sepet">
-        <h2>Yerel sepet önizlemesi</h2>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        label={t("Yerel sepet")}
+      >
+        <h2>{t("Yerel sepet önizlemesi")}</h2>
         {cart.map((i) => (
           <p key={i.productId + i.variantId}>
             {catalog.products.find((p) => p.id === i.productId)?.title} ·{" "}
-            {i.quantity} adet
+            {i.quantity}
+            {" " + t("adet")}
             <button
               onClick={() => {
                 const next = cart.filter((c) => c !== i);
@@ -269,17 +275,19 @@ export function CommerceProvider({
                 );
               }}
             >
-              Kaldır
+              {t("Kaldır")}
             </button>
           </p>
         ))}
-        <p>Ödeme işlemi Shopify bağlantısıyla sonraki aşamada açılacak.</p>
+        <p>
+          {t("Ödeme işlemi Shopify bağlantısıyla sonraki aşamada açılacak.")}
+        </p>
       </Dialog>
     </CatalogContext.Provider>
   );
 }
 const money = (n: number, currency: string) =>
-  new Intl.NumberFormat("tr-TR", {
+  new Intl.NumberFormat(getUiLocale(), {
     style: "currency",
     currency: /^[A-Z]{3}$/.test(currency) ? currency : "TRY",
   }).format(n / 100);
@@ -331,7 +339,7 @@ export function CommerceBlock({
     const Heading = p.tag === "h1" ? "h1" : "h3";
     return (
       <div>
-        <Heading>{collection?.title || "Yerel koleksiyon seç"}</Heading>
+        <Heading>{collection?.title || t("Yerel koleksiyon seç")}</Heading>
         <p>{collection?.description}</p>
         {collection?.image && (
           <img
@@ -340,16 +348,16 @@ export function CommerceBlock({
           />
         )}
         <select
-          aria-label="Ürün sıralaması"
+          aria-label={t("Ürün sıralaması")}
           value={sort}
           onChange={(e) => {
             setSort(e.target.value);
             setPage(0);
           }}
         >
-          <option value="default">Varsayılan</option>
-          <option value="price">Fiyat</option>
-          <option value="title">Ürün adı</option>
+          <option value="default">{t("Varsayılan")}</option>
+          <option value="price">{t("Fiyat")}</option>
+          <option value="title">{t("Ürün adı")}</option>
         </select>
         <div
           className={`builder-product-grid ${p.view === "carousel" ? "carousel" : ""}`}
@@ -368,13 +376,13 @@ export function CommerceBlock({
           ))}
         </div>
         <button disabled={!page} onClick={() => setPage(page - 1)}>
-          Önceki
+          {t("Önceki")}
         </button>
         <button
           disabled={(page + 1) * size >= products.length}
           onClick={() => setPage(page + 1)}
         >
-          Sonraki
+          {t("Sonraki")}
         </button>
       </div>
     );
@@ -383,13 +391,15 @@ export function CommerceBlock({
     const left = Math.max(0, Number(p.threshold || 1000) * 100 - c.total);
     return (
       <div>
-        <b>{String(p.title || "Teslimat ve iade")}</b>
+        <b>{String(p.title || t("Teslimat ve iade"))}</b>
         <p>{String(p.description || "")}</p>
         <p>
           {left
-            ? `Ücretsiz kargoya ${money(left, String(p.currency || "TRY"))} kaldı.`
-            : "Ücretsiz kargo eşiğine ulaşıldı."}{" "}
-          · Yerel sepet
+            ? t("Ücretsiz kargoya {p0} kaldı.", {
+                p0: money(left, String(p.currency || "TRY")),
+              })
+            : t("Ücretsiz kargo eşiğine ulaşıldı.")}{" "}
+          {t("· Yerel sepet")}
         </p>
       </div>
     );
@@ -404,20 +414,23 @@ export function CommerceBlock({
         .filter(Boolean) as Product[];
     return (
       <div>
-        <h3>{String(p.title || "Paket teklif")}</h3>
+        <h3>{String(p.title || t("Paket teklif"))}</h3>
         {selectedProducts.map((pr) => (
           <p key={pr.id}>
             {pr.title} · {money(pr.variants[0].price, pr.currency)}
           </p>
         ))}
-        <p>Paket indirimi %{Number(p.discountPercent || 0)}</p>
+        <p>
+          {t("Paket indirimi %")}
+          {Number(p.discountPercent || 0)}
+        </p>
         <button
           disabled={selectedProducts.length !== ids.length || !ids.length}
           onClick={() => {
             if (!editable) c.addBundle(ids, Number(p.discountPercent || 0));
           }}
         >
-          Paketi yerel sepete ekle
+          {t("Paketi yerel sepete ekle")}
         </button>
         <small role="status">{c.message}</small>
       </div>
@@ -426,7 +439,7 @@ export function CommerceBlock({
   if (!product)
     return (
       <div className="integration-placeholder">
-        Yerel katalogdan ürün seç · Shopify bağlantısı kapalı
+        {t("Yerel katalogdan ürün seç · Shopify bağlantısı kapalı")}
       </div>
     );
   switch (node.kind) {
@@ -460,7 +473,7 @@ export function CommerceBlock({
           <div>
             {images.map((u, i) => (
               <button
-                aria-label={`Ürün görseli ${i + 1}`}
+                aria-label={t("Ürün görseli {p0}", { p0: i + 1 })}
                 key={i}
                 onClick={() => setActive(i)}
               >
@@ -471,7 +484,7 @@ export function CommerceBlock({
           <Dialog
             open={zoom && !editable}
             onClose={() => setZoom(false)}
-            label="Ürün yakınlaştırma"
+            label={t("Ürün yakınlaştırma")}
           >
             <img
               src={assetUrl(images[active % images.length], previewToken)}
@@ -484,7 +497,7 @@ export function CommerceBlock({
     case "variantPicker":
       return (
         <label className="builder-variant-picker">
-          Varyant
+          {t("Varyant")}
           {p.variantMode === "buttons" ? (
             <span>
               {product.variants.map((v) => (
@@ -500,7 +513,7 @@ export function CommerceBlock({
             </span>
           ) : (
             <select
-              aria-label="Ürün varyantı"
+              aria-label={t("Ürün varyantı")}
               value={variant?.id}
               onChange={(e) => {
                 c.choose(product.id, e.target.value);
@@ -516,16 +529,18 @@ export function CommerceBlock({
             </select>
           )}
           <small>
-            {variant?.stock ? `${variant.stock} adet stokta` : "Stokta yok"}
+            {variant?.stock
+              ? t("{p0} adet stokta", { p0: variant.stock })
+              : t("Stokta yok")}
           </small>
         </label>
       );
     case "quantity":
       return (
         <label className="builder-quantity-picker">
-          Adet
+          {t("Adet")}
           <input
-            aria-label="Ürün adedi"
+            aria-label={t("Ürün adedi")}
             type="number"
             min={1}
             max={variant?.stock || 1}
@@ -557,14 +572,14 @@ export function CommerceBlock({
               if (!editable) c.add(product.id, String(p.quantityOffers || ""));
             }}
           >
-            {variant?.stock ? "Yerel sepete ekle" : "Stokta yok"}
+            {variant?.stock ? t("Yerel sepete ekle") : t("Stokta yok")}
           </button>
           <button
             onClick={() =>
               window.dispatchEvent(new CustomEvent("fukpages:cart"))
             }
           >
-            Sepeti aç
+            {t("Sepeti aç")}
           </button>
           <small role="status">{c.message}</small>
         </div>
@@ -582,7 +597,7 @@ export function CommerceBlock({
             <s>{money(variant.comparePrice, product.currency)}</s>
           )}
           <p>{product.description}</p>
-          <small>Yerel katalog ürünü</small>
+          <small>{t("Yerel katalog ürünü")}</small>
         </article>
       );
     default:
@@ -616,13 +631,14 @@ export function CatalogPanel({
   }, [storeId]);
   return (
     <div className="library-scroll feature-panel">
-      <h3>Yerel ürün kataloğu</h3>
+      <h3>{t("Yerel ürün kataloğu")}</h3>
       <p>
-        Shopify bağlantısı olmadan kendi ürün/varyant verilerini ekle. Fiyatlar
-        kuruş cinsindendir. Bu katalog ödeme oluşturmaz.
+        {t(
+          "Shopify bağlantısı olmadan kendi ürün/varyant verilerini ekle. Fiyatlar kuruş cinsindendir. Bu katalog ödeme oluşturmaz.",
+        )}
       </p>
       <textarea
-        aria-label="Yerel katalog JSON"
+        aria-label={t("Yerel katalog JSON")}
         rows={24}
         value={data}
         onChange={(e) => setData(e.target.value)}
@@ -635,19 +651,19 @@ export function CatalogPanel({
                 products: [
                   {
                     id: "product-1",
-                    title: "Ürün adı",
-                    description: "Ürün açıklaması",
+                    title: t("Ürün adı"),
+                    description: t("Ürün açıklaması"),
                     currency: "TRY",
                     images: ["/assets/headphones.svg"],
-                    metafields: { "details.material": "Malzeme" },
+                    metafields: { "details.material": t("Malzeme") },
                     variants: [
                       {
                         id: "variant-1",
-                        title: "Standart",
+                        title: t("Standart"),
                         price: 19900,
                         comparePrice: 24900,
                         stock: 10,
-                        options: { Renk: "Siyah" },
+                        options: { Renk: t("Siyah") },
                         image: "/assets/headphones.svg",
                       },
                     ],
@@ -656,8 +672,8 @@ export function CatalogPanel({
                 collections: [
                   {
                     id: "collection-1",
-                    title: "Koleksiyon",
-                    description: "Koleksiyon açıklaması",
+                    title: t("Koleksiyon"),
+                    description: t("Koleksiyon açıklaması"),
                     productIds: ["product-1"],
                   },
                 ],
@@ -668,7 +684,7 @@ export function CatalogPanel({
           )
         }
       >
-        Düzenlenebilir veri örneği
+        {t("Düzenlenebilir veri örneği")}
       </button>
       <button
         className="feature-primary"
@@ -680,13 +696,13 @@ export function CatalogPanel({
             });
             setVersion(r.version || 0);
             await refresh();
-            notify("Yerel katalog kaydedildi.");
+            notify(t("Yerel katalog kaydedildi."));
           } catch (e) {
             notify((e as Error).message, true);
           }
         }}
       >
-        Kataloğu kaydet
+        {t("Kataloğu kaydet")}
       </button>
     </div>
   );

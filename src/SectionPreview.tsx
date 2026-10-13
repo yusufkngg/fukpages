@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import { useState } from "react";
 import { Dialog } from "./Dialog";
 import { PageRenderer } from "./Renderer";
@@ -14,7 +15,7 @@ export function SectionPreview({
   section,
   onClose,
   apply,
-  actionLabel = "Bölümü ekle",
+  actionLabel = t("Bölümü ekle"),
 }: {
   section: Block;
   onClose: () => void;
@@ -32,7 +33,7 @@ export function SectionPreview({
   bind(prepared);
   const page: PageDocument = {
     schemaVersion: 1,
-    name: "Bölüm önizlemesi",
+    name: t("Bölüm önizlemesi"),
     type: "landing",
     nodes: [prepared],
   };
@@ -40,7 +41,7 @@ export function SectionPreview({
     <Dialog
       open
       onClose={onClose}
-      label="Bölüm önizlemesi"
+      label={t("Bölüm önizlemesi")}
       className="section-preview-dialog"
     >
       <h2>{section.name}</h2>
@@ -48,7 +49,7 @@ export function SectionPreview({
         {(["desktop", "tablet", "mobile"] as Device[]).map((d) => (
           <button
             key={d}
-            aria-label={`Önizleme ${deviceNames[d]}`}
+            aria-label={t("Önizleme {p0}", { p0: deviceNames[d] })}
             aria-pressed={d === device}
             onClick={() => setDevice(d)}
           >
@@ -58,13 +59,13 @@ export function SectionPreview({
       </div>
       {!!studio.catalog.products.length && (
         <label>
-          Önizleme ürünü
+          {t("Önizleme ürünü")}
           <select
-            aria-label="Bölüm önizleme ürünü"
+            aria-label={t("Bölüm önizleme ürünü")}
             value={productId}
             onChange={(e) => setProductId(e.target.value)}
           >
-            <option value="">Ürün seç</option>
+            <option value="">{t("Ürün seç")}</option>
             {studio.catalog.products.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.title}
@@ -79,8 +80,9 @@ export function SectionPreview({
         </p>
       ))}
       <p>
-        Mağazanın fontları, renkleri ve gerçek bölüm düzeniyle önizleme. Ürün
-        seçimi yalnızca bu önizlemeyi etkiler.
+        {t(
+          "Mağazanın fontları, renkleri ve gerçek bölüm düzeniyle önizleme. Ürün seçimi yalnızca bu önizlemeyi etkiler.",
+        )}
       </p>
       <div className="section-live-preview" data-section-live-preview>
         <div

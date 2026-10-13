@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { effectiveStyle, type Block, type Device } from "./model";
 export function columnWidths(node: Block, device: Device) {
@@ -98,8 +99,11 @@ export function ColumnHandles({
           tabIndex={0}
           aria-label={
             index === 0
-              ? "Kolonları boyutlandır"
-              : `${index + 1}. ve ${index + 2}. kolonları boyutlandır`
+              ? t("Kolonları boyutlandır")
+              : t("{p0}. ve {p1}. kolonları boyutlandır", {
+                  p0: index + 1,
+                  p1: index + 2,
+                })
           }
           style={{ left: left + "%" }}
           onPointerDown={(e) => {

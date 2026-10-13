@@ -1,6 +1,12 @@
+import { t } from "./i18n.ts";
 import { useRef, type PointerEvent } from "react";
 import { cssNumber } from "./freePlacement";
-type Geometry = { left: number; top: number; width: number; height: number };
+type Geometry = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
 export function useElementGesture(
   element: () => HTMLElement | null,
   free: boolean,
@@ -104,9 +110,9 @@ export function ElementHandles({
     <>
       {(
         [
-          ["e", "Genişliği boyutlandır"],
-          ["s", "Yüksekliği boyutlandır"],
-          ["se", "Öğeyi boyutlandır"],
+          ["e", t("Genişliği boyutlandır")],
+          ["s", t("Yüksekliği boyutlandır")],
+          ["se", t("Öğeyi boyutlandır")],
         ] as const
       ).map(([mode, label]) => (
         <button

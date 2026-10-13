@@ -1,7 +1,7 @@
 """Critical combined workflows for the previously code-reviewed feature rows."""
 from pathlib import Path
 import json, subprocess
-from browser_support import ROOT, browser_fixture, block, document, open_editor, expect
+from browser_support import open_actions,ROOT, browser_fixture, block, document, open_editor, expect
 with browser_fixture() as f:
     api,base=f['api'],f['base'];errors=[]
     colors=[]
@@ -48,15 +48,15 @@ with browser_fixture() as f:
     page.get_by_role('button',name='Medya',exact=True).click();asset=page.locator('[data-asset-id="'+colors[0]['id']+'"]');asset.get_by_role('button',name='Bilgiler',exact=True).click()
     page.get_by_label('Ad',exact=True).fill('Marka fotoğrafı');page.get_by_label('Ad',exact=True).press('Tab');page.get_by_label('Klasör',exact=True).fill('Kampanya');page.get_by_label('Klasör',exact=True).press('Tab');page.get_by_label('Etiketler',exact=True).fill('ürün, yaz');page.get_by_label('Etiketler',exact=True).press('Tab')
     expect(asset).to_contain_text('Marka fotoğrafı');asset.get_by_role('button',name='Marka fotoğrafı favori',exact=True).click();page.get_by_label('Favoriler',exact=True).check();expect(page.locator('.media-grid article')).to_have_count(1);page.get_by_label('Medya klasörü',exact=True).select_option('Kampanya');page.get_by_label('Medya ara',exact=True).fill('yaz');expect(page.locator('.media-grid article')).to_have_count(1)
-    page.get_by_role('button',name='Marka',exact=True).click();page.get_by_label('Font ara',exact=True).fill('Review Sans');expect(page.locator('.library .feature-card').filter(has_text='Review Sans').first).to_contain_text('Review Sans')
+    page.get_by_role('button',name='Marka',exact=True).click();page.locator('.upload-fonts > summary').click();page.get_by_label('Font ara',exact=True).fill('Review Sans');expect(page.locator('.library .feature-card').filter(has_text='Review Sans').first).to_contain_text('Review Sans')
     print('PASS: media rename/folder/tags/favorite/search combination and searchable uploaded font catalogue',flush=True)
-    heading=page.locator('[data-node-id=head-1]');heading.click();page.get_by_role('button',name='Stili kopyala',exact=True).click();page.get_by_role('button',name='Öğeleri kopyala',exact=True).click()
+    heading=page.locator('[data-node-id=head-1]');heading.click();open_actions(page);page.get_by_role('button',name='Stili kopyala',exact=True).click();page.get_by_role('button',name='Öğeleri kopyala',exact=True).click()
     destination=api('/stores/demo/pages','POST',{'document':document('Paste destination',[block('section','paste-section',{},[block('heading','paste-heading',{'html':'Destination','tag':'h1'})])])});open_editor(page,base,'Paste destination')
-    page.get_by_role('button',name='Stili yapıştır',exact=True).click();page.get_by_role('button',name='Öğeleri yapıştır',exact=True).click();expect(page.locator('.editor-block[data-kind=heading]')).to_have_count(2)
+    open_actions(page);page.get_by_role('button',name='Stili yapıştır',exact=True).click();page.get_by_role('button',name='Öğeleri yapıştır',exact=True).click();expect(page.locator('.editor-block[data-kind=heading]')).to_have_count(2)
     expect(page.locator('[data-node-id=paste-heading]')).to_have_css('font-weight','700')
     page.locator('[data-node-id=paste-heading]').click(button='right');page.locator('.editor-context-menu').get_by_role('button',name='Üst öğeyi seç',exact=True).click();expect(page.locator('[data-node-id=paste-section]')).to_have_class(__import__('re').compile('selected'))
-    page.locator('[data-node-id=paste-heading]').click();page.locator('.inspector-container').get_by_role('button',name='İçerik',exact=True).click();page.get_by_label('Katman adı',exact=True).fill('Aranacak başlık');page.get_by_label('Katman adı',exact=True).press('Tab');page.locator('[data-node-id=paste-heading]').focus();page.keyboard.press('ArrowDown');expect(page.locator('[data-node-id=paste-section] > .section-content > .editor-block').last).to_have_attribute('data-node-id','paste-heading')
-    page.get_by_role('button',name='Katmanlar',exact=True).click();page.get_by_label('Katman ara',exact=True).fill('Aranacak başlık');expect(page.locator('.layer-tree')).to_contain_text('Aranacak başlık')
+    page.locator('[data-node-id=paste-heading]').click();page.locator('.inspector-tabs').get_by_role('button',name='Ayarlar',exact=True).click();page.get_by_label('Katman adı',exact=True).fill('Aranacak başlık');page.get_by_label('Katman adı',exact=True).press('Tab');page.locator('[data-node-id=paste-heading]').focus();page.keyboard.press('ArrowDown');expect(page.locator('[data-node-id=paste-section] > .section-content > .editor-block').last).to_have_attribute('data-node-id','paste-heading')
+    page.get_by_role('button',name='Katmanlar',exact=True).click();page.get_by_label('Katman ara',exact=True).fill('Aranacak başlık');expect(page.locator('.layer-tree')).to_contain_text('Aranacak başlık');page.locator('.floating-layer-panel').get_by_role('button',name='Kapat',exact=True).click()
     expect(page.locator('.save-indicator')).to_have_text('Kaydedildi',timeout=15000)
     stored=api('/pages/'+destination['id'])['document'];assert len(stored['nodes'][0]['children'])==2
     print('PASS: style and element paste across pages, right-click parent selection, keyboard sibling movement and layer naming/search',flush=True)

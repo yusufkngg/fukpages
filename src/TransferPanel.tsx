@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import { useState, useEffect } from "react";
 import { api, json } from "./api";
 import type { PageDocument, Store, Block } from "./model";
@@ -49,13 +50,13 @@ export function TransferPanel({
   walk(page.nodes);
   return (
     <div className="feature-card">
-      <h3>Başka mağazaya aktar</h3>
+      <h3>{t("Başka mağazaya aktar")}</h3>
       <select
-        aria-label="Aktarım hedef mağazası"
+        aria-label={t("Aktarım hedef mağazası")}
         value={target}
         onChange={(e) => setTarget(e.target.value)}
       >
-        <option value="">Hedef mağaza</option>
+        <option value="">{t("Hedef mağaza")}</option>
         {stores
           .filter((s) => s.id !== storeId && s.status === "active")
           .map((s) => (
@@ -68,13 +69,13 @@ export function TransferPanel({
         <label key={id}>
           {id} →
           <select
-            aria-label={`Ürün eşleştirme ${id}`}
+            aria-label={t("Ürün eşleştirme {p0}", { p0: id })}
             value={productMap[id] || ""}
             onChange={(e) =>
               setProductMap((m) => ({ ...m, [id]: e.target.value }))
             }
           >
-            <option value="">Hedef ürün</option>
+            <option value="">{t("Hedef ürün")}</option>
             {catalog.products.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.title}
@@ -92,7 +93,7 @@ export function TransferPanel({
               setCollectionMap((m) => ({ ...m, [id]: e.target.value }))
             }
           >
-            <option value="">Hedef koleksiyon</option>
+            <option value="">{t("Hedef koleksiyon")}</option>
             {catalog.collections.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.title}
@@ -102,19 +103,22 @@ export function TransferPanel({
         </label>
       ))}
       <label>
-        Aktarımda görünüm
+        {t("Aktarımda görünüm")}
         <select
-          aria-label="Aktarımda marka görünümü"
+          aria-label={t("Aktarımda marka görünümü")}
           value={preserveBrand ? "source" : "target"}
           onChange={(e) => setPreserveBrand(e.target.value === "source")}
         >
-          <option value="source">Kaynak görünümünü koru</option>
-          <option value="target">Hedef mağazanın markasını kullan</option>
+          <option value="source">{t("Kaynak görünümünü koru")}</option>
+          <option value="target">
+            {t("Hedef mağazanın markasını kullan")}
+          </option>
         </select>
       </label>
       <p>
-        Görseller ve kullanılan özel fontlar hedef mağazaya kopyalanıp eşlenir.
-        Senkron bölüm ve tema bağlantısı bağımsız taslağa dönüşür.
+        {t(
+          "Görseller ve kullanılan özel fontlar hedef mağazaya kopyalanıp eşlenir. Senkron bölüm ve tema bağlantısı bağımsız taslağa dönüşür.",
+        )}
       </p>
       <button
         disabled={!target}
@@ -130,13 +134,13 @@ export function TransferPanel({
                 preserveBrand,
               }),
             });
-            notify("Tasarım hedef mağazada yeni taslak olarak oluşturuldu.");
+            notify(t("Tasarım hedef mağazada yeni taslak olarak oluşturuldu."));
           } catch (e) {
             notify((e as Error).message, true);
           }
         }}
       >
-        Eşleştirip aktar
+        {t("Eşleştirip aktar")}
       </button>
     </div>
   );

@@ -1,9 +1,17 @@
+import { getUiLocale, getUiLanguage, subscribeUiLanguage, t } from "./i18n.ts";
+import { UiSettingsButton } from "./UiSettings";
 import { PageManager } from "./PageManager";
 import { pageTemplate } from "./pageTemplates";
 import { Viewer } from "./Viewer";
 import { PreviewReview } from "./GrowthPanel";
 import { StudioProvider, type Asset, type Brand } from "./studio";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+} from "react";
 import {
   ArrowRight,
   Check,
@@ -34,7 +42,6 @@ import {
   type PageType,
   type Store,
 } from "./model";
-
 function Login({
   configured,
   onLogin,
@@ -55,7 +62,9 @@ function Login({
     setBusy(true);
     setError("");
     try {
-      const result = await api<{ csrf: string }>("/auth/login", {
+      const result = await api<{
+        csrf: string;
+      }>("/auth/login", {
         method: "POST",
         body: json({ login, password }),
       });
@@ -70,6 +79,9 @@ function Login({
   }
   return (
     <div className="login-page">
+      <div className="login-settings">
+        <UiSettingsButton />
+      </div>
       <div className="login-visual">
         <div className="login-brand">
           <span className="brand-mark">
@@ -80,14 +92,14 @@ function Login({
         <div className="login-statement">
           <div className="eyebrow">YOUR IDEAS. YOUR STORES.</div>
           <h1>
-            Güzel fikirler.
+            {t("Güzel fikirler.")}
             <br />
-            Güçlü sayfalar.
+            {t("Güçlü sayfalar.")}
           </h1>
           <p>
-            Her mağaza için bir tasarım alanı.
+            {t("Her mağaza için bir tasarım alanı.")}
             <br />
-            Her ayrıntı üzerinde tam kontrol.
+            {t("Her ayrıntı üzerinde tam kontrol.")}
           </p>
           <div className="login-art">
             <div className="art-bar">
@@ -105,7 +117,10 @@ function Login({
                 <br />
                 <em>NOISE.</em>
               </h2>
-              <img src="/assets/headphones.svg" alt="Örnek kulaklık tasarımı" />
+              <img
+                src="/assets/headphones.svg"
+                alt={t("Örnek kulaklık tasarımı")}
+              />
               <span className="art-button">Find your rhythm ↗</span>
             </div>
             <span className="art-selection">
@@ -120,32 +135,32 @@ function Login({
           <span className="login-lock">
             <LockKeyhole size={22} />
           </span>
-          <span className="eyebrow">SAHİP ERİŞİMİ</span>
-          <h2>Stüdyona hoş geldin.</h2>
-          <p>Mağazalarını ve tasarımlarını yönetmek için giriş yap.</p>
+          <span className="eyebrow">{t("SAHİP ERİŞİMİ")}</span>
+          <h2>{t("Stüdyona hoş geldin.")}</h2>
+          <p>{t("Mağazalarını ve tasarımlarını yönetmek için giriş yap.")}</p>
           {demo && (
             <p>
               <a href="/p/demo/home" target="_blank" rel="noreferrer">
-                Demo mağazayı aç ↗
+                {t("Demo mağazayı aç ↗")}
               </a>
             </p>
           )}
           <form onSubmit={(event) => void submit(event)}>
             <label>
-              Kullanıcı adı
+              {t("Kullanıcı adı")}
               <input
                 autoComplete="username"
-                aria-label="Kullanıcı adı"
+                aria-label={t("Kullanıcı adı")}
                 value={login}
                 onChange={(event) => setLogin(event.target.value)}
                 required
               />
             </label>
             <label>
-              Şifre
+              {t("Şifre")}
               <input
                 autoComplete="current-password"
-                aria-label="Şifre"
+                aria-label={t("Şifre")}
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -156,7 +171,9 @@ function Login({
               <div className="form-error">
                 <CircleAlert size={16} />
                 {setupError ||
-                  "Yönetici hesabı henüz yapılandırılmadı. Kurulum tamamlandıktan sonra giriş yapabilirsin."}
+                  t(
+                    "Yönetici hesabı henüz yapılandırılmadı. Kurulum tamamlandıktan sonra giriş yapabilirsin.",
+                  )}
               </div>
             )}
             {error && (
@@ -174,13 +191,15 @@ function Login({
                 <Loader2 className="spin" size={16} />
               ) : (
                 <>
-                  Stüdyoya gir <ArrowRight size={16} />
+                  {t("Stüdyoya gir") + " "}
+                  <ArrowRight size={16} />
                 </>
               )}
             </button>
           </form>
           <small>
-            <ShieldCheck size={13} /> Yalnızca uygulama sahibine açık.
+            <ShieldCheck size={13} />
+            {" " + t("Yalnızca uygulama sahibine açık.")}
           </small>
         </div>
       </main>
@@ -206,7 +225,7 @@ function StartupFailure({
         <h1>{title}</h1>
         <p>{message}</p>
         <button className="primary-button" onClick={retry}>
-          Tekrar dene
+          {t("Tekrar dene")}
         </button>
       </main>
     </div>
@@ -238,7 +257,12 @@ function Dashboard({
   const [type, setType] = useState<PageType>("landing"),
     [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<Store | null>(null);
-  const [audit, setAudit] = useState<{ action: string; created: number }[]>([]);
+  const [audit, setAudit] = useState<
+    {
+      action: string;
+      created: number;
+    }[]
+  >([]);
   const reload = useCallback(async () => {
     const result = await api<Store[]>("/stores");
     setStores(result);
@@ -257,9 +281,12 @@ function Dashboard({
     let valid = true;
     Promise.all([
       api<PageSummary[]>(`/stores/${selected.id}/pages`),
-      api<{ action: string; created: number }[]>(
-        `/stores/${selected.id}/audit`,
-      ),
+      api<
+        {
+          action: string;
+          created: number;
+        }[]
+      >(`/stores/${selected.id}/audit`),
     ])
       .then(([list, events]) => {
         if (valid) {
@@ -278,13 +305,15 @@ function Dashboard({
       if (role === "viewer") {
         const list = await api<PageSummary[]>(`/stores/${store.id}/pages`);
         if (!list.length) {
-          notify("Bu mağazada izlenecek taslak yok.");
+          notify(t("Bu mağazada izlenecek taslak yok."));
           return;
         }
         openPage(list[0].id, store);
         return;
       }
-      const result = await api<{ id: string }>(`/stores/${store.id}/pages`, {
+      const result = await api<{
+        id: string;
+      }>(`/stores/${store.id}/pages`, {
         method: "POST",
         body: json({ document: pageTemplate(type) }),
       });
@@ -308,7 +337,9 @@ function Dashboard({
       setClient("");
       setDomain("");
       await reload();
-      notify("Yerel çalışma alanı oluşturuldu. Shopify bağlantısı henüz yok.");
+      notify(
+        t("Yerel çalışma alanı oluşturuldu. Shopify bağlantısı henüz yok."),
+      );
     } catch (error) {
       notify((error as Error).message, true);
     } finally {
@@ -329,8 +360,10 @@ function Dashboard({
       setConfirm(null);
       notify(
         status === "suspended"
-          ? "Çalışma alanı durduruldu ve yerel yayınlar kaldırıldı."
-          : "Çalışma alanı etkinleştirildi. Sayfalar yeniden yayınlanabilir.",
+          ? t("Çalışma alanı durduruldu ve yerel yayınlar kaldırıldı.")
+          : t(
+              "Çalışma alanı etkinleştirildi. Sayfalar yeniden yayınlanabilir.",
+            ),
       );
     } catch (error) {
       notify((error as Error).message, true);
@@ -340,8 +373,8 @@ function Dashboard({
   }
   const filtered = stores.filter((store) =>
     `${store.name} ${store.client}`
-      .toLocaleLowerCase("tr")
-      .includes(search.toLocaleLowerCase("tr")),
+      .toLocaleLowerCase(getUiLanguage())
+      .includes(search.toLocaleLowerCase(getUiLanguage())),
   );
   return (
     <div className="dashboard">
@@ -358,11 +391,12 @@ function Dashboard({
           {role === "owner"
             ? "OWNER WORKSPACE"
             : role === "editor"
-              ? "DÜZENLEYİCİ"
-              : "İZLEYİCİ"}
+              ? t("DÜZENLEYİCİ")
+              : t("İZLEYİCİ")}
         </span>
         <button className="active" onClick={() => setSelected(null)}>
-          <StoreIcon size={18} /> Mağazalarım
+          <StoreIcon size={18} />
+          {" " + t("Mağazalarım")}
         </button>
         {demo && (
           <a
@@ -371,26 +405,31 @@ function Dashboard({
             target="_blank"
             rel="noreferrer"
           >
-            <StoreIcon size={18} /> Demo mağazayı aç ↗
+            <StoreIcon size={18} />
+            {" " + t("Demo mağazayı aç ↗")}
           </a>
         )}
         <div className="dashboard-nav-bottom">
+          <UiSettingsButton />
           <div>
             <ShieldCheck size={16} />
             <span>
-              Tek sahip erişimi<small>Yönetici</small>
+              {t("Tek sahip erişimi")}
+              <small>{t("Yönetici")}</small>
             </span>
           </div>
           <button onClick={logout}>
-            <LogOut size={17} /> Çıkış yap
+            <LogOut size={17} />
+            {" " + t("Çıkış yap")}
           </button>
         </div>
       </aside>
       <main className="dashboard-main">
         <header>
           <span>
-            Çalışma alanı <ChevronRight size={12} />{" "}
-            {selected ? selected.name : "Mağazalar"}
+            {t("Çalışma alanı") + " "}
+            <ChevronRight size={12} />{" "}
+            {selected ? selected.name : t("Mağazalar")}
           </span>
           <span className="owner-badge">
             <span>O</span> Owner
@@ -401,19 +440,26 @@ function Dashboard({
             <CircleAlert size={15} />
             <span>
               {demo
-                ? "Demo çalışma alanı · Shopify bağlantısı yok. Sepet ve formlar örnek verilerle çalışır; ödeme alınmaz. Medya yüklemelerini 4 MB altında tut."
-                : "Shopify tema bölümleri eşleştirilebilir. Sayfa yayınları şu an yerel önizlemede çalışır."}
+                ? t(
+                    "Demo çalışma alanı · Shopify bağlantısı yok. Sepet ve formlar örnek verilerle çalışır; ödeme alınmaz. Medya yüklemelerini 4 MB altında tut.",
+                  )
+                : t(
+                    "Shopify tema bölümleri eşleştirilebilir. Sayfa yayınları şu an yerel önizlemede çalışır.",
+                  )}
             </span>
           </div>
           {!selected ? (
             <>
               <div className="dashboard-title">
                 <div>
-                  <span className="eyebrow">HER MAĞAZA. TEK BİR ALAN.</span>
-                  <h1>Tasarımlarının kontrolü sende.</h1>
+                  <span className="eyebrow">
+                    {t("HER MAĞAZA. TEK BİR ALAN.")}
+                  </span>
+                  <h1>{t("Tasarımlarının kontrolü sende.")}</h1>
                   <p>
-                    Mağazalarını seç, sayfalarını oluştur ve her ayrıntıyı
-                    yönet.
+                    {t(
+                      "Mağazalarını seç, sayfalarını oluştur ve her ayrıntıyı yönet.",
+                    )}
                   </p>
                 </div>
                 <button
@@ -421,26 +467,27 @@ function Dashboard({
                   hidden={role !== "owner"}
                   onClick={() => setNewStore(true)}
                 >
-                  <Plus size={16} /> Çalışma alanı ekle
+                  <Plus size={16} />
+                  {" " + t("Çalışma alanı ekle")}
                 </button>
               </div>
               <div className="dashboard-stats">
                 <div>
-                  <span>Çalışma alanları</span>
+                  <span>{t("Çalışma alanları")}</span>
                   <b>
                     {stores.length}
                     <StoreIcon size={19} />
                   </b>
                 </div>
                 <div>
-                  <span>Aktif alanlar</span>
+                  <span>{t("Aktif alanlar")}</span>
                   <b>
                     {stores.filter((store) => store.status === "active").length}
                     <Power size={19} />
                   </b>
                 </div>
                 <div>
-                  <span>Kaydedilen sayfalar</span>
+                  <span>{t("Kaydedilen sayfalar")}</span>
                   <b>
                     {stores.reduce((sum, store) => sum + store.pageCount, 0)}
                     <FileText size={19} />
@@ -449,13 +496,14 @@ function Dashboard({
               </div>
               <div className="stores-heading">
                 <h2>
-                  Mağazaların <span>{stores.length}</span>
+                  {t("Mağazaların") + " "}
+                  <span>{stores.length}</span>
                 </h2>
                 <label className="dashboard-search">
                   <Search size={15} />
                   <input
-                    aria-label="Mağaza ara"
-                    placeholder="Mağaza veya müşteri ara"
+                    aria-label={t("Mağaza ara")}
+                    placeholder={t("Mağaza veya müşteri ara")}
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                   />
@@ -467,10 +515,13 @@ function Dashboard({
                     <div className="store-card-top">
                       <span className="store-avatar">{store.name[0]}</span>
                       <span className={`status-pill ${store.status}`}>
-                        ● {store.status === "active" ? "Aktif" : "Devre dışı"}
+                        ●{" "}
+                        {store.status === "active"
+                          ? t("Aktif")
+                          : t("Devre dışı")}
                       </span>
                       <button
-                        title="Mağaza ayrıntıları"
+                        title={t("Mağaza ayrıntıları")}
                         className="icon-button"
                         onClick={() => setSelected(store)}
                       >
@@ -478,20 +529,21 @@ function Dashboard({
                       </button>
                     </div>
                     <h3>{store.name}</h3>
-                    <p>{store.client || "Müşteri belirtilmedi"}</p>
+                    <p>{store.client || t("Müşteri belirtilmedi")}</p>
                     <span className="connection-label">
                       {store.connection === "synced"
-                        ? "Shopify tema bölümleri alındı"
+                        ? t("Shopify tema bölümleri alındı")
                         : store.connection === "configured"
-                          ? "Tema erişimi yapılandırıldı"
+                          ? t("Tema erişimi yapılandırıldı")
                           : store.domain
-                            ? "Shopify adresi kayıtlı · tema erişimi gerekli"
-                            : "Yerel çalışma alanı · Shopify bağlı değil"}
+                            ? t("Shopify adresi kayıtlı · tema erişimi gerekli")
+                            : t("Yerel çalışma alanı · Shopify bağlı değil")}
                     </span>
                     <div className="store-card-meta">
                       <span>
                         <FileText size={14} />
-                        {store.pageCount} sayfa
+                        {store.pageCount}
+                        {" " + t("sayfa")}
                       </span>
                       <button
                         className="store-toggle"
@@ -503,13 +555,14 @@ function Dashboard({
                       >
                         <Power size={12} />
                         {store.status === "active"
-                          ? "Devre dışı bırak"
-                          : "Etkinleştir"}
+                          ? t("Devre dışı bırak")
+                          : t("Etkinleştir")}
                       </button>
                     </div>
                     <div className="store-card-bottom">
                       <button onClick={() => setSelected(store)}>
-                        Sayfaları yönet <ArrowRight size={14} />
+                        {t("Sayfaları yönet") + " "}
+                        <ArrowRight size={14} />
                       </button>
                       {store.status === "active" && (
                         <button
@@ -518,8 +571,8 @@ function Dashboard({
                           onClick={() => void createPage(store)}
                         >
                           {role === "viewer"
-                            ? "Tasarımı görüntüle"
-                            : "Editörü aç"}{" "}
+                            ? t("Tasarımı görüntüle")
+                            : t("Editörü aç")}{" "}
                           <Plus size={13} />
                         </button>
                       )}
@@ -529,22 +582,23 @@ function Dashboard({
               </div>
               {!filtered.length && (
                 <div className="dashboard-empty">
-                  Eşleşen çalışma alanı yok.
+                  {t("Eşleşen çalışma alanı yok.")}
                 </div>
               )}
             </>
           ) : (
             <>
               <button className="text-button" onClick={() => setSelected(null)}>
-                <ChevronRight className="rotate" size={13} /> Mağazalara dön
+                <ChevronRight className="rotate" size={13} />
+                {" " + t("Mağazalara dön")}
               </button>
               <div className="dashboard-title">
                 <div>
                   <span className="eyebrow">
-                    {selected.client || "ÇALIŞMA ALANI"}
+                    {selected.client || t("ÇALIŞMA ALANI")}
                   </span>
                   <h1>{selected.name}</h1>
-                  <p>Sayfalar, tasarımlar ve işlem geçmişi.</p>
+                  <p>{t("Sayfalar, tasarımlar ve işlem geçmişi.")}</p>
                 </div>
                 <div className="new-page-controls">
                   {role === "owner" && selected.status === "active" && (
@@ -553,11 +607,11 @@ function Dashboard({
                       disabled={busy}
                       onClick={() => setConfirm(selected)}
                     >
-                      Devre dışı bırak
+                      {t("Devre dışı bırak")}
                     </button>
                   )}
                   <select
-                    aria-label="Yeni sayfa türü"
+                    aria-label={t("Yeni sayfa türü")}
                     value={type}
                     onChange={(event) =>
                       setType(event.target.value as PageType)
@@ -574,15 +628,16 @@ function Dashboard({
                     disabled={busy || selected.status !== "active"}
                     onClick={() => void createPage(selected)}
                   >
-                    <Plus size={16} /> Yeni sayfa
+                    <Plus size={16} />
+                    {" " + t("Yeni sayfa")}
                   </button>
                 </div>
               </div>
               {selected.status !== "active" && (
                 <div className="form-error">
-                  Bu çalışma alanı devre dışı; yerel yayınlar kaldırıldı.{" "}
+                  {t("Bu çalışma alanı devre dışı; yerel yayınlar kaldırıldı.")}{" "}
                   <button onClick={() => void changeStatus(selected)}>
-                    Etkinleştir
+                    {t("Etkinleştir")}
                   </button>
                 </div>
               )}
@@ -592,20 +647,20 @@ function Dashboard({
                 open={(id) => openPage(id, selected)}
                 notify={notify}
               />
-              <h2 className="audit-heading">İşlem geçmişi</h2>
+              <h2 className="audit-heading">{t("İşlem geçmişi")}</h2>
               <div className="audit-list">
                 {audit.map((event, index) => (
                   <div key={index}>
                     <span>●</span>
                     <p>{event.action}</p>
                     <small>
-                      {new Date(event.created).toLocaleString("tr-TR", {
+                      {new Date(event.created).toLocaleString(getUiLocale(), {
                         timeZone: "Europe/Istanbul",
                       })}
                     </small>
                   </div>
                 ))}
-                {!audit.length && <p>Henüz işlem yok.</p>}
+                {!audit.length && <p>{t("Henüz işlem yok.")}</p>}
               </div>
             </>
           )}
@@ -616,7 +671,7 @@ function Dashboard({
           <div className="dialog">
             <button
               className="dialog-close"
-              aria-label="Pencereyi kapat"
+              aria-label={t("Pencereyi kapat")}
               onClick={() => setNewStore(false)}
             >
               <X size={19} />
@@ -624,43 +679,44 @@ function Dashboard({
             <span className="login-lock">
               <StoreIcon size={22} />
             </span>
-            <h2>Yeni çalışma alanı</h2>
+            <h2>{t("Yeni çalışma alanı")}</h2>
             <p>
-              Mağazana veya müşterine ait tasarımları ayrı bir alanda sakla.
-              Shopify adresini şimdi veya editörün Tema panelinde
-              ekleyebilirsin.
+              {t(
+                "Mağazana veya müşterine ait tasarımları ayrı bir alanda sakla. Shopify adresini şimdi veya editörün Tema panelinde ekleyebilirsin.",
+              )}
             </p>
             <form onSubmit={(event) => void createStore(event)}>
               <label>
-                Mağaza adı
+                {t("Mağaza adı")}
                 <input
                   autoFocus
                   required
-                  aria-label="Mağaza adı"
+                  aria-label={t("Mağaza adı")}
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                 />
               </label>
               <label>
-                Müşteri adı
+                {t("Müşteri adı")}
                 <input
-                  aria-label="Müşteri adı"
+                  aria-label={t("Müşteri adı")}
                   value={client}
                   onChange={(event) => setClient(event.target.value)}
-                  placeholder="Kendi mağazam / müşteri adı"
+                  placeholder={t("Kendi mağazam / müşteri adı")}
                 />
               </label>
               <label>
-                Shopify adresi (isteğe bağlı)
+                {t("Shopify adresi (isteğe bağlı)")}
                 <input
-                  aria-label="Yeni mağazanın Shopify adresi"
+                  aria-label={t("Yeni mağazanın Shopify adresi")}
                   value={domain}
                   onChange={(event) => setDomain(event.target.value)}
                   placeholder="magazam.myshopify.com"
                 />
               </label>
               <button className="primary-button" disabled={busy}>
-                Çalışma alanını oluştur <Plus size={15} />
+                {t("Çalışma alanını oluştur") + " "}
+                <Plus size={15} />
               </button>
             </form>
           </div>
@@ -671,7 +727,7 @@ function Dashboard({
           <div className="dialog">
             <button
               className="dialog-close"
-              aria-label="Pencereyi kapat"
+              aria-label={t("Pencereyi kapat")}
               onClick={() => setConfirm(null)}
             >
               <X size={19} />
@@ -679,25 +735,28 @@ function Dashboard({
             <span className="danger-icon">
               <Power size={24} />
             </span>
-            <h2>{confirm.name} devre dışı bırakılsın mı?</h2>
+            <h2>
+              {confirm.name}
+              {" " + t("devre dışı bırakılsın mı?")}
+            </h2>
             <p>
-              Bu çalışma alanının yerel yayınları kaldırılacak ve düzenleme
-              duracak. Taslaklar saklanacak. Shopify tema dosyaları bu yerel
-              işlemle değiştirilmez.
+              {t(
+                "Bu çalışma alanının yerel yayınları kaldırılacak ve düzenleme duracak. Taslaklar saklanacak. Shopify tema dosyaları bu yerel işlemle değiştirilmez.",
+              )}
             </p>
             <div className="dialog-actions">
               <button
                 className="secondary-button"
                 onClick={() => setConfirm(null)}
               >
-                Vazgeç
+                {t("Vazgeç")}
               </button>
               <button
                 className="danger-button"
                 disabled={busy}
                 onClick={() => void changeStatus(confirm)}
               >
-                Devre dışı bırak
+                {t("Devre dışı bırak")}
               </button>
             </div>
           </div>
@@ -707,6 +766,10 @@ function Dashboard({
   );
 }
 export function App() {
+  const uiLanguage = useSyncExternalStore(subscribeUiLanguage, getUiLanguage);
+  useEffect(() => {
+    document.documentElement.lang = uiLanguage;
+  }, [uiLanguage]);
   const [startupError, setStartupError] = useState("");
   const [startupAttempt, setStartupAttempt] = useState(0);
   const retryStartup = () => {
@@ -781,9 +844,9 @@ export function App() {
     const timeout = setTimeout(
       () =>
         controller.abort(
-          new DOMException("Sunucu zaman aşımı", "TimeoutError"),
+          new DOMException(t("Sunucu zaman aşımı"), "TimeoutError"),
         ),
-      30_000,
+      30000,
     );
     const cleanup = () => {
       active = false;
@@ -854,10 +917,11 @@ export function App() {
         window.removeEventListener("resize", change);
       };
     }
-    api<{ authenticated: boolean; configured: boolean; csrf?: string }>(
-      "/auth/status",
-      { signal: controller.signal },
-    )
+    api<{
+      authenticated: boolean;
+      configured: boolean;
+      csrf?: string;
+    }>("/auth/status", { signal: controller.signal })
       .then((result) => {
         if (!active) return;
         if (
@@ -866,7 +930,7 @@ export function App() {
           typeof result.configured !== "boolean"
         )
           throw new Error(
-            "Sunucudan geçerli giriş bilgisi alınamadı. Tekrar dene.",
+            t("Sunucudan geçerli giriş bilgisi alınamadı. Tekrar dene."),
           );
         setCsrf(result.csrf ?? "");
         setStatus(result);
@@ -904,24 +968,25 @@ export function App() {
       </StudioProvider>
     ) : publicError ? (
       <StartupFailure
-        title="Sayfa açılamadı"
+        title={t("Sayfa açılamadı")}
         message={publicError}
         retry={retryStartup}
       />
     ) : (
-      <div className="loading-screen">Sayfa yükleniyor…</div>
+      <div className="loading-screen">{t("Sayfa yükleniyor…")}</div>
     );
   return (
     <>
       {startupError ? (
         <StartupFailure
-          title="Stüdyo açılamadı"
+          title={t("Stüdyo açılamadı")}
           message={startupError}
           retry={retryStartup}
         />
       ) : !status ? (
         <div className="loading-screen">
-          <Loader2 className="spin" /> Stüdyo hazırlanıyor…
+          <Loader2 className="spin" />
+          {" " + t("Stüdyo hazırlanıyor…")}
         </div>
       ) : !status.authenticated ? (
         <Login
@@ -973,8 +1038,11 @@ export function App() {
       {toast && (
         <div role="status" className={`toast ${toast.error ? "error" : ""}`}>
           {toast.error ? <CircleAlert size={17} /> : <Check size={17} />}
-          <span>{toast.message}</span>
-          <button aria-label="Bildirimi kapat" onClick={() => setToast(null)}>
+          <span>{t(toast.message)}</span>
+          <button
+            aria-label={t("Bildirimi kapat")}
+            onClick={() => setToast(null)}
+          >
             <X size={14} />
           </button>
         </div>

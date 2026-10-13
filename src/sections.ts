@@ -1,3 +1,4 @@
+import { t, localized } from "./i18n.ts";
 import {
   block,
   cloneBlock,
@@ -6,17 +7,19 @@ import {
   type Block,
   type PageDocument,
 } from "./model";
-
 export type SectionCategory =
   "all" | "hero" | "commerce" | "content" | "conversion" | "layout";
-export const sectionCategories: [SectionCategory, string][] = [
-  ["all", "Tümü"],
-  ["hero", "Hero"],
-  ["commerce", "Satış"],
-  ["content", "İçerik"],
-  ["conversion", "Dönüşüm"],
-  ["layout", "Düzen"],
-];
+export const sectionCategories: [SectionCategory, string][] = localized(
+  [
+    ["all", "Tümü"],
+    ["hero", "Hero"],
+    ["commerce", "Satış"],
+    ["content", "İçerik"],
+    ["conversion", "Dönüşüm"],
+    ["layout", "Düzen"],
+  ],
+  ["1"],
+);
 export interface SectionPreset {
   id: string;
   name: string;
@@ -71,236 +74,251 @@ const card = (name: string, content: string, icon: string) =>
     title(name, "22px"),
     text(content),
   ]);
-export const sectionPresets: SectionPreset[] = [
-  {
-    id: "product-hero",
-    name: "Ürün odaklı hero",
-    category: "hero",
-    description: "Başlık, ürün görseli, fiyat ve CTA.",
-    accent: "#d8e8b7",
-    create: () => starterDocument().nodes[1],
-  },
-  {
-    id: "centered-hero",
-    name: "Ortalanmış hero",
-    category: "hero",
-    description: "Güçlü mesaj, sade düzen ve tek bir eylem.",
-    accent: "#e5ded2",
-    create: () => {
-      const node = section(
-        "Hero · Ortalanmış",
-        [
-          block("badge", { text: "YENİ BİR BAŞLANGIÇ" }),
-          title("Daha az karmaşa.<br/>Daha çok sen.", "54px"),
-          text("Hikâyeni güçlü bir başlık ve net bir mesajla anlat."),
-          button("Koleksiyonu keşfet →"),
-        ],
-        "#f5efe7",
-      );
-      node.styles.desktop.alignItems = "center";
-      node.styles.desktop.textAlign = "center";
-      return node;
+export const sectionPresets: SectionPreset[] = localized(
+  [
+    {
+      id: "product-hero",
+      name: "Ürün odaklı hero",
+      category: "hero",
+      description: "Başlık, ürün görseli, fiyat ve CTA.",
+      accent: "#d8e8b7",
+      create: () => starterDocument().nodes[1],
     },
-  },
-  {
-    id: "benefits",
-    name: "Üç özellik kartı",
-    category: "content",
-    description: "Markanın güçlü yanlarını üç kartta anlat.",
-    accent: "#dfe8d5",
-    create: () => {
-      const node = starterDocument().nodes[2];
-      node.styles.desktop.paddingTop = "48px";
-      return node;
+    {
+      id: "centered-hero",
+      name: "Ortalanmış hero",
+      category: "hero",
+      description: "Güçlü mesaj, sade düzen ve tek bir eylem.",
+      accent: "#e5ded2",
+      create: () => {
+        const node = section(
+          t("Hero · Ortalanmış"),
+          [
+            block("badge", { text: t("YENİ BİR BAŞLANGIÇ") }),
+            title(t("Daha az karmaşa.<br/>Daha çok sen."), "54px"),
+            text(t("Hikâyeni güçlü bir başlık ve net bir mesajla anlat.")),
+            button(t("Koleksiyonu keşfet →")),
+          ],
+          "#f5efe7",
+        );
+        node.styles.desktop.alignItems = "center";
+        node.styles.desktop.textAlign = "center";
+        return node;
+      },
     },
-  },
-  {
-    id: "image-story",
-    name: "Görsel ve hikâye",
-    category: "content",
-    description: "Görselin yanında düzenlenebilir metin.",
-    accent: "#dfdfd6",
-    create: () =>
-      section("Hikâye · Görsel ve metin", [
-        block("row", {}, { gap: "40px", alignItems: "center" }, [
-          block("column", {}, { width: "100%" }, [block("image")]),
-          block("column", {}, { width: "100%", gap: "20px" }, [
-            block("badge", { text: "BİZİM HİKÂYEMİZ" }),
-            title("Her ayrıntıda<br/>biraz daha iyi."),
-            text(
-              "Neye inandığını, nasıl ürettiğini ve seni farklı kılan şeyi burada anlat.",
-            ),
-            button("Hikâyeyi keşfet →"),
+    {
+      id: "benefits",
+      name: "Üç özellik kartı",
+      category: "content",
+      description: "Markanın güçlü yanlarını üç kartta anlat.",
+      accent: "#dfe8d5",
+      create: () => {
+        const node = starterDocument().nodes[2];
+        node.styles.desktop.paddingTop = "48px";
+        return node;
+      },
+    },
+    {
+      id: "image-story",
+      name: "Görsel ve hikâye",
+      category: "content",
+      description: "Görselin yanında düzenlenebilir metin.",
+      accent: "#dfdfd6",
+      create: () =>
+        section(t("Hikâye · Görsel ve metin"), [
+          block("row", {}, { gap: "40px", alignItems: "center" }, [
+            block("column", {}, { width: "100%" }, [block("image")]),
+            block("column", {}, { width: "100%", gap: "20px" }, [
+              block("badge", { text: t("BİZİM HİKÂYEMİZ") }),
+              title(t("Her ayrıntıda<br/>biraz daha iyi.")),
+              text(
+                t(
+                  "Neye inandığını, nasıl ürettiğini ve seni farklı kılan şeyi burada anlat.",
+                ),
+              ),
+              button(t("Hikâyeyi keşfet →")),
+            ]),
           ]),
         ]),
-      ]),
-  },
-  {
-    id: "product-grid",
-    name: "Ürün vitrini",
-    category: "commerce",
-    description: "Üç ürün kartı; Shopify bağlantısı sonraki adım.",
-    accent: "#e1e9c5",
-    create: () =>
-      section("Vitrin · Üç ürün", [
-        title("Favorilerini keşfet."),
-        text(
-          "Aşağıdaki kartlar örnek üründür; gerçek ürün bağlantısı gerekir.",
-        ),
-        block(
-          "row",
-          {},
-          { gap: "20px" },
-          ["Aura One", "Aura Studio", "Aura Mini"].map((name) =>
-            block("product", { title: name }),
+    },
+    {
+      id: "product-grid",
+      name: "Ürün vitrini",
+      category: "commerce",
+      description: "Üç ürün kartı; Shopify bağlantısı sonraki adım.",
+      accent: "#e1e9c5",
+      create: () =>
+        section(t("Vitrin · Üç ürün"), [
+          title(t("Favorilerini keşfet.")),
+          text(
+            t(
+              "Aşağıdaki kartlar örnek üründür; gerçek ürün bağlantısı gerekir.",
+            ),
           ),
-        ),
-      ]),
-  },
-  {
-    id: "testimonials",
-    name: "Müşteri yorumları",
-    category: "content",
-    description: "Düzenlenebilir yorumlar ve puanlar.",
-    accent: "#e8ddcf",
-    create: () =>
-      section(
-        "Yorumlar · Sosyal kanıt",
-        [
-          title("İnsanlar ne diyor?"),
           block(
             "row",
             {},
-            { gap: "18px" },
-            ["Deniz", "Ece", "Mert"].map((name) =>
-              card(
-                "★★★★★",
-                `“Yorum metnini kendi müşteri yorumunla değiştir.”<br/><br/><b>${name}</b> · Örnek yorum`,
-                "❝",
-              ),
+            { gap: "20px" },
+            ["Aura One", "Aura Studio", "Aura Mini"].map((name) =>
+              block("product", { title: name }),
             ),
           ),
-        ],
-        "#f8f4eb",
-      ),
-  },
-  {
-    id: "faq",
-    name: "Sık sorulan sorular",
-    category: "content",
-    description: "Tıklayarak açılan soru-cevap bölümü.",
-    accent: "#d7e3da",
-    create: () =>
-      section("SSS · Sorular ve cevaplar", [
-        title("Aklındaki sorular."),
-        ...[
-          "Kargo ne kadar sürer?",
-          "İade nasıl yapılır?",
-          "Garanti süresi nedir?",
-        ].map((question) =>
-          block("accordion", {
-            title: question,
-            description: "Bu sorunun cevabını kendi mağazana göre düzenle.",
-          }),
+        ]),
+    },
+    {
+      id: "testimonials",
+      name: "Müşteri yorumları",
+      category: "content",
+      description: "Düzenlenebilir yorumlar ve puanlar.",
+      accent: "#e8ddcf",
+      create: () =>
+        section(
+          t("Yorumlar · Sosyal kanıt"),
+          [
+            title(t("İnsanlar ne diyor?")),
+            block(
+              "row",
+              {},
+              { gap: "18px" },
+              ["Deniz", "Ece", "Mert"].map((name) =>
+                card(
+                  "★★★★★",
+                  t(
+                    "“Yorum metnini kendi müşteri yorumunla değiştir.”<br/><br/><b>{p0}</b> · Örnek yorum",
+                    { p0: name },
+                  ),
+                  "❝",
+                ),
+              ),
+            ),
+          ],
+          "#f8f4eb",
         ),
-      ]),
-  },
-  {
-    id: "newsletter",
-    name: "E-posta kayıt alanı",
-    category: "conversion",
-    description: "E-posta formu, pazarlama izni ve kalıcı gönderim kayıtları.",
-    accent: "#dceabf",
-    create: () =>
-      section(
-        "Bülten · E-posta formu",
-        [
-          title("Güzel şeylerden ilk sen haberdar ol."),
-          text(
-            "E-posta kaydı uygulamada tutulur; dış hizmet bağlantısı isteğe bağlıdır.",
+    },
+    {
+      id: "faq",
+      name: "Sık sorulan sorular",
+      category: "content",
+      description: "Tıklayarak açılan soru-cevap bölümü.",
+      accent: "#d7e3da",
+      create: () =>
+        section("SSS · Sorular ve cevaplar", [
+          title(t("Aklındaki sorular.")),
+          ...[
+            t("Kargo ne kadar sürer?"),
+            t("İade nasıl yapılır?"),
+            t("Garanti süresi nedir?"),
+          ].map((question) =>
+            block("accordion", {
+              title: question,
+              description: t(
+                "Bu sorunun cevabını kendi mağazana göre düzenle.",
+              ),
+            }),
           ),
-          block("form", {}, { maxWidth: "620px", gap: "10px" }, [
-            block("input", {
-              placeholder: "E-posta adresin",
-              inputType: "email",
-              fieldName: "email",
-              required: true,
-            }),
-            block("checkbox", {
-              label: "Pazarlama e-postalarına izin veriyorum",
-              fieldName: "marketingConsent",
-              consent: true,
-              required: true,
-            }),
-          ]),
-        ],
-        "#eaf0da",
-      ),
-  },
-  {
-    id: "sale-banner",
-    name: "Kampanya bandı",
-    category: "conversion",
-    description: "Teklif, geri sayım ve çağrı düğmesi.",
-    accent: "#f1e5ab",
-    create: () => {
-      const node = section(
-        "Kampanya · Geri sayım",
-        [
-          block("badge", { text: "SINIRLI SÜRE" }),
-          title("Yeni favorilerine<br/>özel bir fırsat.", "44px"),
-          block("countdown"),
-          button("Fırsatı yakala →"),
-        ],
-        "#f7f2ce",
-      );
-      node.styles.desktop.alignItems = "center";
-      node.styles.desktop.textAlign = "center";
-      return node;
+        ]),
     },
-  },
-  {
-    id: "header",
-    name: "Sade header",
-    category: "layout",
-    description: "Logo, menü ve düğmeden oluşan özel üst bölüm.",
-    accent: "#e0e6d3",
-    create: () => starterDocument().nodes[0],
-  },
-  {
-    id: "footer",
-    name: "Marka footer’ı",
-    category: "layout",
-    description: "Marka açıklaması ve düzenlenebilir bağlantılar.",
-    accent: "#35452f",
-    create: () => {
-      const node = section(
-        "Footer · FukPages",
-        [
-          block("row", {}, { gap: "40px" }, [
-            block("column", {}, { width: "100%" }, [
-              title("aura✦", "28px"),
-              text("Markanın hikâyesi burada devam eder."),
+    {
+      id: "newsletter",
+      name: "E-posta kayıt alanı",
+      category: "conversion",
+      description:
+        "E-posta formu, pazarlama izni ve kalıcı gönderim kayıtları.",
+      accent: "#dceabf",
+      create: () =>
+        section(
+          t("Bülten · E-posta formu"),
+          [
+            title(t("Güzel şeylerden ilk sen haberdar ol.")),
+            text(
+              t(
+                "E-posta kaydı uygulamada tutulur; dış hizmet bağlantısı isteğe bağlıdır.",
+              ),
+            ),
+            block("form", {}, { maxWidth: "620px", gap: "10px" }, [
+              block("input", {
+                placeholder: t("E-posta adresin"),
+                inputType: "email",
+                fieldName: "email",
+                required: true,
+              }),
+              block("checkbox", {
+                label: t("Pazarlama e-postalarına izin veriyorum"),
+                fieldName: "marketingConsent",
+                consent: true,
+                required: true,
+              }),
             ]),
-            block("column", {}, { width: "100%" }, [
-              title("Keşfet", "18px"),
-              text("Koleksiyonlar<br/>Hikâyemiz<br/>İletişim"),
-            ]),
-            block("column", {}, { width: "100%" }, [
-              title("Bilgi", "18px"),
-              text("Kargo ve teslimat<br/>İade koşulları<br/>Gizlilik"),
-            ]),
-          ]),
-          block("divider"),
-          text("© 2026 Marka adı. Tüm hakları saklıdır."),
-        ],
-        "#eaf0de",
-      );
-      node.props.sectionRole = "footer";
-      return node;
+          ],
+          "#eaf0da",
+        ),
     },
-  },
-];
+    {
+      id: "sale-banner",
+      name: "Kampanya bandı",
+      category: "conversion",
+      description: "Teklif, geri sayım ve çağrı düğmesi.",
+      accent: "#f1e5ab",
+      create: () => {
+        const node = section(
+          t("Kampanya · Geri sayım"),
+          [
+            block("badge", { text: t("SINIRLI SÜRE") }),
+            title(t("Yeni favorilerine<br/>özel bir fırsat."), "44px"),
+            block("countdown"),
+            button(t("Fırsatı yakala →")),
+          ],
+          "#f7f2ce",
+        );
+        node.styles.desktop.alignItems = "center";
+        node.styles.desktop.textAlign = "center";
+        return node;
+      },
+    },
+    {
+      id: "header",
+      name: "Sade header",
+      category: "layout",
+      description: "Logo, menü ve düğmeden oluşan özel üst bölüm.",
+      accent: "#e0e6d3",
+      create: () => starterDocument().nodes[0],
+    },
+    {
+      id: "footer",
+      name: "Marka footer’ı",
+      category: "layout",
+      description: "Marka açıklaması ve düzenlenebilir bağlantılar.",
+      accent: "#35452f",
+      create: () => {
+        const node = section(
+          "Footer · FukPages",
+          [
+            block("row", {}, { gap: "40px" }, [
+              block("column", {}, { width: "100%" }, [
+                title("aura✦", "28px"),
+                text(t("Markanın hikâyesi burada devam eder.")),
+              ]),
+              block("column", {}, { width: "100%" }, [
+                title(t("Keşfet"), "18px"),
+                text(t("Koleksiyonlar<br/>Hikâyemiz<br/>İletişim")),
+              ]),
+              block("column", {}, { width: "100%" }, [
+                title(t("Bilgi"), "18px"),
+                text(t("Kargo ve teslimat<br/>İade koşulları<br/>Gizlilik")),
+              ]),
+            ]),
+            block("divider"),
+            text(t("© 2026 Marka adı. Tüm hakları saklıdır.")),
+          ],
+          "#eaf0de",
+        );
+        node.props.sectionRole = "footer";
+        return node;
+      },
+    },
+  ],
+  ["name", "description"],
+);
 const extendedFamilies: {
   id: string;
   name: string;
@@ -427,17 +445,17 @@ for (const family of extendedFamilies)
             inputType: "email",
             label: "E-posta",
             fieldName: "email",
-            placeholder: "E-posta adresin",
+            placeholder: t("E-posta adresin"),
             required: true,
           }),
           block("textarea", {
-            label: "Mesaj",
+            label: t("Mesaj"),
             fieldName: "message",
-            placeholder: "Mesajın",
+            placeholder: t("Mesajın"),
             required: true,
           }),
           block("checkbox", {
-            label: "İletişim için izin veriyorum",
+            label: t("İletişim için izin veriyorum"),
             fieldName: "consent",
             consent: true,
             required: true,
@@ -446,9 +464,9 @@ for (const family of extendedFamilies)
       }
       if (family.kind === "popup") {
         component.props.trigger = "button";
-        component.props.text = "Bültene katıl";
+        component.props.text = t("Bültene katıl");
         component.children = [
-          block("heading", { html: "Haberlerden ilk sen haberdar ol." }),
+          block("heading", { html: t("Haberlerden ilk sen haberdar ol.") }),
           block("form", {}, {}, [
             block("input", {
               inputType: "email",
@@ -457,7 +475,7 @@ for (const family of extendedFamilies)
               required: true,
             }),
             block("checkbox", {
-              label: "Pazarlama e-postalarına izin veriyorum",
+              label: t("Pazarlama e-postalarına izin veriyorum"),
               fieldName: "marketingConsent",
               consent: true,
               required: true,
@@ -466,11 +484,13 @@ for (const family of extendedFamilies)
         ];
       }
       if (family.id === "steps")
-        component.props.items =
-          "1. Ürünü hazırla\n2. Kullanımını kişiselleştir\n3. Sonucun keyfini çıkar";
+        component.props.items = t(
+          "1. Ürünü hazırla\n2. Kullanımını kişiselleştir\n3. Sonucun keyfini çıkar",
+        );
       if (family.kind === "tabs")
-        component.props.items =
-          "Özellikler|Ürün özelliklerini ekle.\nKullanım|Kullanım açıklamasını ekle.\nTeslimat|Teslimat bilgilerini ekle.";
+        component.props.items = t(
+          "Özellikler|Ürün özelliklerini ekle.\nKullanım|Kullanım açıklamasını ekle.\nTeslimat|Teslimat bilgilerini ekle.",
+        );
       if (family.id === "email-popup")
         component.children.unshift(block("image"));
       const content =
@@ -512,7 +532,7 @@ for (const base of basePresets)
         ];
       if (base.id === "steps")
         node.children = [
-          title("Görselli kullanım adımları"),
+          title(t("Görselli kullanım adımları")),
           block(
             "row",
             {},
@@ -520,27 +540,27 @@ for (const base of basePresets)
             [1, 2, 3].map((n) =>
               block("column", {}, {}, [
                 block("image"),
-                title(`${n}. Adım`, "22px"),
-                text("Adım açıklamasını düzenle."),
+                title(t("{p0}. Adım", { p0: n }), "22px"),
+                text(t("Adım açıklamasını düzenle.")),
               ]),
             ),
           ),
         ];
       if (base.id === "specifications")
         node.children = [
-          title("Teknik özellikler"),
+          title(t("Teknik özellikler")),
           block("row", {}, {}, [
-            card("Malzeme", "Malzeme bilgisini düzenle.", "✦"),
-            card("Boyut", "Ölçü bilgisini düzenle.", "↔"),
-            card("Garanti", "Garanti bilgisini düzenle.", "✓"),
+            card(t("Malzeme"), t("Malzeme bilgisini düzenle."), "✦"),
+            card(t("Boyut"), t("Ölçü bilgisini düzenle."), "↔"),
+            card(t("Garanti"), t("Garanti bilgisini düzenle."), "✓"),
           ]),
         ];
       if (base.id === "size-guide")
         node.children = [
-          title("Beden rehberi"),
+          title(t("Beden rehberi")),
           block(
             "popup",
-            { trigger: "button", text: "Beden tablosunu aç" },
+            { trigger: "button", text: t("Beden tablosunu aç") },
             {},
             [block("sizeTable")],
           ),
@@ -548,8 +568,8 @@ for (const base of basePresets)
       if (base.id === "delivery-returns")
         node.children = [
           block("row", {}, {}, [
-            card("Teslimat", "Teslimat koşullarını ekle.", "→"),
-            card("İade", "İade koşullarını ekle.", "↩"),
+            card(t("Teslimat"), t("Teslimat koşullarını ekle."), "→"),
+            card(t("İade"), t("İade koşullarını ekle."), "↩"),
           ]),
         ];
       if (base.id === "email-popup") {
@@ -598,7 +618,7 @@ sectionPresets.push({
     node.children.forEach((n) => {
       if (n.kind === "row") n.styles.desktop.flexDirection = "column";
     });
-    node.name = "Ürün satın alma · Kompakt";
+    node.name = t("Ürün satın alma · Kompakt");
     return node;
   },
 });
@@ -638,7 +658,6 @@ function applyPresetBrand(node: Block) {
   }
   node.children.forEach(applyPresetBrand);
 }
-
 export function createSectionPreset(id: string): Block | undefined {
   const preset = sectionPresets.find((item) => item.id === id);
   if (!preset) return;

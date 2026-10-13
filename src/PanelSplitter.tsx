@@ -1,23 +1,20 @@
+import { t } from "./i18n.ts";
 import { useRef, useState } from "react";
 export function usePanelWidths() {
-  const [widths, setWidths] = useState<{ library: number; inspector: number }>(
-    () => {
-      try {
-        const saved = JSON.parse(
-          localStorage.getItem("fp-panel-widths") || "{}",
-        );
-        return {
-          library: Math.max(220, Math.min(520, Number(saved.library) || 280)),
-          inspector: Math.max(
-            260,
-            Math.min(560, Number(saved.inspector) || 330),
-          ),
-        };
-      } catch {
-        return { library: 280, inspector: 330 };
-      }
-    },
-  );
+  const [widths, setWidths] = useState<{
+    library: number;
+    inspector: number;
+  }>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("fp-panel-widths") || "{}");
+      return {
+        library: Math.max(220, Math.min(520, Number(saved.library) || 280)),
+        inspector: Math.max(260, Math.min(560, Number(saved.inspector) || 330)),
+      };
+    } catch {
+      return { library: 280, inspector: 330 };
+    }
+  });
   const update = (side: "library" | "inspector", width: number) =>
     setWidths((old) => {
       const min = side === "library" ? 220 : 260,
@@ -45,7 +42,10 @@ export function PanelSplitter({
   width: number;
   update: (width: number) => void;
 }) {
-  const drag = useRef<{ x: number; width: number } | null>(null);
+  const drag = useRef<{
+    x: number;
+    width: number;
+  } | null>(null);
   return (
     <div
       className="panel-splitter"
@@ -54,8 +54,8 @@ export function PanelSplitter({
       aria-orientation="vertical"
       aria-label={
         side === "library"
-          ? "Kütüphane panelini boyutlandır"
-          : "Ayar panelini boyutlandır"
+          ? t("Kütüphane panelini boyutlandır")
+          : t("Ayar panelini boyutlandır")
       }
       aria-valuenow={width}
       aria-valuemin={side === "library" ? 220 : 260}

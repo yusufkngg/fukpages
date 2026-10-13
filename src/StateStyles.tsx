@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import { useState } from "react";
 import type { Block } from "./model";
 export function StateStyles({
@@ -32,32 +33,32 @@ export function StateStyles({
   return (
     <div className="state-style-controls">
       <label className="control">
-        Durum
+        {t("Durum")}
         <select value={state} onChange={(e) => setState(e.target.value)}>
           <option value="hover">Hover</option>
           <option value="focus">Focus</option>
         </select>
       </label>
       {[
-        ["backgroundColor", "Arka plan"],
-        ["color", "Metin"],
-        ["borderColor", "Kenarlık"],
-        ["boxShadow", "Gölge"],
-        ["transform", "Dönüşüm"],
-        ["transition", "Geçiş"],
+        ["backgroundColor", t("Arka plan")],
+        ["color", t("Metin")],
+        ["borderColor", t("Kenarlık")],
+        ["boxShadow", t("Gölge")],
+        ["transform", t("Dönüşüm")],
+        ["transition", t("Geçiş")],
       ].map(([key, label]) => (
         <label className="control" key={key}>
           {label}
           <input
-            aria-label={`Durum ${label}`}
+            aria-label={t("Durum {p0}", { p0: label })}
             value={styles[key] || ""}
-            placeholder="Normal görünümden al"
+            placeholder={t("Normal görünümden al")}
             onChange={(e) => change(key, e.target.value)}
           />
         </label>
       ))}
       <small>
-        Hover için öğenin üzerine gel; Focus için Tab ile düğmeye ulaş.
+        {t("Hover için öğenin üzerine gel; Focus için Tab ile düğmeye ulaş.")}
       </small>
       <button
         onClick={() =>
@@ -67,7 +68,7 @@ export function StateStyles({
           }))
         }
       >
-        Durum stilini sıfırla
+        {t("Durum stilini sıfırla")}
       </button>
     </div>
   );

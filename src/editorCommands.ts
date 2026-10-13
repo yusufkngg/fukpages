@@ -87,8 +87,9 @@ export function pasteBlocks(
   if (parent && isLocked(page.nodes, parent)) throw new Error("Hedef kilitli.");
   let nodes = page.nodes;
   const ids: string[] = [];
-  blocks.forEach((b) => {
-    const copy = cloneBlock(b);
+  const clipboardRoot = createBlock("section");
+  clipboardRoot.children = blocks;
+  cloneBlock(clipboardRoot).children.forEach((copy) => {
     ids.push(copy.id);
     nodes = insertBlock(
       nodes,

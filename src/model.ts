@@ -1,7 +1,8 @@
+import { t, localized } from "./i18n.ts";
 import type { CSSProperties } from "react";
 import { normalizeStyles } from "./styleValues.ts";
 export type Device = "desktop" | "tablet" | "mobile";
-export const advancedLabels = {
+export const advancedLabels = localized({
   form: "Form",
   select: "Açılır seçim",
   checkbox: "Onay kutusu",
@@ -32,7 +33,7 @@ export const advancedLabels = {
   productField: "Dinamik ürün alanı",
   bundle: "Paket teklif",
   sizeTable: "Beden tablosu",
-} as const;
+} as const);
 export type Kind =
   | keyof typeof advancedLabels
   | "section"
@@ -88,7 +89,10 @@ export interface PageDocument {
     image: string;
     noindex: boolean;
   };
-  themeLayout?: { snapshotId: string; useShell: boolean };
+  themeLayout?: {
+    snapshotId: string;
+    useShell: boolean;
+  };
 }
 export interface Store {
   id: string;
@@ -114,12 +118,12 @@ export const widths: Record<Device, number> = {
   tablet: 768,
   mobile: 390,
 };
-export const deviceNames: Record<Device, string> = {
+export const deviceNames: Record<Device, string> = localized({
   desktop: "Masaüstü",
   tablet: "Tablet",
   mobile: "Mobil",
-};
-export const pageNames: Record<PageType, string> = {
+});
+export const pageNames: Record<PageType, string> = localized({
   landing: "Landing page",
   home: "Ana sayfa",
   product: "Ürün",
@@ -129,8 +133,8 @@ export const pageNames: Record<PageType, string> = {
   article: "Makale",
   cart: "Sepet",
   search: "Arama",
-};
-export const labels: Record<Kind, string> = {
+});
+export const labels: Record<Kind, string> = localized({
   ...advancedLabels,
   section: "Bölüm",
   row: "Satır",
@@ -151,66 +155,72 @@ export const labels: Record<Kind, string> = {
   product: "Ürün kartı",
   countdown: "Geri sayım",
   accordion: "Accordion",
-};
-export const groups: { name: string; kinds: Kind[] }[] = [
-  { name: "DÜZEN", kinds: ["section", "row", "column", "box"] },
-  {
-    name: "TEMEL ÖĞELER",
-    kinds: [
-      "heading",
-      "text",
-      "image",
-      "button",
-      "icon",
-      "badge",
-      "divider",
-      "spacer",
-    ],
-  },
-  {
-    name: "FORM & MEDYA",
-    kinds: ["input", "textarea", "video", "list", "accordion"],
-  },
-  {
-    name: "SATIŞ",
-    kinds: [
-      "product",
-      "countdown",
-      "productField",
-      "productGallery",
-      "variantPicker",
-      "quantity",
-      "addToCart",
-      "stickyCart",
-      "collectionGrid",
-      "bundle",
-      "shipping",
-      "coupon",
-    ],
-  },
-  {
-    name: "ETKİLEŞİM",
-    kinds: [
-      "tabs",
-      "carousel",
-      "gallery",
-      "logos",
-      "rating",
-      "comparison",
-      "beforeAfter",
-      "popup",
-      "videoPopup",
-      "backToTop",
-      "breadcrumb",
-      "mobileMenu",
-      "blogList",
-      "sizeTable",
-      "customCode",
-      "appEmbed",
-    ],
-  },
-  { name: "FORM ALANLARI", kinds: ["form", "select", "checkbox", "radio"] },
-];
+});
+export const groups: {
+  name: string;
+  kinds: Kind[];
+}[] = localized(
+  [
+    { name: "DÜZEN", kinds: ["section", "row", "column", "box"] },
+    {
+      name: "TEMEL ÖĞELER",
+      kinds: [
+        "heading",
+        "text",
+        "image",
+        "button",
+        "icon",
+        "badge",
+        "divider",
+        "spacer",
+      ],
+    },
+    {
+      name: "FORM & MEDYA",
+      kinds: ["input", "textarea", "video", "list", "accordion"],
+    },
+    {
+      name: "SATIŞ",
+      kinds: [
+        "product",
+        "countdown",
+        "productField",
+        "productGallery",
+        "variantPicker",
+        "quantity",
+        "addToCart",
+        "stickyCart",
+        "collectionGrid",
+        "bundle",
+        "shipping",
+        "coupon",
+      ],
+    },
+    {
+      name: "ETKİLEŞİM",
+      kinds: [
+        "tabs",
+        "carousel",
+        "gallery",
+        "logos",
+        "rating",
+        "comparison",
+        "beforeAfter",
+        "popup",
+        "videoPopup",
+        "backToTop",
+        "breadcrumb",
+        "mobileMenu",
+        "blogList",
+        "sizeTable",
+        "customCode",
+        "appEmbed",
+      ],
+    },
+    { name: "FORM ALANLARI", kinds: ["form", "select", "checkbox", "radio"] },
+  ],
+  ["name"],
+);
 export const isContainer = (kind: Kind) =>
   ["section", "row", "column", "box", "form", "popup"].includes(kind);
 export const uid = () => crypto.randomUUID();
@@ -226,18 +236,18 @@ export function createBlock(kind: Kind): Block {
       ? {
           title: advancedLabels[kind as keyof typeof advancedLabels],
           text: advancedLabels[kind as keyof typeof advancedLabels],
-          items: "Birinci seçenek\nİkinci seçenek\nÜçüncü seçenek",
-          options: "Birinci seçenek\nİkinci seçenek",
+          items: t("Birinci seçenek\nİkinci seçenek\nÜçüncü seçenek"),
+          options: t("Birinci seçenek\nİkinci seçenek"),
           images: "/assets/headphones.svg\n/assets/headphones.svg",
-          columns: "Özellik|Standart|Premium",
-          rows: "Garanti|1 yıl|2 yıl\nTeslimat|3 gün|1 gün",
+          columns: t("Özellik|Standart|Premium"),
+          rows: t("Garanti|1 yıl|2 yıl\nTeslimat|3 gün|1 gün"),
           rating: "4.8",
           count: "120",
-          label: "Alan etiketi",
+          label: t("Alan etiketi"),
           fieldName: "",
           action: "navigate",
           destination: "local",
-          successMessage: "Gönderimin alındı.",
+          successMessage: t("Gönderimin alındı."),
           threshold: "1000",
           currency: "TRY",
           globalStyle: "auto",
@@ -289,7 +299,7 @@ export function createBlock(kind: Kind): Block {
       };
       break;
     case "heading":
-      props.html = "Büyük fikirler burada başlar.";
+      props.html = t("Büyük fikirler burada başlar.");
       props.tag = "h2";
       desktop = {
         fontSize: "42px",
@@ -303,12 +313,14 @@ export function createBlock(kind: Kind): Block {
       mobile.fontSize = "28px";
       break;
     case "text":
-      props.html = "Hikâyeni anlat. Her ayrıntıyı kendi tarzına göre düzenle.";
+      props.html = t(
+        "Hikâyeni anlat. Her ayrıntıyı kendi tarzına göre düzenle.",
+      );
       desktop = { fontSize: "16px", lineHeight: "1.7", color: "#616b63" };
       break;
     case "image":
       props.src = "/assets/headphones.svg";
-      props.alt = "Kablosuz kulaklık";
+      props.alt = t("Kablosuz kulaklık");
       desktop = {
         width: "100%",
         height: "auto",
@@ -317,7 +329,7 @@ export function createBlock(kind: Kind): Block {
       };
       break;
     case "button":
-      props.text = "Keşfet →";
+      props.text = t("Keşfet →");
       props.href = "#";
       props.targetBlank = false;
       desktop = {
@@ -335,7 +347,7 @@ export function createBlock(kind: Kind): Block {
       };
       break;
     case "input":
-      props.placeholder = "E-posta adresin";
+      props.placeholder = t("E-posta adresin");
       props.inputType = "email";
       desktop = {
         width: "100%",
@@ -353,7 +365,7 @@ export function createBlock(kind: Kind): Block {
       };
       break;
     case "textarea":
-      props.placeholder = "Mesajını yaz…";
+      props.placeholder = t("Mesajını yaz…");
       desktop = {
         width: "100%",
         minHeight: "120px",
@@ -379,10 +391,16 @@ export function createBlock(kind: Kind): Block {
       break;
     case "icon":
       props.text = "✦";
-      desktop = { fontSize: "32px", color: "#17241c" };
+      desktop = {
+        fontSize: "32px",
+        color: "#17241c",
+        display: "inline-flex",
+        width: "fit-content",
+        lineHeight: 1,
+      };
       break;
     case "badge":
-      props.text = "YENİ KOLEKSİYON";
+      props.text = t("YENİ KOLEKSİYON");
       desktop = {
         fontSize: "11px",
         fontWeight: "700",
@@ -399,7 +417,7 @@ export function createBlock(kind: Kind): Block {
       break;
     case "video":
       props.src = "";
-      props.text = "Video URL’sini içerik panelinden ekle";
+      props.text = t("Video URL’sini içerik panelinden ekle");
       desktop = {
         width: "100%",
         minHeight: "220px",
@@ -408,7 +426,7 @@ export function createBlock(kind: Kind): Block {
       };
       break;
     case "list":
-      props.items = "Ücretsiz kargo\n2 yıl garanti\n30 gün içinde iade";
+      props.items = t("Ücretsiz kargo\n2 yıl garanti\n30 gün içinde iade");
       desktop = { fontSize: "15px", lineHeight: "2", color: "#354333" };
       break;
     case "product":
@@ -416,7 +434,7 @@ export function createBlock(kind: Kind): Block {
       props.price = "₺4.990";
       props.comparePrice = "₺5.990";
       props.src = "/assets/headphones.svg";
-      props.description = "Ürün bağlantısı için Shopify kurulumu gerekli.";
+      props.description = t("Ürün bağlantısı için Shopify kurulumu gerekli.");
       desktop = {
         ...boxStyle,
         backgroundColor: "#f5f6ef",
@@ -439,9 +457,10 @@ export function createBlock(kind: Kind): Block {
       };
       break;
     case "accordion":
-      props.title = "Ayrıntıları keşfet";
-      props.description =
-        "Daha fazla bilgi için aç. Bu içeriği sağ panelden düzenleyebilirsin.";
+      props.title = t("Ayrıntıları keşfet");
+      props.description = t(
+        "Daha fazla bilgi için aç. Bu içeriği ayar panelinden düzenleyebilirsin.",
+      );
       desktop = {
         paddingTop: "18px",
         paddingBottom: "18px",
@@ -545,7 +564,7 @@ export function starterDocument(type: PageType = "landing"): PageDocument {
     [
       block("image", {
         src: "/assets/headphones.svg",
-        alt: "Aura One kablosuz kulaklık",
+        alt: t("Aura One kablosuz kulaklık"),
       }),
     ],
   );
@@ -666,8 +685,8 @@ export function starterDocument(type: PageType = "landing"): PageDocument {
   features.styles.mobile = { paddingLeft: "24px", paddingRight: "24px" };
   nav.name = "Header · FukPages";
   nav.props.sectionRole = "header";
-  hero.name = "Hero · Ürün tanıtımı";
-  features.name = "Özellikler · Üç kolon";
+  hero.name = t("Hero · Ürün tanıtımı");
+  features.name = t("Özellikler · Üç kolon");
   return {
     schemaVersion: 1,
     name: "Aura · Product launch",
@@ -723,7 +742,12 @@ export function locateBlock(
   nodes: Block[],
   id: string,
   parent: string | null = null,
-): { parent: string | null; index: number } | undefined {
+):
+  | {
+      parent: string | null;
+      index: number;
+    }
+  | undefined {
   for (let index = 0; index < nodes.length; index++) {
     if (nodes[index].id === id) return { parent, index };
     const found = locateBlock(nodes[index].children, id, nodes[index].id);

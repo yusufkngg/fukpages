@@ -19,9 +19,9 @@ Bu prototip, şifreli paneli ve örnek mağazayı aynı Netlify projesinde sunar
 | `/p/demo/collections/demo-collection` | Örnek koleksiyona atanmış koleksiyon sayfası |
 | `/api/health` | Sunucu sağlık yanıtı |
 
-Panelde **Demo mağazayı aç** bağlantısı bulunur. Sayfayı düzenleyip **Yerel yayın** ile yayınla; bu adım Netlify üzerindeki demo mağazayı günceller. **Kaydet** taslağı saklar, yayınlanan sürümü ayrıca değiştirmen gerekir.
+Panel varsayılan olarak İngilizcedir. Dişli simgesinden **Settings → Language → Türkçe** seçilebilir. **Open demo store** bağlantısı mağazayı açar. Sayfayı düzenleyip **Publish locally** ile yayınla; **Save** taslağı saklar. Arayüz dilini değiştirmek mevcut sayfa/SEO içeriğini değiştirmez.
 
-SEO için **Sayfa → SEO ve yayın → SEO’yu kaydet ve yayını güncelle** kullan.
+SEO için **Page → SEO and publication → Save SEO and update publication** kullan.
 Bu düğme başlık, meta açıklaması ve kısa adresi kaydeder, yayını günceller ve
 yeni bağlantıyı gösterir. Editörün sekme başlığı da alanı takip eder.
 

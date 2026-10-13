@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import { useState } from "react";
 import { StateStyles } from "./StateStyles";
 import { effectiveStyle, type Block, type Device } from "./model";
@@ -46,7 +47,6 @@ export function NodeExtras({
   );
   const [crop, setCrop] = useState({ x: 0, y: 0, width: 100, height: 100 }),
     [error, setError] = useState("");
-
   const prop = (k: string, v: string | boolean) =>
     update((n) => {
       if (k === "productId" && n.kind === "section") {
@@ -124,19 +124,19 @@ export function NodeExtras({
   );
   return (
     <details open>
-      <summary>Ek içerik ve davranış</summary>
+      <summary>{t("Ek içerik ve davranış")}</summary>
       <div className="settings-body">
         <label className="toggle-row">
-          Öğeyi kilitle
+          {t("Öğeyi kilitle")}
           <input
-            aria-label="Öğeyi kilitle"
+            aria-label={t("Öğeyi kilitle")}
             type="checkbox"
             checked={!!node.props.locked}
             onChange={(e) => prop("locked", e.target.checked)}
           />
         </label>
         <label className="toggle-row">
-          Global stilden ayır
+          {t("Global stilden ayır")}
           <input
             type="checkbox"
             checked={!!node.props.globalDetached}
@@ -156,18 +156,18 @@ export function NodeExtras({
             }))
           }
         >
-          Global stile geri dön
+          {t("Global stile geri dön")}
         </button>
         {node.kind === "text" && (
           <label className="control">
-            Global metin stili
+            {t("Global metin stili")}
             <select
               value={String(node.props.globalStyle || "body")}
               onChange={(e) => prop("globalStyle", e.target.value)}
             >
-              <option value="body">Gövde</option>
-              <option value="small">Küçük metin</option>
-              <option value="link">Bağlantı</option>
+              <option value="body">{t("Gövde")}</option>
+              <option value="small">{t("Küçük metin")}</option>
+              <option value="link">{t("Bağlantı")}</option>
             </select>
           </label>
         )}
@@ -182,23 +182,23 @@ export function NodeExtras({
           "section",
           "box",
         ].includes(node.kind) && (
-          <button onClick={openMedia}>Medya kütüphanesini aç</button>
+          <button onClick={openMedia}>{t("Medya kütüphanesini aç")}</button>
         )}
         {node.kind === "image" && (
           <>
-            {field("mobileSrc", "Mobil görsel URL")}
-            {field("href", "Görsel bağlantısı")}
-            {field("aspectRatio", "En-boy oranı (örn. 1 / 1)")}
-            {field("rotation", "Döndürme (derece)")}
-            {field("focusX", "Odak X (%)")}
-            {field("focusY", "Odak Y (%)")}
+            {field("mobileSrc", t("Mobil görsel URL"))}
+            {field("href", t("Görsel bağlantısı"))}
+            {field("aspectRatio", t("En-boy oranı (örn. 1 / 1)"))}
+            {field("rotation", t("Döndürme (derece)"))}
+            {field("focusX", t("Odak X (%)"))}
+            {field("focusY", t("Odak Y (%)"))}
             {(["flipX", "flipY", "lightbox"] as const).map((k) => (
               <label className="toggle-row" key={k}>
                 {
                   {
-                    flipX: "Yatay çevir",
-                    flipY: "Dikey çevir",
-                    lightbox: "Tıklayınca büyüt",
+                    flipX: t("Yatay çevir"),
+                    flipY: t("Dikey çevir"),
+                    lightbox: t("Tıklayınca büyüt"),
                   }[k]
                 }
                 <input
@@ -213,12 +213,12 @@ export function NodeExtras({
         {node.kind === "image" &&
           String(node.props.src).startsWith("/api/assets/") && (
             <>
-              <p>Kırpma alanı (%) · yeni dosya oluşturur</p>
+              <p>{t("Kırpma alanı (%) · yeni dosya oluşturur")}</p>
               {(["x", "y", "width", "height"] as const).map((k) => (
                 <label key={k}>
                   {k}
                   <input
-                    aria-label={`Kırpma ${k}`}
+                    aria-label={t("Kırpma {p0}", { p0: k })}
                     type="number"
                     min={0}
                     max={100}
@@ -244,38 +244,38 @@ export function NodeExtras({
                   }
                 }}
               >
-                Görseli kırp
+                {t("Görseli kırp")}
               </button>
               {error && <p role="alert">{error}</p>}
             </>
           )}
         {["section", "box"].includes(node.kind) && (
           <>
-            {field("backgroundSrc", "Arka plan görseli URL")}
-            {field("backgroundOverlay", "Renk katmanı (#00000080)")}
+            {field("backgroundSrc", t("Arka plan görseli URL"))}
+            {field("backgroundOverlay", t("Renk katmanı (#00000080)"))}
           </>
         )}
         {node.kind === "button" && (
           <>
             <label className="control">
-              <span>Aksiyon</span>
+              <span>{t("Aksiyon")}</span>
               <select
-                aria-label="Buton aksiyonu"
+                aria-label={t("Buton aksiyonu")}
                 value={String(node.props.action || "navigate")}
                 onChange={(e) => prop("action", e.target.value)}
               >
                 {Object.entries({
-                  navigate: "Sayfaya git",
-                  product: "Ürüne git",
-                  collection: "Koleksiyona git",
-                  scroll: "Bölüme kaydır",
-                  popupOpen: "Popup aç",
-                  popupClose: "Popup kapat",
-                  addToCart: "Sepete ekle",
-                  cartOpen: "Sepeti aç",
-                  formSubmit: "Form gönder",
-                  copyCoupon: "Kupon kopyala",
-                  phone: "Telefon",
+                  navigate: t("Sayfaya git"),
+                  product: t("Ürüne git"),
+                  collection: t("Koleksiyona git"),
+                  scroll: t("Bölüme kaydır"),
+                  popupOpen: t("Popup aç"),
+                  popupClose: t("Popup kapat"),
+                  addToCart: t("Sepete ekle"),
+                  cartOpen: t("Sepeti aç"),
+                  formSubmit: t("Form gönder"),
+                  copyCoupon: t("Kupon kopyala"),
+                  phone: t("Telefon"),
                   email: "E-posta",
                   whatsapp: "WhatsApp",
                 }).map(([k, v]) => (
@@ -286,12 +286,12 @@ export function NodeExtras({
               </select>
             </label>
             {String(node.props.action || "navigate") !== "navigate" &&
-              field("actionTarget", "Aksiyon hedefi / bölüm veya popup ID")}
+              field("actionTarget", t("Aksiyon hedefi / bölüm veya popup ID"))}
             {["addToCart", "product", "collection"].includes(
               String(node.props.action),
-            ) && field("productId", "Ürün ID (yerel katalog)")}
+            ) && field("productId", t("Ürün ID (yerel katalog)"))}
             <label className="control">
-              Global düğme stili
+              {t("Global düğme stili")}
               <select
                 value={String(node.props.buttonVariant || "primary")}
                 onChange={(e) => prop("buttonVariant", e.target.value)}
@@ -315,11 +315,11 @@ export function NodeExtras({
           <label className="control">
             <span>
               {node.kind === "collectionGrid"
-                ? "Koleksiyon kaynağı"
-                : "Ürün kaynağı"}
+                ? t("Koleksiyon kaynağı")
+                : t("Ürün kaynağı")}
             </span>
             <select
-              aria-label="Katalog veri kaynağı"
+              aria-label={t("Katalog veri kaynağı")}
               value={String(
                 node.props.resourceBinding ||
                   (node.props.productId || node.props.collectionId
@@ -328,8 +328,10 @@ export function NodeExtras({
               )}
               onChange={(e) => prop("resourceBinding", e.target.value)}
             >
-              <option value="page">Bu sayfaya atanan hedef</option>
-              <option value="fixed">Öğede seçilen ürün / koleksiyon</option>
+              <option value="page">{t("Bu sayfaya atanan hedef")}</option>
+              <option value="fixed">
+                {t("Öğede seçilen ürün / koleksiyon")}
+              </option>
             </select>
           </label>
         )}
@@ -337,14 +339,14 @@ export function NodeExtras({
           node.kind,
         ) && (
           <>
-            {field("label", "Alan etiketi")}
-            {field("fieldName", "Alan adı")}
-            {field("helpText", "Alan açıklaması")}
-            {field("errorMessage", "Hata mesajı")}
+            {field("label", t("Alan etiketi"))}
+            {field("fieldName", t("Alan adı"))}
+            {field("helpText", t("Alan açıklaması"))}
+            {field("errorMessage", t("Hata mesajı"))}
             {["select", "radio"].includes(node.kind) &&
-              field("options", "Seçenekler (her satır bir seçenek)", true)}
+              field("options", t("Seçenekler (her satır bir seçenek)"), true)}
             <label className="toggle-row">
-              Zorunlu alan
+              {t("Zorunlu alan")}
               <input
                 type="checkbox"
                 checked={!!node.props.required}
@@ -353,7 +355,7 @@ export function NodeExtras({
             </label>
             {node.kind === "checkbox" && (
               <label className="toggle-row">
-                Pazarlama izni alanı
+                {t("Pazarlama izni alanı")}
                 <input
                   type="checkbox"
                   checked={!!node.props.consent}
@@ -366,80 +368,86 @@ export function NodeExtras({
         {node.kind === "form" && (
           <>
             <label className="control">
-              Form hedefi
+              {t("Form hedefi")}
               <select
                 value={String(node.props.destination || "local")}
                 onChange={(e) => prop("destination", e.target.value)}
               >
-                <option value="local">Uygulama içi gönderim kayıtları</option>
+                <option value="local">
+                  {t("Uygulama içi gönderim kayıtları")}
+                </option>
                 <option value="webhook">
-                  Webhook + uygulama kayıtları (bağlantı gerekli)
+                  {t("Webhook + uygulama kayıtları (bağlantı gerekli)")}
                 </option>
               </select>
             </label>
             <p>
-              Hedef:{" "}
+              {t("Hedef:")}{" "}
               {node.props.destination === "webhook"
                 ? studio.formDestination
-                : "Uygulama içi gönderim kayıtları"}
+                : t("Uygulama içi gönderim kayıtları")}
             </p>
-            {field("submitLabel", "Gönderim düğmesi metni")}
-            {field("successMessage", "Başarılı gönderim mesajı")}
-            {field("redirect", "Başarılı gönderim yönlendirmesi")}
+            {field("submitLabel", t("Gönderim düğmesi metni"))}
+            {field("successMessage", t("Başarılı gönderim mesajı"))}
+            {field("redirect", t("Başarılı gönderim yönlendirmesi"))}
           </>
         )}
         {["gallery", "carousel", "logos", "beforeAfter"].includes(node.kind) &&
-          field("images", "Görseller (her satır bir URL)", true)}
+          field("images", t("Görseller (her satır bir URL)"), true)}
         {["tabs", "carousel", "breadcrumb", "mobileMenu", "blogList"].includes(
           node.kind,
         ) &&
-          field("items", "İçerik satırları (başlık | içerik / bağlantı)", true)}
+          field(
+            "items",
+            t("İçerik satırları (başlık | içerik / bağlantı)"),
+            true,
+          )}
         {["comparison", "sizeTable"].includes(node.kind) && (
           <>
-            {field("columns", "Kolonlar (| ile ayır)")}
-            {field("rows", "Satırlar (| ile ayır)", true)}
+            {field("columns", t("Kolonlar (| ile ayır)"))}
+            {field("rows", t("Satırlar (| ile ayır)"), true)}
           </>
         )}
         {node.kind === "shipping" && (
           <>
-            {field("threshold", "Ücretsiz kargo eşiği (para birimi)")}
-            {field("currency", "Para birimi (TRY, USD)")}
-            {field("description", "Teslimat / iade açıklaması", true)}
+            {field("threshold", t("Ücretsiz kargo eşiği (para birimi)"))}
+            {field("currency", t("Para birimi (TRY, USD)"))}
+            {field("description", t("Teslimat / iade açıklaması"), true)}
           </>
         )}
         {node.kind === "variantPicker" && (
           <label>
-            Varyant görünümü
+            {t("Varyant görünümü")}
             <select
               value={String(node.props.variantMode || "dropdown")}
               onChange={(e) => prop("variantMode", e.target.value)}
             >
               <option value="dropdown">Dropdown</option>
-              <option value="buttons">Düğmeler</option>
+              <option value="buttons">{t("Düğmeler")}</option>
             </select>
           </label>
         )}
         {node.kind === "bundle" && (
           <>
-            {field("productIds", "Paket ürün ID listesi (virgülle)")}
-            {field("discountPercent", "Paket indirimi (%)")}
+            {field("productIds", t("Paket ürün ID listesi (virgülle)"))}
+            {field("discountPercent", t("Paket indirimi (%)"))}
           </>
         )}
         {["addToCart", "stickyCart"].includes(node.kind) &&
-          field("quantityOffers", "Adet teklifleri (3:10,5:15)")}
-        {node.kind === "coupon" && field("couponCode", "Kupon kodu")}
+          field("quantityOffers", t("Adet teklifleri (3:10,5:15)"))}
+        {node.kind === "coupon" && field("couponCode", t("Kupon kodu"))}
         {node.kind === "rating" && (
           <>
-            {field("rating", "Puan")}
-            {field("count", "Değerlendirme sayısı")}
+            {field("rating", t("Puan"))}
+            {field("count", t("Değerlendirme sayısı"))}
           </>
         )}
         {["popup", "videoPopup"].includes(node.kind) && (
           <>
-            {field("popupId", "Popup ID")}
-            {field("text", "Açma düğmesi metni")}
-            {field("trigger", "Tetikleyici (button)")}
-            {node.kind === "videoPopup" && field("src", "Video URL")}
+            {field("popupId", t("Popup ID"))}
+            {field("text", t("Açma düğmesi metni"))}
+            {field("trigger", t("Tetikleyici (button)"))}
+            {node.kind === "videoPopup" && field("src", t("Video URL"))}
           </>
         )}
         {[
@@ -456,13 +464,13 @@ export function NodeExtras({
         ].includes(node.kind) && (
           <>
             <label className="control">
-              Yerel ürün
+              {t("Yerel ürün")}
               <select
-                aria-label="Yerel ürün seç"
+                aria-label={t("Yerel ürün seç")}
                 value={String(node.props.productId || "")}
                 onChange={(e) => prop("productId", e.target.value)}
               >
-                <option value="">Ürün seç</option>
+                <option value="">{t("Ürün seç")}</option>
                 {studio.catalog.products.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.title}
@@ -471,13 +479,13 @@ export function NodeExtras({
               </select>
             </label>
             <label className="control">
-              Yerel koleksiyon
+              {t("Yerel koleksiyon")}
               <select
-                aria-label="Yerel koleksiyon seç"
+                aria-label={t("Yerel koleksiyon seç")}
                 value={String(node.props.collectionId || "")}
                 onChange={(e) => prop("collectionId", e.target.value)}
               >
-                <option value="">Koleksiyon seç</option>
+                <option value="">{t("Koleksiyon seç")}</option>
                 {studio.catalog.collections.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.title}
@@ -487,20 +495,22 @@ export function NodeExtras({
             </label>
             {field(
               "field",
-              "Dinamik alan (title, price, description, metafield)",
+              t("Dinamik alan (title, price, description, metafield)"),
             )}
-            {field("metafield", "Metafield anahtarı")}
+            {field("metafield", t("Metafield anahtarı"))}
             <p>
-              Shopify bağlantısı bu aşamada kapalı; yerel katalog kullanılır.
+              {t(
+                "Shopify bağlantısı bu aşamada kapalı; yerel katalog kullanılır.",
+              )}
             </p>
           </>
         )}
         {node.kind === "customCode" &&
-          field("code", "HTML (script çalıştırılmaz)", true)}
+          field("code", t("HTML (script çalıştırılmaz)"), true)}
         <label className="control">
-          Özel font
+          {t("Özel font")}
           <select
-            aria-label="Özel font seç"
+            aria-label={t("Özel font seç")}
             value={String(node.styles[device].fontFamily || "")}
             onChange={(e) =>
               update((n) => ({
@@ -512,7 +522,7 @@ export function NodeExtras({
               }))
             }
           >
-            <option value="">Global font</option>
+            <option value="">{t("Global font")}</option>
             {[
               ...new Set(
                 assets.filter((a) => a.type === "font").map((a) => a.family),
@@ -529,10 +539,11 @@ export function NodeExtras({
           .map(([tag, axis]) => (
             <label className="control" key={tag}>
               <span>
-                Değişken font · {tag} ({axis.min}–{axis.max})
+                {t("Değişken font ·") + " "}
+                {tag} ({axis.min}–{axis.max})
               </span>
               <input
-                aria-label={`Font ekseni ${tag}`}
+                aria-label={t("Font ekseni {p0}", { p0: tag })}
                 type="range"
                 min={axis.min}
                 max={axis.max}

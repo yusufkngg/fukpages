@@ -45,6 +45,7 @@ with TemporaryDirectory(prefix='fukpages-browser-') as temporary:
         with sync_playwright() as p:
             browser = p.chromium.launch(executable_path='/usr/bin/chromium', headless=True, args=['--no-sandbox'])
             context = browser.new_context(viewport={'width': 1680, 'height': 1050})
+            context.add_init_script("localStorage.setItem('fp-ui-language','tr')")
             page = context.new_page()
             errors = []
             page.on('pageerror', lambda error: errors.append(str(error)))
@@ -83,6 +84,7 @@ with TemporaryDirectory(prefix='fukpages-browser-') as temporary:
             box_id = box.get_attribute('data-node-id')
             destination = page.locator(f'[data-node-id="{box_id}"]')
             destination.scroll_into_view_if_needed()
+            page.get_by_role('button',name='Öğeler',exact=True).click()
             source = page.locator('[data-palette="button"]')
             def drag(source, target):
                 source.scroll_into_view_if_needed()
@@ -93,7 +95,11 @@ with TemporaryDirectory(prefix='fukpages-browser-') as temporary:
                 page.wait_for_timeout(100)
                 b = target.bounding_box()
                 page.mouse.move(b['x'] + b['width']/2, b['y'] + b['height']/2, steps=24)
-                page.wait_for_timeout(200)
+                # Follow the actual target after dnd-kit auto-scroll moves the canvas.
+                for _ in range(3):
+                    page.wait_for_timeout(100)
+                    b = target.bounding_box()
+                    page.mouse.move(b['x']+b['width']/2, b['y']+b['height']/2, steps=6)
                 page.mouse.up()
             drag(source, destination)
             expect(destination.locator('[data-kind="button"]')).to_have_count(1)
@@ -117,7 +123,7 @@ with TemporaryDirectory(prefix='fukpages-browser-') as temporary:
             text.fill('EVERY DETAIL. FULLY YOURS.')
             page.wait_for_timeout(1800)
             expect(text).to_have_text('EVERY DETAIL. FULLY YOURS.')
-            page.get_by_role('button', name='İçerik', exact=True).click()
+            page.locator('.inspector-tabs').get_by_role('button',name='Ayarlar',exact=True).click()
             expect(page.get_by_label('Metin içeriği')).to_have_value('EVERY DETAIL. FULLY YOURS.')
             page.get_by_role('button', name='Kaydet', exact=True).click()
             expect(page.locator('.save-indicator')).to_have_text('Kaydedildi', timeout=10000)
@@ -141,6 +147,7 @@ with TemporaryDirectory(prefix='fukpages-browser-') as temporary:
             page.get_by_role('button', name='Yerel yayın', exact=True).click()
             expect(page.get_by_role('button', name='Yerel yayın güncelle')).to_be_visible()
             visitor = browser.new_context(viewport={'width': 390, 'height': 844})
+            visitor.add_init_script("localStorage.setItem('fp-ui-language','tr')")
             public = visitor.new_page()
             public.goto(base + '/?published=' + page_id)
             expect(public.get_by_role('heading', name='EVERY DETAIL. FULLY YOURS.')).to_be_visible()
@@ -156,6 +163,7 @@ with TemporaryDirectory(prefix='fukpages-browser-') as temporary:
             faq = page.locator('.editor-block.selected[data-kind="section"]')
             expect(faq.locator('[data-kind="accordion"]')).to_have_count(3)
             section_id = faq.get_attribute('data-node-id')
+            page.get_by_role('button', name='Bölümler', exact=True).click()
             page.get_by_role('button', name='Seçili bölümü kaydet', exact=True).click()
             page.get_by_label('Kaydedilen bölüm adı').fill('Benim SSS bölümüm')
             page.get_by_title('Bölümü kaydet', exact=True).click()

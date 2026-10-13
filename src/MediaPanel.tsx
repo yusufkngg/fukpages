@@ -1,3 +1,4 @@
+import { getUiLanguage, t } from "./i18n.ts";
 import { useState, useRef } from "react";
 import { api, json, uploadFiles } from "./api";
 import { assetUrl, type Asset } from "./studio";
@@ -37,7 +38,11 @@ export function MediaPanel({
       setFailed(files.filter((f) => bad.some((b) => b.name === f.name)));
       bad.forEach((b) => notify(`${b.name}: ${b.error}`, true));
       await refresh();
-      notify(`${result.results.filter((r) => r.ok).length} görsel yüklendi.`);
+      notify(
+        t("{p0} görsel yüklendi.", {
+          p0: result.results.filter((r) => r.ok).length,
+        }),
+      );
     } catch (e) {
       setFailed(files);
       notify((e as Error).message, true);
@@ -52,8 +57,8 @@ export function MediaPanel({
       (!favorites || a.favorite) &&
       (!folder || a.folder === folder) &&
       `${a.name} ${a.tags.join(" ")} ${a.folder}`
-        .toLocaleLowerCase("tr")
-        .includes(search.toLocaleLowerCase("tr")),
+        .toLocaleLowerCase(getUiLanguage())
+        .includes(search.toLocaleLowerCase(getUiLanguage())),
   );
   async function patch(a: Asset, data: Partial<Asset>) {
     try {
@@ -80,7 +85,7 @@ export function MediaPanel({
         className="feature-primary"
         onClick={() => input.current?.click()}
       >
-        Görsel yükle / dosya bırak
+        {t("Görsel yükle / dosya bırak")}
       </button>
       <input
         ref={input}
@@ -96,18 +101,22 @@ export function MediaPanel({
       {progress >= 0 && (
         <div role="status">
           <progress value={progress} max={100} />
-          <span>Yükleniyor %{progress}</span>
+          <span>
+            {t("Yükleniyor %")}
+            {progress}
+          </span>
         </div>
       )}
       {!!failed.length && (
         <button onClick={() => void upload(failed)}>
-          Başarısız dosyaları tekrar dene ({failed.length})
+          {t("Başarısız dosyaları tekrar dene (")}
+          {failed.length})
         </button>
       )}
       <label>
         HTTPS URL
         <input
-          aria-label="İçe aktarılacak görsel URL"
+          aria-label={t("İçe aktarılacak görsel URL")}
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />
@@ -121,26 +130,26 @@ export function MediaPanel({
             });
             await refresh();
             setUrl("");
-            notify("Görsel kalıcı kütüphaneye alındı.");
+            notify(t("Görsel kalıcı kütüphaneye alındı."));
           } catch (e) {
             notify((e as Error).message, true);
           }
         }}
       >
-        URL’den içe aktar
+        {t("URL’den içe aktar")}
       </button>
       <input
-        aria-label="Medya ara"
-        placeholder="Ad, etiket veya klasör ara"
+        aria-label={t("Medya ara")}
+        placeholder={t("Ad, etiket veya klasör ara")}
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
       <select
-        aria-label="Medya klasörü"
+        aria-label={t("Medya klasörü")}
         value={folder}
         onChange={(e) => setFolder(e.target.value)}
       >
-        <option value="">Tüm klasörler</option>
+        <option value="">{t("Tüm klasörler")}</option>
         {[...new Set(assets.map((a) => a.folder).filter(Boolean))].map((f) => (
           <option key={f}>{f}</option>
         ))}
@@ -151,24 +160,24 @@ export function MediaPanel({
           checked={favorites}
           onChange={(e) => setFavorites(e.target.checked)}
         />{" "}
-        Favoriler
+        {t("Favoriler")}
       </label>
       <select
-        aria-label="Görsel kullanım şekli"
+        aria-label={t("Görsel kullanım şekli")}
         value={mode}
         onChange={(e) => setMode(e.target.value)}
       >
-        <option value="replace">Seçili görseli değiştir / ekle</option>
-        <option value="add">Yeni görsel ekle</option>
-        <option value="mobile">Seçili öğenin mobil görseli</option>
-        <option value="background">Seçili kutunun arka planı</option>
+        <option value="replace">{t("Seçili görseli değiştir / ekle")}</option>
+        <option value="add">{t("Yeni görsel ekle")}</option>
+        <option value="mobile">{t("Seçili öğenin mobil görseli")}</option>
+        <option value="background">{t("Seçili kutunun arka planı")}</option>
       </select>
       <div className="media-grid">
         {filtered.map((a) => (
           <article key={a.id} data-asset-id={a.id}>
             <button
               onClick={() => select(a, mode)}
-              title="Tuvale ekle / seçili görseli değiştir"
+              title={t("Tuvale ekle / seçili görseli değiştir")}
             >
               <img
                 loading="lazy"
@@ -182,12 +191,12 @@ export function MediaPanel({
               {a.format}
             </small>
             <button
-              aria-label={`${a.name} favori`}
+              aria-label={t("{p0} favori", { p0: a.name })}
               onClick={() => void patch(a, { favorite: !a.favorite })}
             >
               {a.favorite ? "★" : "☆"}
             </button>
-            <button onClick={() => setDetail(a)}>Bilgiler</button>
+            <button onClick={() => setDetail(a)}>{t("Bilgiler")}</button>
           </article>
         ))}
       </div>
@@ -195,21 +204,21 @@ export function MediaPanel({
         <div className="feature-card">
           <h3>{detail.name}</h3>
           <label>
-            Ad
+            {t("Ad")}
             <input
               defaultValue={detail.name}
               onBlur={(e) => void patch(detail, { name: e.target.value })}
             />
           </label>
           <label>
-            Klasör
+            {t("Klasör")}
             <input
               defaultValue={detail.folder}
               onBlur={(e) => void patch(detail, { folder: e.target.value })}
             />
           </label>
           <label>
-            Etiketler
+            {t("Etiketler")}
             <input
               defaultValue={detail.tags.join(",")}
               onBlur={(e) =>
@@ -222,21 +231,24 @@ export function MediaPanel({
               }
             />
           </label>
-          <p>Kullanıldığı yerler:</p>
+          <p>{t("Kullanıldığı yerler:")}</p>
           {detail.usage?.map((u) => (
             <p key={u.id}>
               {u.name} · {u.scope}
             </p>
           ))}
           {!detail.usage?.length && (
-            <small>Güncel taslak veya yayında kullanılmıyor.</small>
+            <small>{t("Güncel taslak veya yayında kullanılmıyor.")}</small>
           )}
           <button
             onClick={async () => {
               if (
                 detail.usage?.length &&
                 !confirm(
-                  `${detail.usage.map((u) => u.name).join(", ")} içinde kullanılıyor. Kütüphaneden kaldırılacak; bu sayfalardaki dosya korunacak. Devam edilsin mi?`,
+                  t(
+                    "{p0} içinde kullanılıyor. Kütüphaneden kaldırılacak; bu sayfalardaki dosya korunacak. Devam edilsin mi?",
+                    { p0: detail.usage.map((u) => u.name).join(", ") },
+                  ),
                 )
               )
                 return;
@@ -252,9 +264,9 @@ export function MediaPanel({
               }
             }}
           >
-            Kütüphaneden kaldır
+            {t("Kütüphaneden kaldır")}
           </button>
-          <button onClick={() => setDetail(null)}>Kapat</button>
+          <button onClick={() => setDetail(null)}>{t("Kapat")}</button>
         </div>
       )}
     </div>

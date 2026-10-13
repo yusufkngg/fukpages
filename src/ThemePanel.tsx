@@ -1,13 +1,14 @@
+import { getUiLocale, t } from "./i18n.ts";
 import { useEffect, useState } from "react";
 import {
   ExternalLink,
   Layers,
+  ShoppingBag,
   LockKeyhole,
   RefreshCw,
   Unplug,
 } from "lucide-react";
 import type { ThemeSection, ThemeSnapshot, ThemeStatus } from "./theme";
-
 export function ThemePanel({
   status,
   busy,
@@ -38,7 +39,7 @@ export function ThemePanel({
           <span
             className={`theme-connected-dot ${status.snapshot ? "synced" : ""}`}
           />
-          {status.snapshot ? "Tema verisi alındı" : "Tema bağlantısı"}
+          {status.snapshot ? t("Tema verisi alındı") : t("Tema bağlantısı")}
         </span>
         <form
           onSubmit={(event) => {
@@ -47,20 +48,23 @@ export function ThemePanel({
           }}
         >
           <label>
-            Shopify mağaza adresi
+            {t("Shopify mağaza adresi")}
             <input
-              aria-label="Shopify mağaza adresi"
+              aria-label={t("Shopify mağaza adresi")}
               value={domain}
               onChange={(event) => setDomain(event.target.value)}
               placeholder="magazam.myshopify.com"
             />
           </label>
-          <button disabled={busy || !domain.trim()}>Adresi kaydet</button>
+          <button disabled={busy || !domain.trim()}>
+            {t("Adresi kaydet")}
+          </button>
         </form>
         {!status.configured && (
           <p>
-            Mağaza için tema okuma erişimi gerekli. Kurulum tamamlandığında
-            mevcut header/footer ve bölüm sırası burada görünür.
+            {t(
+              "Mağaza için tema okuma erişimi gerekli. Kurulum tamamlandığında mevcut header/footer ve bölüm sırası burada görünür.",
+            )}
           </p>
         )}
         <button
@@ -69,7 +73,7 @@ export function ThemePanel({
           onClick={sync}
         >
           <RefreshCw size={13} className={busy ? "spin" : ""} />
-          {busy ? "Tema okunuyor…" : "Temayı senkronize et"}
+          {busy ? t("Tema okunuyor…") : t("Temayı senkronize et")}
         </button>
       </div>
       {status.snapshot && (
@@ -78,33 +82,37 @@ export function ThemePanel({
             <strong>{status.snapshot.themeName}</strong>
             <small>{status.snapshot.templateFilename}</small>
             <span>
-              Son okuma:{" "}
-              {new Date(status.snapshot.syncedAt).toLocaleString("tr-TR", {
-                timeZone: "Europe/Istanbul",
-              })}
+              {t("Son okuma:")}{" "}
+              {new Date(status.snapshot.syncedAt).toLocaleString(
+                getUiLocale(),
+                {
+                  timeZone: "Europe/Istanbul",
+                },
+              )}
             </span>
           </div>
           <label className="toggle-row theme-shell-toggle">
-            <span>Tema düzenini kullan</span>
+            <span>{t("Tema düzenini kullan")}</span>
             <input
               type="checkbox"
-              aria-label="Tema düzenini kullan"
+              aria-label={t("Tema düzenini kullan")}
               checked={useShell}
               onChange={(event) => bind(status.snapshot!, event.target.checked)}
             />
           </label>
           <p className="theme-shell-help">
-            Header/footer temadan gelir. Özel bölümler içerik alanında kalır.
-            Tema bölümlerinin görsel önizlemesi henüz yok; konumları gösterilir.
+            {t(
+              "Header/footer temadan gelir. Özel bölümler içerik alanında kalır. Tema bölümlerinin görsel önizlemesi henüz yok; konumları gösterilir.",
+            )}
           </p>
           {(["header", "main", "footer"] as const).map((region) => (
             <div className="native-section-group" key={region}>
               <h3>
                 {region === "header"
-                  ? "HEADER GRUBU"
+                  ? t("HEADER GRUBU")
                   : region === "footer"
-                    ? "FOOTER GRUBU"
-                    : "ŞABLON BÖLÜMLERİ"}
+                    ? t("FOOTER GRUBU")
+                    : t("ŞABLON BÖLÜMLERİ")}
               </h3>
               {status
                 .snapshot!.sections.filter(
@@ -134,7 +142,8 @@ export function ThemePanel({
       )}
       {useShell && (
         <button className="theme-clear-binding" onClick={clearBinding}>
-          <Unplug size={12} /> Tema eşleşmesini kaldır
+          <Unplug size={12} />
+          {" " + t("Tema eşleşmesini kaldır")}
         </button>
       )}
     </div>
@@ -158,16 +167,20 @@ export function NativeThemeSection({
       }}
     >
       <div>
-        <Layers size={17} />
+        <ShoppingBag size={20} className="shopify-section-icon" />
         <span>
           <b>{section.name}</b>
-          <small>Shopify tema bölümü · {section.type}</small>
+          <small>
+            {t("Shopify tema bölümü ·") + " "}
+            {section.type}
+          </small>
         </span>
         <span className="native-shopify-tag">SHOPIFY</span>
       </div>
       <p>
-        Tema bölümünün konumu gösteriliyor. Gerçek görünüm Shopify temasında
-        korunur.
+        {t(
+          "Tema bölümünün konumu gösteriliyor. Gerçek görünüm Shopify temasında korunur.",
+        )}
       </p>
     </div>
   );
@@ -188,42 +201,47 @@ export function NativeThemeInspector({
         </span>
         <LockKeyhole size={13} />
       </div>
-      <div className="device-notice">Shopify teması · kaynak bölüm</div>
+      <div className="device-notice">{t("Shopify teması · kaynak bölüm")}</div>
       <div className="inspector-scroll native-inspector">
         <div className="native-info-card">
           <span className="native-shopify-tag">SHOPIFY</span>
-          <h3>Temanızdaki bölüm.</h3>
+          <h3>{t("Temanızdaki bölüm.")}</h3>
           <p>
-            Bu bölüm {snapshot.themeName} temasından okundu. Düzenleme Shopify
-            tema düzenleyicisinden yapılır.
+            {t("Bu bölüm") + " "}
+            {snapshot.themeName}
+            {" " +
+              t(
+                "temasından okundu. Düzenleme Shopify tema düzenleyicisinden yapılır.",
+              )}
           </p>
           <a
             target="_blank"
             rel="noopener noreferrer"
             href={`https://${snapshot.shopDomain}/admin/themes/${themeNumber}/editor`}
           >
-            <ExternalLink size={13} /> Shopify’da düzenle
+            <ExternalLink size={13} />
+            {" " + t("Shopify’da düzenle")}
           </a>
         </div>
         <dl>
-          <dt>Bölüm türü</dt>
+          <dt>{t("Bölüm türü")}</dt>
           <dd>{section.type}</dd>
-          <dt>Kaynak dosya</dt>
+          <dt>{t("Kaynak dosya")}</dt>
           <dd>{section.filename}</dd>
-          <dt>Görünürlük</dt>
-          <dd>{section.enabled ? "Açık" : "Gizli"}</dd>
+          <dt>{t("Görünürlük")}</dt>
+          <dd>{section.enabled ? t("Açık") : t("Gizli")}</dd>
         </dl>
-        <h3>Okunan tema ayarları</h3>
+        <h3>{t("Okunan tema ayarları")}</h3>
         {Object.entries(section.settings).map(([id, value]) => (
           <div className="native-setting" key={id}>
             <label>{section.settingLabels[id] ?? id}</label>
             <span>
               {/token|secret|password|api_key/i.test(id)
-                ? "Gizli değer"
+                ? t("Gizli değer")
                 : typeof value === "boolean"
                   ? value
-                    ? "Açık"
-                    : "Kapalı"
+                    ? t("Açık")
+                    : t("Kapalı")
                   : typeof value === "object"
                     ? JSON.stringify(value).slice(0, 200)
                     : String(value || "—").slice(0, 200)}
@@ -231,11 +249,13 @@ export function NativeThemeInspector({
           </div>
         ))}
         {!Object.keys(section.settings).length && (
-          <p className="setting-help">Bu bölüm için ayar değeri bulunmuyor.</p>
+          <p className="setting-help">
+            {t("Bu bölüm için ayar değeri bulunmuyor.")}
+          </p>
         )}
       </div>
       <div className="inspector-footer">
-        Yerel düzenlemeler tema dosyasına yazılmaz
+        {t("Yerel düzenlemeler tema dosyasına yazılmaz")}
       </div>
     </aside>
   );

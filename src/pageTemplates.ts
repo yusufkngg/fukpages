@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import {
   block,
   starterDocument,
@@ -7,9 +8,9 @@ import {
 } from "./model.ts";
 export function pageTemplate(type: PageType): PageDocument {
   const page = starterDocument(type);
-  if (type === "home") page.name = "Yeni ana sayfa";
+  if (type === "home") page.name = t("Yeni ana sayfa");
   if (type === "product") {
-    page.name = "Yeni ürün sayfası";
+    page.name = t("Yeni ürün sayfası");
     const gallery = block("column", {}, { width: "48%" }, [
       block("productGallery"),
     ]);
@@ -52,7 +53,7 @@ export function pageTemplate(type: PageType): PageDocument {
     page.nodes = [page.nodes[0], section];
   }
   if (type === "collection") {
-    page.name = "Yeni koleksiyon sayfası";
+    page.name = t("Yeni koleksiyon sayfası");
     const section = block(
       "section",
       {},
