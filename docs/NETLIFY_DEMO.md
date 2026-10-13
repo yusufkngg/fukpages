@@ -37,6 +37,12 @@ Netlify Blobs, SQLite ve medyanın sıkıştırılmış anlık görüntüsünü 
 
 ## Doğrulama ve sorun giderme
 
+0.3.3, masaüstünde bölümlerin 1200 px genişlikte sola sıkışmasını giderir.
+Bölüm arka planı ekranı doldurur; içerik marka container genişliğinde ortalanır,
+dar ekranda kullanılabilir genişliğe iner. Özel genişlik, flex/grid ayarları
+editör, önizleme ve yayında birlikte çalışır. `npm run test:responsive` 13 ekran
+genişliğini (320–4256 px), marka ayarını ve mağazalar arası aktarımı doğrular.
+
 0.3.2, geçersiz yönetici şifre ayarının bütün demo uçlarını 503 ile kapatmasını
 giderir. Şifre ayarı geçersizse yönetim erişimi kapalıdır, önceki oturumlar
 iptal edilir; demo mağaza ve giriş ekranı açılır. Giriş ekranı düzeltilecek

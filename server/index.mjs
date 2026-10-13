@@ -262,6 +262,7 @@ export function validateDocument(input) {
           "group",
           "globalStyle",
           "globalDetached",
+          "sectionContentWidth",
           "linkedSectionId",
           "buttonVariant",
           "hoverStyles",

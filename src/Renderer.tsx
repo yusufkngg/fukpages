@@ -125,8 +125,28 @@ export function BlockContent({
   const [lightbox, setLightbox] = useState(false);
   const [actionError, setActionError] = useState("");
   const [failedSrc, setFailedSrc] = useState("");
-  if (["section", "row", "column", "box"].includes(node.kind))
-    return <>{children}</>;
+  if (node.kind === "section") {
+    const frozenWidth = Number(p.sectionContentWidth);
+    return (
+      <div
+        className="section-content"
+        style={
+          p.globalDetached
+            ? {
+                maxWidth:
+                  p.sectionContentWidth !== undefined &&
+                  Number.isFinite(frozenWidth)
+                    ? `${Math.max(0, Math.min(3000, frozenWidth))}px`
+                    : (effectiveStyle(node, device).maxWidth ?? "none"),
+              }
+            : undefined
+        }
+      >
+        {children}
+      </div>
+    );
+  }
+  if (["row", "column", "box"].includes(node.kind)) return <>{children}</>;
   switch (node.kind) {
     case "heading":
     case "text": {

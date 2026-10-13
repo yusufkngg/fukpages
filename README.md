@@ -22,6 +22,11 @@ Netlify ortam ayarlarından sağlanır; gerçek sahip oturumu bu testte açılma
 
 ## 0.3 geliştirmeleri
 
+0.3.3: bölüm arka planları ekran genişliğini doldurur; marka container'ı yalnızca
+içeriği sınırlar ve ortalar. Editör/önizleme/yayın aynı düzeni kullanır. Mobil ve
+tablet stilleri, özel flex/grid düzenleri ve aktarımda kaynak içerik genişliği
+korunur. `npm run test:responsive` 320–4256 px arasında 13 ekran boyutunu ölçer.
+
 0.3.2: geçersiz Netlify şifre ayarı demo mağazayı kapatmaz. Yönetim erişimi
 kapalı kalır, giriş ekranı düzeltilmesi gereken ayarı gösterir ve eski
 oturumlar iptal edilir. 42 otomatik test çalışır.

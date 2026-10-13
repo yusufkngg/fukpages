@@ -268,7 +268,9 @@ export function brandStyle(
     };
   if (node.kind === "section")
     return {
-      maxWidth: "var(--brand-container)",
+      width: "100%",
+      marginLeft: "auto",
+      marginRight: "auto",
       backgroundColor: "var(--brand-background)",
     };
   void device;
@@ -278,7 +280,13 @@ export function freezeGlobalStyle(node: Block, brand: Brand): Block {
   const desktop = { ...brandStyle(node, "desktop"), ...node.styles.desktop };
   return {
     ...node,
-    props: { ...node.props, globalDetached: true },
+    props: {
+      ...node.props,
+      ...(!node.props.globalDetached && node.kind === "section"
+        ? { sectionContentWidth: String(brand.layout.container) }
+        : {}),
+      globalDetached: true,
+    },
     styles: {
       desktop: resolveBrandStyles(desktop, brand),
       tablet: resolveBrandStyles(

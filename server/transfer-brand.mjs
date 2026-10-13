@@ -87,7 +87,9 @@ export function freezeBrandDocument(document, brand) {
     if (n.kind === "section")
       return {
         ...inherited,
-        maxWidth: "var(--brand-container)",
+        width: "100%",
+        marginLeft: "auto",
+        marginRight: "auto",
         backgroundColor: "var(--brand-background)",
       };
     return inherited;
@@ -95,6 +97,8 @@ export function freezeBrandDocument(document, brand) {
   const copy = structuredClone(document);
   const walk = (nodes) =>
     nodes.forEach((n) => {
+      if (n.kind === "section" && !n.props.globalDetached)
+        n.props.sectionContentWidth = String(brand.layout.container);
       const desktop = { ...defaults(n), ...n.styles.desktop };
       n.styles = {
         desktop: resolve(desktop, "desktop"),
