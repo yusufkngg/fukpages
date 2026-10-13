@@ -712,7 +712,6 @@ export function Editor({
   }, [contextMenu]);
   const selectMany = useCallback((id: string, multi = false) => {
     setSelected(id);
-    setLibrary("properties");
     setSelection((old) =>
       multi
         ? old.includes(id)
@@ -733,7 +732,7 @@ export function Editor({
       element?.focus({ preventScroll: true });
     });
   }, []);
-  const [library, setLibrary] = useState("blocks");
+  const [library, setLibrary] = useState("sections");
   const [layersOpen, setLayersOpen] = useState(false);
   const [layerSearch, setLayerSearch] = useState("");
   const [savedSections, setSavedSections] = useState<SavedSection[]>([]);
@@ -858,7 +857,6 @@ export function Editor({
   useEffect(() => {
     if (selected) {
       setNativeSelected(null);
-      setLibrary("properties");
     }
   }, [selected]);
   useEffect(() => {
@@ -1193,7 +1191,7 @@ export function Editor({
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        if (library === "brand")
+        if (library === "brand" && !target.closest(".inspector-container"))
           document
             .querySelector<HTMLButtonElement>("[data-global-style-save]")
             ?.click();
@@ -2007,7 +2005,6 @@ export function Editor({
   const selectNative = (id: string) => {
     setSelected(null);
     setNativeSelected(id);
-    setLibrary("properties");
   };
   const viewWidth = customWidth || widths[device];
   const scale = Math.max(0.15, Math.min(1, available / viewWidth) * zoom);
@@ -2582,77 +2579,7 @@ export function Editor({
               </button>
             </nav>
             <aside className="library">
-              {library === "properties" && (
-                <>
-                  <div className="inspector-container">
-                    {enclosingSection(page, selected) &&
-                      selectedNode?.kind === "section" &&
-                      !selectedThemeSection && (
-                        <SectionDesign
-                          key={enclosingSection(page, selected)!.id}
-                          section={enclosingSection(page, selected)!}
-                          update={(section) =>
-                            commit((d) => ({
-                              ...d,
-                              nodes: mapBlock(
-                                d.nodes,
-                                section.id,
-                                () => section,
-                              ),
-                            }))
-                          }
-                        />
-                      )}
-                    <SelectionTools
-                      node={selectedNode}
-                      count={
-                        selection.includes(selected || "")
-                          ? selection.length
-                          : 1
-                      }
-                      command={command}
-                      device={device}
-                    />
-                    {selectedThemeSection && selectedNativeSnapshot ? (
-                      <NativeThemeInspector
-                        section={selectedThemeSection}
-                        snapshot={selectedNativeSnapshot}
-                      />
-                    ) : (
-                      <Inspector
-                        node={selectedNode}
-                        back={() => setLibrary("blocks")}
-                        openMedia={() => setLibrary("media")}
-                        storeId={store.id}
-                        assets={assets}
-                        device={device}
-                        update={(change, key) => {
-                          changeSelected(change, key);
-                        }}
-                        duplicate={() => selected && duplicate(selected)}
-                        remove={() => selected && remove(selected)}
-                        move={moveSelected}
-                        setLayout={changeFreeLayout}
-                        contentIntent={contentIntent}
-                        parentFree={
-                          !!freeHeight(
-                            findBlock(
-                              page.nodes,
-                              locateBlock(page.nodes, selectedNode?.id || "")
-                                ?.parent || "",
-                            ),
-                            device,
-                          )
-                        }
-                      />
-                    )}
-                  </div>
-                </>
-              )}
-              <div
-                className="library-heading"
-                hidden={library === "properties"}
-              >
+              <div className="library-heading">
                 <div>
                   <h2>
                     {(
@@ -3168,6 +3095,71 @@ export function Editor({
                 </div>
               </footer>
             </main>
+            <PanelSplitter
+              side="inspector"
+              width={panels.widths.inspector}
+              update={(width) => panels.update("inspector", width)}
+            />
+            <aside
+              className="inspector-container"
+              aria-label={t("Öğe ayarları")}
+            >
+              {enclosingSection(page, selected) &&
+                selectedNode?.kind === "section" &&
+                !selectedThemeSection && (
+                  <SectionDesign
+                    key={enclosingSection(page, selected)!.id}
+                    section={enclosingSection(page, selected)!}
+                    update={(section) =>
+                      commit((d) => ({
+                        ...d,
+                        nodes: mapBlock(d.nodes, section.id, () => section),
+                      }))
+                    }
+                  />
+                )}
+              <SelectionTools
+                node={selectedNode}
+                count={
+                  selection.includes(selected || "") ? selection.length : 1
+                }
+                command={command}
+                device={device}
+              />
+              {selectedThemeSection && selectedNativeSnapshot ? (
+                <NativeThemeInspector
+                  section={selectedThemeSection}
+                  snapshot={selectedNativeSnapshot}
+                />
+              ) : (
+                <Inspector
+                  node={selectedNode}
+                  back={() => setLibrary("blocks")}
+                  openMedia={() => setLibrary("media")}
+                  storeId={store.id}
+                  assets={assets}
+                  device={device}
+                  update={(change, key) => {
+                    changeSelected(change, key);
+                  }}
+                  duplicate={() => selected && duplicate(selected)}
+                  remove={() => selected && remove(selected)}
+                  move={moveSelected}
+                  setLayout={changeFreeLayout}
+                  contentIntent={contentIntent}
+                  parentFree={
+                    !!freeHeight(
+                      findBlock(
+                        page.nodes,
+                        locateBlock(page.nodes, selectedNode?.id || "")
+                          ?.parent || "",
+                      ),
+                      device,
+                    )
+                  }
+                />
+              )}
+            </aside>
           </div>
           {layersOpen && (
             <FloatingPanel

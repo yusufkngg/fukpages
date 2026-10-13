@@ -4186,7 +4186,7 @@ p {
   }
 }
 
-/* Compact studio: one properties/browser panel and a floating layer tree. */
+/* Separate library and properties panels, with a floating layer tree. */
 .studio .tool-rail {
   width: 44px;
   flex: 0 0 44px;
@@ -4225,32 +4225,29 @@ p {
 .library-heading p {
   display: none;
 }
-.library > .inspector-container {
-  width: 100%;
-  min-width: 0;
-  flex: 1;
+.studio-workspace > .inspector-container {
   display: flex;
   border: 0;
   min-height: 0;
   overflow: hidden;
   background: #171717;
 }
-.library .inspector {
+.inspector-container .inspector {
   width: 100%;
   min-width: 0;
   background: #171717;
   border: 0;
 }
-.library .inspector-heading {
+.inspector-container .inspector-heading {
   display: flex;
   gap: 8px;
   padding: 12px 16px;
   min-height: 48px;
 }
-.library .inspector-heading > span {
+.inspector-container .inspector-heading > span {
   flex: 1;
 }
-.library .inspector-tabs {
+.inspector-container .inspector-tabs {
   margin: 0 14px 12px;
   background: #222;
   border-radius: 8px;
@@ -4258,51 +4255,51 @@ p {
   border: 0;
   gap: 4px;
 }
-.library .inspector-tabs button {
+.inspector-container .inspector-tabs button {
   border: 0;
   padding: 9px;
   border-radius: 6px;
 }
-.library .inspector-tabs button.active {
+.inspector-container .inspector-tabs button.active {
   background: #27314c;
   color: #e2e9ff;
 }
-.library .device-notice {
+.inspector-container .device-notice {
   font-size: 10px;
   padding: 7px 16px;
   background: #1b1b1b;
 }
-.library .inspector-scroll > details {
+.inspector-container .inspector-scroll > details {
   border-color: #303030;
 }
-.library .inspector-scroll > details > summary {
+.inspector-container .inspector-scroll > details > summary {
   padding: 17px 16px;
 }
-.library .settings-body {
+.inspector-container .settings-body {
   padding: 0 16px 18px;
   gap: 15px;
 }
-.library .inspector input,
-.library .inspector select,
-.library .inspector textarea {
+.inspector-container .inspector input,
+.inspector-container .inspector select,
+.inspector-container .inspector textarea {
   background: #252525;
   border: 1px solid #333;
   border-radius: 7px;
   color: #ececec;
 }
-.library .inspector .control > span {
+.inspector-container .inspector .control > span {
   font-size: 11px;
 }
-.library .selection-tools {
+.inspector-container .selection-tools {
   padding: 7px 12px;
   background: #1b1b1b;
   border-color: #303030;
 }
-.library .selection-tools button {
+.inspector-container .selection-tools button {
   min-width: 30px;
   padding: 7px;
 }
-.library .selection-tools button span {
+.inspector-container .selection-tools button span {
   display: none;
 }
 .element-browser-tabs {
@@ -4934,7 +4931,7 @@ p {
   display: flex;
 }
 @media (max-width: 900px) {
-  .library > .inspector-container {
+  .studio-workspace > .inspector-container {
     display: flex;
   }
   .studio .library {

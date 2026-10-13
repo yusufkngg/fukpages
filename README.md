@@ -20,12 +20,19 @@ Canlı demo: https://fukpages.netlify.app/ . Giriş ekranı, API, demo mağaza v
 yerel sepet masaüstü/mobilde canlı olarak doğrulandı. Yönetici şifresi
 Netlify ortam ayarlarından sağlanır; gerçek sahip oturumu bu testte açılmadı.
 
+## 0.5.1 panel düzeni
+
+Hazır bölümler ve öğe kütüphanesi **solda**, seçilen öğenin ayarları **sağda**.
+Öğe seçmek, eklemek, çoğaltmak veya katman ağacından seçmek sol paneli değiştirmez.
+İki panelin genişliği ayrı sürüklenip tarayıcıda hatırlanır. Sade Settings/Advanced,
+İngilizce/Türkçe, kısayollar ve yeni öğe kontrolleri korunur.
+
 ## 0.5 geliştirmeleri
 
 - Arayüz varsayılan İngilizce. Dişli simgesi → **Settings → Language → Türkçe**
   tercihi tarayıcıda saklanır; sayfa içeriği ve SEO metni çevrilmez.
-- İkonlu sol menü; **Sections / Elements**, görsel satır kartları ve tek,
-  genişliği ayarlanabilen sol ayar paneli. **Settings / Advanced** ayrımı;
+- İkonlu sol menü; **Sections / Elements**, görsel satır kartları; solda kütüphane,
+  sağda genişliği ayarlanabilen öğe ayarları. **Settings / Advanced** ayrımı;
   font, boyut, kalın/italik/altı çizili, renk ve hizalama ilk sırada.
 - Metne tek tık seçim; çift tık düzenleme. İkon kutusu varsayılan olarak
   glyph'e sığar; ikon seçici ve **Fit to icon** kontrolü bulunur.

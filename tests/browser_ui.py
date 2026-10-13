@@ -20,7 +20,11 @@ with browser_fixture(netlify=True,ui_language=None) as f:
     heading=page.locator('.editor-block[data-kind=heading]:has(h1)').first;heading_id=heading.get_attribute('data-node-id');heading.click()
     expect(heading.locator('.rich-content')).to_have_attribute('contenteditable','false');assert heading.locator('.rich-content').evaluate('(el)=>getComputedStyle(el).cursor')=='default'
     expect(page.locator('.inspector-tabs button')).to_have_count(2)
-    assert page.locator('.inspector-container').bounding_box()['x']<page.locator('.canvas-scroll').bounding_box()['x']
+    library=page.locator('.library');canvas=page.locator('.canvas-area');settings=page.locator('.inspector-container')
+    expect(library.locator('.preset-entry').first).to_be_visible();expect(library.locator('.inspector')).to_have_count(0)
+    assert library.bounding_box()['x']+library.bounding_box()['width']<=canvas.bounding_box()['x']
+    assert settings.bounding_box()['x']>=canvas.bounding_box()['x']+canvas.bounding_box()['width']
+    expect(page.get_by_role('separator',name='Resize settings panel',exact=True)).to_be_visible()
     heading.locator('.rich-content').dblclick();expect(heading.locator('.rich-content')).to_have_attribute('contenteditable','true');heading.locator('.rich-content').fill('User text / Özel içerik');heading.locator('.rich-content').press('Escape');expect(heading.locator('.rich-content')).to_have_attribute('contenteditable','false')
     bold=page.get_by_role('button',name='Bold',exact=True);expect(bold).to_have_attribute('aria-pressed','true');bold.click();expect(heading).to_have_css('font-weight','400');bold.click();expect(heading).to_have_css('font-weight','700')
     page.get_by_label('Font size',exact=True).fill('23');page.get_by_label('Font size',exact=True).press('Tab');expect(heading).to_have_css('font-size','23px')
@@ -32,10 +36,10 @@ with browser_fixture(netlify=True,ui_language=None) as f:
     page.reload();expect(page.get_by_role('button',name='Sayfaları yönet',exact=True).first).to_be_visible();assert page.evaluate("localStorage.getItem('fp-ui-language')")=='tr'
     page.get_by_role('button',name='Sayfaları yönet',exact=True).first.click();page.locator('.page-table-row[data-page-id=demo-home]').get_by_role('button',name='Düzenle',exact=True).click();expect(page.get_by_label('Sayfa adı',exact=True)).to_be_visible();page.get_by_role('button',name='Öğeler',exact=True).click();expect(page.locator('[data-palette=button]')).to_be_visible();page.locator('.studio-topbar .ui-settings-button').click();page.get_by_role('dialog').get_by_label('Dil',exact=True).select_option('en');page.get_by_role('dialog').get_by_role('button',name='Close',exact=True).click()
     expect(page.get_by_label('Page name',exact=True)).to_be_visible();page.locator('[data-node-id="'+heading_id+'"]').click();page.screenshot(path=str(out/'english-text-settings.png'))
-    print('PASS: one left settings panel, two tabs, text formatting, double-click-only editing and persistent language selection without changing customer content',flush=True)
+    print('PASS: separate left library and right settings, two tabs, text formatting, double-click-only editing and persistent language selection without changing customer content',flush=True)
 
     page.get_by_role('button',name='Elements',exact=True).click();page.screenshot(path=str(out/'english-elements.png'));page.locator('[data-row-columns="0"]').click();row=page.locator('.editor-block[data-kind=row].selected');row_id=row.get_attribute('data-node-id')
-    page.get_by_role('button',name='Elements',exact=True).click();page.locator('[data-palette=text]').click();page.get_by_label('Text content',exact=True).fill('Verified reviews')
+    page.get_by_role('button',name='Elements',exact=True).click();page.locator('[data-palette=text]').click();expect(page.locator('.library [data-palette=icon]')).to_be_visible();page.get_by_label('Text content',exact=True).fill('Verified reviews')
     page.get_by_role('button',name='Elements',exact=True).click();page.locator('[data-palette=icon]').click();icon=page.locator('.editor-block[data-kind=icon].selected');icon_id=icon.get_attribute('data-node-id');page.get_by_role('button',name='Icon ∞',exact=True).click()
     row=page.locator('[data-node-id="'+row_id+'"]');expect(row.locator(':scope > .editor-block[data-kind=text]')).to_have_count(1);expect(row.locator(':scope > .editor-block[data-kind=icon]')).to_have_count(1)
     assert icon.bounding_box()['width']<70 and icon.bounding_box()['width']<row.bounding_box()['width']/2
@@ -52,7 +56,17 @@ with browser_fixture(netlify=True,ui_language=None) as f:
 
     page.get_by_role('button',name='Brand',exact=True).click();expect(page.get_by_role('heading',name='Global Styles',exact=True)).to_be_visible();page.get_by_label('Global font heading',exact=True).select_option('Georgia, serif');page.get_by_label('Spacing md',exact=True).fill('28');page.keyboard.press('Control+s');expect(page.locator('.toast')).to_contain_text('Brand kit saved',timeout=20000)
     page.screenshot(path=str(out/'english-global-styles.png'));brand=api('/stores/demo/brand')['brand'];assert brand['fonts']['heading']=='Georgia, serif' and brand['spacing']['md']==28
-    print('PASS: simple global colours/fonts/typography/spacing save with Ctrl+S and persist',flush=True)
+    # Editing the right properties panel must retain the left Brand view;
+    # Ctrl+S from that input saves the document rather than the brand kit.
+    page.locator('[data-node-id="'+heading_id+'"]').click();expect(page.get_by_role('heading',name='Global Styles',exact=True)).to_be_visible()
+    page.get_by_label('Font size',exact=True).fill('24');page.keyboard.press('Control+s');expect(page.locator('.save-indicator')).to_contain_text('Saved',timeout=20000)
+    def find(nodes,id):
+        for n in nodes:
+            if n['id']==id:return n
+            child=find(n['children'],id)
+            if child:return child
+    assert find(api('/pages/demo-home')['document']['nodes'],heading_id)['styles']['desktop']['fontSize']=='24px'
+    print('PASS: global styles persist; selecting a node keeps the left panel open and Ctrl+S from right properties saves the page',flush=True)
 
     page.get_by_role('button',name='Elements',exact=True).click();page.locator('[data-palette=accordion]').click();accordion=page.locator('.editor-block[data-kind=accordion].selected');accordion_id=accordion.get_attribute('data-node-id');page.get_by_role('button',name='Add item',exact=True).click();expect(accordion.locator('details')).to_have_count(2)
     editor=page.locator('.accordion-item-editor').last;editor.locator('summary').click();page.get_by_label('Item title 2',exact=True).fill('Can I customise it?');page.get_by_label('Item content 2',exact=True).fill('Yes. Every item is editable.');page.get_by_role('button',name='Duplicate item 2',exact=True).click();expect(accordion.locator('details')).to_have_count(3)
@@ -61,5 +75,5 @@ with browser_fixture(netlify=True,ui_language=None) as f:
     page.get_by_role('button',name='Page',exact=True).click();page.get_by_role('button',name='Save SEO and update publication',exact=True).click();expect(page.locator('[data-seo-publication]')).to_be_visible(timeout=20000)
     public=visitor.new_page();public.goto(f['base']+'/p/demo/home');expect(public.locator('[data-block="'+accordion_id+'"] details')).to_have_count(3);public.locator('[data-block="'+accordion_id+'"] summary').nth(1).click();expect(public.locator('[data-block="'+accordion_id+'"] details').nth(1)).to_contain_text('Every item is editable.')
     assert not errors,errors
-    (out/'ui-validation.json').write_text(json.dumps({'version':'0.5.0','checks':['default-English','English-errors','language-persistence','content-preservation','left-settings','text-format','double-click','inline-row','fitted-icon','native-cut','paste-IDs','duplicate','undo','redo','floating-layers','layer-visibility','global-styles','accordion-items','published-accordion'],'pageErrors':errors},indent=2))
+    (out/'ui-validation.json').write_text(json.dumps({'version':'0.5.1','checks':['default-English','English-errors','language-persistence','content-preservation','right-settings','persistent-library','text-format','double-click','inline-row','fitted-icon','native-cut','paste-IDs','duplicate','undo','redo','floating-layers','layer-visibility','global-styles','accordion-items','published-accordion'],'pageErrors':errors},indent=2))
     print('PASS: editable accordion items duplicate, persist and publish; no uncaught browser errors',flush=True)

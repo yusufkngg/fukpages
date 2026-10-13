@@ -1,4 +1,4 @@
-# Editör arayüzü — 0.5.0
+# Editör arayüzü — 0.5.1
 
 Varsayılan arayüz İngilizcedir. Dişli simgesi → **Settings → Language → Türkçe**
 seçimi tarayıcıda korunur; sayfa metni, mağaza adları, katalog ve SEO alanları
@@ -7,11 +7,11 @@ müşterinin içeriğidir ve dil değişikliğinde aynı kalır. Arayüz etiketl
 
 | İstek | Davranış ve kanıt |
 | --- | --- |
-| Basit sol menü | İkon rail'i, Sections/Elements geçişi, görsel satır kartları. Seçilen öğenin ayarları aynı sol panelde açılır; geri ok kütüphaneye döner. Panel genişliği sürüklenip hatırlanır. İkincil işlemler Element actions altında açılır. |
+| Basit sol menü | İkon rail'i, Sections/Elements geçişi, görsel satır kartları. Hazır bölümler/öğeler solda kalır; seçilen öğenin ayarları ayrı sağ panelde açılır. Seçim, ekleme ve çoğaltma sol panel görünümünü değiştirmez. İki panelin genişliği ayrı sürüklenip yenileme sonrası hatırlanır. İkincil işlemler Element actions altında açılır. |
 | Metin ayarları | Settings altında font, boyut ±, kalın/italik/altı çizili, renk ve hizalama; daha fazla ayar isteğe bağlı açılır. Advanced görünürlük, konum, animasyon ve diğer gelişmiş davranışları tutar. |
 | Tek tıkta yazı imleci | Tek tık seçer, contentEditable kapalıdır ve normal imleç gösterilir. Çift tık düzenlemeyi açar; blur/Escape düzenlemeden çıkar. |
 | Ctrl+X çalışmıyor | Native clipboard kes/kopyala/yapıştır; metin alanında normal metin işlemleri. Kesme pano yazımı tamamlandıktan sonra öğeyi kaldırır. Aynı sayfaya yapıştırma kimlikleri korur, kopyalar yeni kimlik alır. |
-| Diğer kısayollar | Ctrl/Cmd S/D/Z/Shift+Z, Ctrl+Y; Ctrl/Cmd A/G/Shift+G, Delete/Backspace, ok ve Shift+ok. Settings altında yardım. Ctrl+S marka panelinde global stili, diğer panellerde sayfa taslağını kaydeder. X/V/D/Z/Y/S tarayıcı akışında; grouping/lock/cross-root referanslar model testinde kontrol edilir. |
+| Diğer kısayollar | Ctrl/Cmd S/D/Z/Shift+Z, Ctrl+Y; Ctrl/Cmd A/G/Shift+G, Delete/Backspace, ok ve Shift+ok. Settings altında yardım. Ctrl+S sol marka panelinde global stili; sağ öğe ayarındaki girişte sayfa taslağını kaydeder. X/V/D/Z/Y/S tarayıcı akışında; grouping/lock/cross-root referanslar model testinde kontrol edilir. |
 | İkon çerçevesi | Varsayılan inline-flex / fit-content, ikon seçici ve Fit to icon. Sonsuzluk ikonunun kutusu tarayıcıda 70px’den küçük ve satırın yarısından dar ölçülür. Kullanıcının özel genişliği korunur. |
 | Row içinde metin ve ikon | Inline satır kartı ile doğrudan text/icon çocukları; ayrıca 1–4 kolon kartları. Bölüm/satır ayarında 1–6 kolon seçilir; azalan kolonların içeriği kalanlara taşınır, kimlik/metin korunur. |
 | Bölüm ayarları | Layout kartları, cihaz bazında ölçüler ve padding/margin diyagramı. Choose templates/Add blank section ekleme noktası; mevcut tema snapshot bölüm kartlarında ikon. Gerçek Shopify bağlantısı bu aşamada yok. |
@@ -33,6 +33,7 @@ müşterinin içeriğidir ve dil değişikliğinde aynı kalır. Arayüz etiketl
 
 Ekran görüntüleri izole test verileridir; gerçek sahip hesabı veya şifresi kullanılmaz.
 
+[İki ayrı panel](screenshots/english-two-panels.png) ·
 [Metin ayarları](screenshots/english-text-settings.png) ·
 [Öğe kütüphanesi](screenshots/english-elements.png) ·
 [Global Styles](screenshots/english-global-styles.png) ·

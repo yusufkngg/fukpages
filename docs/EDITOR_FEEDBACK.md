@@ -1,4 +1,4 @@
-# Editör geri bildirimleri — 0.4.0 / 0.5.0
+# Editör geri bildirimleri — 0.4.0 / 0.5.1
 
 Bu sürüm ekran görüntülerinde bildirilen düzenleme sorunlarını ve ana sayfa,
 ürün ve koleksiyon yönetimini kapsar. Katalog, atamalar, yayınlar ve sepet
@@ -12,7 +12,7 @@ demo verileriyle çalışır; Shopify bağlantısı bu aşamada yapılmaz.
 | Düğme taşınamıyor ve boyutlandırılamıyor | `Serbest yerleştir` veya üst öğenin yerleşim modu. Gerçek sürükleme, ölçek, sınırlar, ok/Shift+ok hareketi ve kenardan genişlik/yükseklik değişimi kontrol edildi. |
 | Mobil düzen bağımsız olmalı | Masaüstü serbest konum mobil akışı bozmaz. Mobil konum, akışa dönüş ve tekrar normal boyutlandırma masaüstü koordinatını değiştirmez. Tablet de ayrı ayarlanır. |
 | Kolonlar görünmüyor | Yeni satır iki boş, görünür kolonla başlar; üçüncüsü eklenir. Ayırıcılarla oran değişir. |
-| Paneller yoğun ve uzatılamıyor | Kısa araçlar, açık aralıklar; 0.5’te ortak sol panelin genişliği sürüklenip hatırlanır. Layer tree ayrı taşınır/boyutlandırılır; bölüm ayarları seçili bölümde açılır. |
+| Paneller yoğun ve uzatılamıyor | Kısa araçlar, açık aralıklar; 0.5.1’de solda kütüphane ve sağda öğe ayarları ayrı kalır; iki panel genişliği sürüklenip hatırlanır. Layer tree ayrı taşınır/boyutlandırılır; bölüm ayarları seçili bölümde açılır. |
 | Sağ tık menüsü kalıyor | Dışarı sol tık, Escape ve kaydırma kapatır; sol tık hedefi seçer. |
 | Üç sayfa türü, genel liste ve geçiş | Ana sayfa/ürün/koleksiyon sekmeleri, arama, oluşturma, bağımsız taslak çoğaltma, atamalar/yayın durumu ve editörde sayfa geçişi. |
 | Ürün/koleksiyon atama | Çoklu yerel hedef; ikinci şablona aynı hedef, yanlış mağaza/hedef ve eski sürüm reddedilir. Kopyanın yayını/atamaları boş kalır. |

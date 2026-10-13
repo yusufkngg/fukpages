@@ -81,11 +81,13 @@ with browser_fixture(netlify=True) as f:
     columns=row.locator(':scope > .editor-block[data-kind=column]');assert columns.first.evaluate('(el)=>getComputedStyle(el).outlineStyle')=='dashed';assert columns.first.bounding_box()['width']>0
     open_actions(page);page.get_by_role('button',name='Kolon ekle',exact=True).click();expect(row.locator(':scope > .editor-block[data-kind=column]')).to_have_count(3)
     print('PASS: new rows immediately contain visible columns and another column can be added',flush=True)
-    before=page.locator('.library').bounding_box()['width'];r=page.get_by_role('separator',name='Kütüphane panelini boyutlandır').bounding_box();page.mouse.move(r['x']+3,r['y']+r['height']/2);page.mouse.down();page.mouse.move(r['x']+53,r['y']+r['height']/2,steps=10);page.mouse.up();assert page.locator('.library').bounding_box()['width']>before+20
+    for label,panel,delta in [('Kütüphane panelini boyutlandır','.library',50),('Ayar panelini boyutlandır','.inspector-container',-50)]:
+        before=page.locator(panel).bounding_box()['width'];r=page.get_by_role('separator',name=label).bounding_box();page.mouse.move(r['x']+3,r['y']+r['height']/2);page.mouse.down();page.mouse.move(r['x']+3+delta,r['y']+r['height']/2,steps=10);page.mouse.up();assert page.locator(panel).bounding_box()['width']>before+20
     widths=page.evaluate("JSON.parse(localStorage.getItem('fp-panel-widths'))")
     page.get_by_role('button',name='Kaydet',exact=True).click();expect(page.locator('.save-indicator')).to_contain_text('Kaydedildi',timeout=20000)
-    print('PASS: the shared library/settings pane resizes with a real pointer gesture and remembers its width',flush=True)
+    print('PASS: both separate side panels resize with real pointer gestures and remember their widths',flush=True)
 
+    page.reload();open_editor(page,base,'Aura · Demo mağaza');assert page.locator('.library').bounding_box()['width']==widths['library'];assert page.locator('.inspector-container').bounding_box()['width']==widths['inspector']
     page.get_by_role('button',name='Bölümler',exact=True).click();thumb=page.locator('[data-preset-thumbnail=purchase]');expect(thumb.locator('.page-surface')).to_be_visible();assert 'MAKE IT' not in thumb.inner_text()
     card=page.locator('.preset-entry').filter(has=page.locator('[data-section-preset=purchase]'));card.locator('.preset-preview-button').click();expect(page.get_by_role('dialog',name='Bölüm önizlemesi')).to_be_visible()
     page.get_by_label('Bölüm önizleme ürünü').select_option('aura-one')
