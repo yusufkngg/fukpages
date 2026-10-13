@@ -19,10 +19,10 @@ import { gzipSync, gunzipSync } from "node:zlib";
 const STATE_KEY = "snapshot-v1";
 const MAX_STATE = 32 * 1024 * 1024;
 const MAX_EXPANDED = 64 * 1024 * 1024;
-const errorResponse = (statusCode, error) => ({
+const errorResponse = (statusCode, error, code) => ({
   statusCode,
   headers: { "content-type": "application/json", "cache-control": "no-store" },
-  body: JSON.stringify({ error }),
+  body: JSON.stringify({ error, ...(code ? { code } : {}) }),
 });
 function files(root, dir = "") {
   return readdirSync(resolve(root, dir), { withFileTypes: true }).flatMap(
@@ -132,11 +132,13 @@ export function createDemoHandler({
     for (let attempt = 0; attempt < 5; attempt++) {
       const dir = mkdtempSync(resolve(tmpdir(), "fukpages-netlify-"));
       let db;
+      let stage = "storage_read";
       try {
         const saved = await store.getWithMetadata(STATE_KEY, {
           type: "arrayBuffer",
           consistency: "strong",
         });
+        stage = "state_restore";
         if (saved) restore(dir, saved.data);
         const before = existsSync(resolve(dir, "fukpages.sqlite"))
           ? createHash("sha256")
@@ -144,6 +146,7 @@ export function createDemoHandler({
               .digest("hex")
           : "";
         // First initialize/migrate the database. No HTTP requests use this app.
+        stage = "database_init";
         const initial = createApp({
           dataDir: dir,
           ownerHash: "",
@@ -152,10 +155,13 @@ export function createDemoHandler({
           secureCookies,
         });
         db = initial.db;
+        stage = "demo_seed";
         seedDemo(db);
+        stage = "owner_config";
         const hash = credential(db, { password, ownerHash, ownerLogin });
         db.close();
         db = null;
+        stage = "service_init";
         const service = createApp({
           dataDir: dir,
           ownerHash: hash,
@@ -165,10 +171,12 @@ export function createDemoHandler({
         });
         db = service.db;
         service.studio.runSchedules();
+        stage = "http_response";
         const response = await serverless(service.app, {
           basePath: "/.netlify/functions/api",
           binary: ["image/*", "font/*", "application/octet-stream"],
         })(event, context);
+        stage = "state_pack";
         db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
         db.close();
         db = null;
@@ -177,6 +185,7 @@ export function createDemoHandler({
           .digest("hex");
         if (saved && before === after) return response;
         const data = pack(dir);
+        stage = "storage_write";
         const committed = await store.set(STATE_KEY, data, {
           ...(saved ? { onlyIfMatch: saved.etag } : { onlyIfNew: true }),
           metadata: { version: 1 },
@@ -184,11 +193,21 @@ export function createDemoHandler({
         if (committed.modified) return response;
       } catch (error) {
         // Never return a successful mutation before durable storage succeeds.
+        const type = /^[A-Za-z]{1,48}$/.test(error?.name || "")
+          ? error.name.toUpperCase()
+          : "ERROR";
+        const code = "DEMO_" + stage.toUpperCase() + "_" + type;
+        console.error("FukPages demo failure", {
+          stage,
+          type: /^[\w]+$/.test(error?.name || "") ? error.name : "Error",
+          code: /^[A-Z_0-9]+$/.test(error?.code || "") ? error.code : undefined,
+        });
         return errorResponse(
           error instanceof RangeError ? 507 : 503,
           error instanceof RangeError
             ? error.message
             : "Demo kaydı şu anda tamamlanamadı. Taslağın korunur; biraz sonra tekrar dene.",
+          code,
         );
       } finally {
         if (db) db.close();
