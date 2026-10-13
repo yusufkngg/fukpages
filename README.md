@@ -27,8 +27,9 @@ yönetimi, çoğaltma, atamalar ve JSON işlemleri. Sol menüdeki her aracın ke
 ikonu ve adı var. Öğe kütüphanesi 50 öğeyi ayrı ikonlarla sekiz grupta, sıkı bir
 ızgarada gösterir.
 
-Sürüklerken tuvalde tek bir çizgi bırakılacak yeri ve hedefi gösterir; bırakılan
-yer çizgiyle aynıdır. Bölümler yalnızca sayfa seviyesinde yer alır. Bir bölümün
+Tuvaldeki öğeler sol tıkla basılı tutup sürüklenerek taşınır; tek bir çizgi
+bırakılacak yeri, çerçeve ve etiket hedef kapsayıcıyı gösterir ve bırakılan yer
+çizgiyle aynıdır. Bölümler yalnızca sayfa seviyesinde yer alır. Bir bölümün
 alt kenarındaki **+ Add section** ile hazır veya boş bölüm tam o konuma eklenir.
 Metne çift tıklayınca metnin üstünde kalın/italik/altı çizili/üstü çizili,
 renk, bağlantı (Ctrl/Cmd+K) ve biçim temizleme açılır; Enter satır sonu ekler.

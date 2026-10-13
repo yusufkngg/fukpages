@@ -22,7 +22,7 @@ import { ToolRail, type RailTool } from "./ToolRail";
 import { TextToolbar } from "./TextToolbar";
 import { Breadcrumb } from "./Breadcrumb";
 import { SectionInsert } from "./SectionInsert";
-import { useCanvasDrop } from "./useCanvasDrop";
+import { chipFollowsCursor, useCanvasDrop } from "./useCanvasDrop";
 import { PanelSplitter, usePanelWidths } from "./PanelSplitter";
 import { cssNumber, freeHeight, setFreeLayout } from "./freePlacement";
 import { normalizeLink, navigationActions } from "./links";
@@ -2811,16 +2811,27 @@ export function Editor({
               height: canvasDrop.indicator.height,
             }}
           >
-            <span>{canvasDrop.indicator.label}</span>
+            {canvasDrop.indicator.label && (
+              <span>{canvasDrop.indicator.label}</span>
+            )}
           </div>
         )}
-        <DragOverlay>
+        <DragOverlay
+          modifiers={[chipFollowsCursor]}
+          dropAnimation={null}
+          style={{ width: "auto", height: "auto" }}
+        >
           {dragging && (
             <div className="drag-chip">
               <GripVertical size={16} />
               {dragging.startsWith("palette:")
                 ? labels[dragging.split(":")[1] as Kind]
-                : t("Öğeyi taşı")}
+                : dragging.startsWith("node:") || dragging.startsWith("layer:")
+                  ? findBlock(page.nodes, dragging.split(":")[1])?.name ||
+                    t("Öğeyi taşı")
+                  : dragging.startsWith("section-preset:")
+                    ? t("Bölüm")
+                    : t("Öğeyi taşı")}
               <Plus size={12} />
             </div>
           )}

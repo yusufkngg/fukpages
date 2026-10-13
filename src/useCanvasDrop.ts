@@ -7,6 +7,7 @@ import {
   type CollisionDetection,
   type DragMoveEvent,
   type DragStartEvent,
+  type Modifier,
 } from "@dnd-kit/core";
 import { isButtonContent } from "./atomicContent.ts";
 import { isLocked } from "./editorCommands";
@@ -37,6 +38,22 @@ export interface DropPlan {
 export type DropIndicator = Indicator & { label: string };
 
 const surfaceSelector = ".editable-surface";
+
+/** Keep the small drag chip just below-right of the cursor. */
+export const chipFollowsCursor: Modifier = ({
+  activatorEvent,
+  activeNodeRect,
+  transform,
+}) => {
+  const start = activatorEvent as PointerEvent | null;
+  if (!start || typeof start.clientX !== "number" || !activeNodeRect)
+    return transform;
+  return {
+    ...transform,
+    x: transform.x + start.clientX - activeNodeRect.left + 14,
+    y: transform.y + start.clientY - activeNodeRect.top + 14,
+  };
+};
 
 function pointerOf(event: { activatorEvent: Event | null; delta: Point }) {
   const start = event.activatorEvent as PointerEvent | MouseEvent | null;
@@ -188,13 +205,14 @@ export function useCanvasDrop(pageRef: RefObject<PageDocument | null>) {
           resolved.index,
           target.horizontal,
         ),
-        label: nameOf(target.id),
+        label: target.children.length ? "" : nameOf(target.id),
       });
     }
-    markTarget(null);
+    // Outline the receiving container (labelled) and draw the line.
+    markTarget(resolved.parent);
     setIndicator({
       ...edgeIndicator(target.rect, resolved.mode, target.parentHorizontal),
-      label: nameOf(resolved.parent),
+      label: resolved.parent ? "" : t("Sayfa"),
     });
   };
 

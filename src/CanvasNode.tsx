@@ -64,6 +64,18 @@ export function NodeSlot({
   );
 }
 
+/** Presses on these keep their own behaviour instead of moving the block. */
+const pressExclusions = [
+  '[contenteditable="true"]',
+  "input",
+  "textarea",
+  "select",
+  "[data-block-toolbar]",
+  ".element-resize-handle",
+  ".column-resize-handle",
+  ".section-insert",
+].join(",");
+
 export interface CanvasNodeProps {
   node: Block;
   parent?: string | null;
@@ -152,16 +164,33 @@ export function CanvasNode({
       className={`content-block editor-block ${isSelected ? "selected" : ""} ${drag.isDragging ? "moving" : ""}`}
       style={style}
       onPointerDown={(event) => {
+        // Only one block reacts to a press: the selected block when the
+        // press lands inside it, otherwise the innermost block.
+        const native = event.nativeEvent as PointerEvent & {
+          fpBlock?: string;
+        };
+        if (native.fpBlock || event.button !== 0) return;
+        const target = event.target as HTMLElement;
         if (
-          parentFree &&
-          !locked &&
-          !(event.target as HTMLElement).closest(
-            'button,input,textarea,select,[contenteditable="true"]',
+          !parentFree &&
+          selected &&
+          selected !== node.id &&
+          event.currentTarget.parentElement?.closest(
+            `[data-node-id="${CSS.escape(selected)}"]`,
           )
-        ) {
+        )
+          return;
+        native.fpBlock = node.id;
+        if (locked || target.closest(pressExclusions)) return;
+        if (parentFree) {
+          if (target.closest("button")) return;
           select(node.id);
           gesture.start(event, "move");
+          return;
         }
+        // Left-press and drag anywhere on the block to move it; a press
+        // without movement stays a click (selection, double-click editing).
+        drag.listeners?.onPointerDown?.(event);
       }}
       onPointerMove={gesture.move}
       onPointerUp={gesture.stop}

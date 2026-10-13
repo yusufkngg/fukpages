@@ -111,7 +111,8 @@ with browser_fixture(ui_language='en') as f:
         now_first, now_second = node('first').bounding_box(), node('second').bounding_box()
         now_middle = (now_first['y'] + now_first['height'] + now_second['y']) / 2
         assert abs(box['y'] + box['height'] / 2 - now_middle) <= 8, (box, now_middle)
-        expect(line).to_have_text('hero-col')
+        expect(line).to_have_text('')
+        assert node('hero-col').evaluate("e=>getComputedStyle(e,'::before').content") == '"hero-col"'
         assert page.locator('.editable-surface .node-slot').count() == 0
         expect(node('hero-col')).to_have_attribute('data-drop-target', '')
         assert page.locator('[data-drop-target]').count() == 1
@@ -123,6 +124,35 @@ with browser_fixture(ui_language='en') as f:
     assert len(kids) == 4 and kids[:2] == ['hero-title', 'first'] and kids[3] == 'second', kids
     new_heading = kids[2]
     expect(node(new_heading)).to_have_attribute('data-kind', 'heading')
+
+    # Left-press anywhere on a block and drag it, like GemPages; no grip needed.
+    second = node('second').bounding_box()
+    page.mouse.click(10, 10)  # clear selection so the paragraph itself is picked
+    start = node('first').bounding_box()
+
+    def pressed_drag():
+        expect(node('first')).to_have_class(re.compile(r'\bmoving\b'))
+        expect(page.locator('.drag-chip')).to_contain_text('first')
+        expect(node('hero-col')).to_have_attribute('data-drop-target', '')
+        line = page.locator('[data-drop-indicator]').bounding_box()
+        assert abs(line['y'] + line['height'] / 2 - (second['y'] + second['height'])) <= 8, (line, second)
+        page.screenshot(path=str(out / 'v07-press-drag.png'))
+
+    page.mouse.move(start['x'] + 40, start['y'] + start['height'] / 2)
+    page.mouse.down()
+    page.mouse.move(start['x'] + 60, start['y'] + start['height'] / 2 + 10, steps=4)
+    page.mouse.move(second['x'] + 60, second['y'] + second['height'] - 3, steps=16)
+    page.wait_for_timeout(250)
+    pressed_drag()
+    page.mouse.up()
+    page.wait_for_timeout(300)
+    kids = page.locator('.editable-surface [data-node-id=hero-col] > .editor-block').evaluate_all('els=>els.map(e=>e.dataset.nodeId)')
+    assert kids == ['hero-title', new_heading, 'second', 'first'], kids
+    expect(node('first')).to_have_class(re.compile(r'\bselected\b'))
+    # A plain click still only selects.
+    node('second').click()
+    expect(node('second')).to_have_class(re.compile(r'\bselected\b'))
+    assert page.locator('.editable-surface [data-node-id=hero-col] > .editor-block').evaluate_all('els=>els.map(e=>e.dataset.nodeId)') == kids
 
     page.get_by_role('button', name='Sections', exact=True).click()
     preset = page.locator('[data-section-preset]').first
@@ -139,7 +169,7 @@ with browser_fixture(ui_language='en') as f:
     order = top_level()
     assert order[:2] == ['top', 'hero'] and order[-1] == 'bottom' and len(order) == 4, order
     dropped_section = order[2]
-    print('PASS: hover label, single insertion line for elements and sections, drop lands on the line', flush=True)
+    print('PASS: hover label, press-and-drag on blocks, single insertion line with labelled target, drop lands on the line', flush=True)
 
     # Add-section affordance between sections.
     node('hero').hover()
