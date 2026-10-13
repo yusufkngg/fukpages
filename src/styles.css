@@ -4920,6 +4920,52 @@ p {
 .shopify-section-icon {
   color: #83ac47;
 }
+
+.custom-icon {
+  display: block;
+  width: 1em;
+  height: 1em;
+  max-width: 100%;
+  object-fit: contain;
+}
+.icon-mask {
+  background-color: currentColor;
+  mask-size: contain;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+}
+.icon-symbol-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.block-button,
+.atomic-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.block-button > .content-block,
+.atomic-badge > .content-block {
+  flex: 0 1 auto;
+}
+.icon-picker > label {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+  font-size: 11px;
+}
+.icon-picker > label input {
+  min-width: 0;
+  width: 100%;
+  padding: 8px;
+}
 .studio .rich-content[contenteditable="false"] {
   cursor: default;
   user-select: none;

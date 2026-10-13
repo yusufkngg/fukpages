@@ -44,6 +44,9 @@ export function SelectionTools({
           ["ungroup", t("Grubu çöz")],
           ["lock", node.props.locked ? t("Kilidi aç") : t("Kilitle")],
           ["freeMove", t("Serbest yerleştir")],
+          ...(["text", "heading"].includes(node.kind)
+            ? [["splitContent", t("Split into elements")]]
+            : []),
         ].map(([k, label]) => (
           <button
             key={k}

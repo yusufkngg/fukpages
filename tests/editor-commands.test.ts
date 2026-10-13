@@ -15,7 +15,7 @@ import {
   pasteBlocks,
 } from "../src/editorCommands";
 import { validateDocument } from "../server/index.mjs";
-test("all 49 element kinds and 60 presets serialize through the server validator with brand tokens and mobile overrides", () => {
+test("all 50 element kinds and 60 presets serialize through the server validator with brand tokens and mobile overrides", () => {
   assert.equal(sectionPresets.length, 60);
   for (const preset of sectionPresets) {
     const section = createSectionPreset(preset.id)!;
@@ -28,6 +28,7 @@ test("all 49 element kinds and 60 presets serialize through the server validator
     assert.ok(Object.keys(section.styles.mobile).length > 0);
   }
   const kinds = [
+    "itemList",
     "form",
     "select",
     "checkbox",

@@ -1,4 +1,10 @@
 import { t, localized } from "./i18n.ts";
+import {
+  normalizeAtomicBlock,
+  setCaption,
+  isButtonContent,
+  detachAtomicPart,
+} from "./atomicContent.ts";
 import type { CSSProperties } from "react";
 import { normalizeStyles } from "./styleValues.ts";
 export type Device = "desktop" | "tablet" | "mobile";
@@ -35,6 +41,7 @@ export const advancedLabels = localized({
   sizeTable: "Beden tablosu",
 } as const);
 export type Kind =
+  | "itemList"
   | keyof typeof advancedLabels
   | "section"
   | "row"
@@ -149,6 +156,7 @@ export const labels: Record<Kind, string> = localized({
   divider: "Ayırıcı",
   spacer: "Boşluk",
   icon: "İkon",
+  itemList: "Item List",
   video: "Video",
   list: "Liste",
   badge: "Etiket",
@@ -218,11 +226,25 @@ export const groups: {
       ],
     },
     { name: "FORM ALANLARI", kinds: ["form", "select", "checkbox", "radio"] },
+    { name: "İKON VE METİN", kinds: ["itemList"] },
   ],
   ["name"],
 );
 export const isContainer = (kind: Kind) =>
-  ["section", "row", "column", "box", "form", "popup"].includes(kind);
+  [
+    "section",
+    "row",
+    "column",
+    "box",
+    "form",
+    "popup",
+    "itemList",
+    "rating",
+    "list",
+    "button",
+    "badge",
+    "product",
+  ].includes(kind);
 export const uid = () => crypto.randomUUID();
 const boxStyle = {
   paddingTop: "24px",
@@ -278,6 +300,29 @@ export function createBlock(kind: Kind): Block {
         width: "100%",
       };
       mobile.flexDirection = "column";
+      break;
+    case "itemList":
+      desktop = {
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: "8px",
+        width: "fit-content",
+        maxWidth: "100%",
+        fontSize: "16px",
+      };
+      break;
+    case "rating":
+      props.text = t("reviews");
+      desktop = {
+        display: "flex",
+        flexDirection: "row",
+        flexWrap: "wrap",
+        alignItems: "center",
+        width: "fit-content",
+        gap: "8px",
+        fontSize: "16px",
+      };
       break;
     case "column":
       desktop = {
@@ -477,7 +522,7 @@ export function createBlock(kind: Kind): Block {
   }
   if (kind in advancedLabels && !Object.keys(desktop).length)
     desktop = { width: "100%", paddingTop: "12px", paddingBottom: "12px" };
-  return {
+  return normalizeAtomicBlock({
     id: uid(),
     kind,
     name: labels[kind],
@@ -485,19 +530,22 @@ export function createBlock(kind: Kind): Block {
     styles: { desktop, tablet, mobile },
     hidden: { desktop: false, tablet: false, mobile: false },
     children: [],
-  };
+  });
 }
 export function block(
   kind: Kind,
   props: Block["props"] = {},
   styles: Styles = {},
-  children: Block[] = [],
+  children?: Block[],
 ) {
   const node = createBlock(kind);
+  const previous = { ...node };
   node.props = { ...node.props, ...props };
   node.styles.desktop = { ...node.styles.desktop, ...styles };
-  node.children = children;
-  return node;
+  if (children !== undefined) node.children = children;
+  if (["button", "badge"].includes(kind) && props.text !== undefined)
+    return setCaption(node, String(props.text));
+  return normalizeAtomicBlock(node, previous);
 }
 export function starterDocument(type: PageType = "landing"): PageDocument {
   const title = block(
@@ -733,6 +781,8 @@ export function insertBlock(
   }
   return mapBlock(nodes, parent, (node) => {
     if (!isContainer(node.kind)) return node;
+    if (["button", "badge"].includes(node.kind) && !isButtonContent(block))
+      throw new Error("Use text, icons or images inside a button.");
     const children = [...node.children];
     children.splice(index, 0, block);
     return { ...node, children };
@@ -756,7 +806,7 @@ export function locateBlock(
 }
 export function cloneBlock(node: Block): Block {
   const ids = new Map<string, string>();
-  const copy = structuredClone(node);
+  const copy = structuredClone(node.props.slot ? detachAtomicPart(node) : node);
   const assign = (n: Block) => {
     ids.set(n.id, uid());
     if (n.props.cssId) ids.set(String(n.props.cssId), uid());

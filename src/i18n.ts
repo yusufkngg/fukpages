@@ -23,6 +23,18 @@ export function setUiLanguage(value: UiLanguage) {
   listeners.forEach((listener) => listener());
 }
 const aliases: Record<string, string> = {
+  "Item List": "İkonlu öğe",
+  "Describe a benefit": "Bir özelliği açıkla",
+  "Upload / choose custom icon": "Özel ikon yükle / seç",
+  "Custom icon URL": "Özel ikon URL",
+  "Use icon colour": "İkon rengini kullan",
+  "Review text": "Yorum metni",
+  Reviewer: "Yorum sahibi",
+  "Review label": "Yorum etiketi",
+  "Sample review": "Örnek yorum",
+  "Split into elements": "Ayrı öğelere dönüştür",
+  "Text and icons are now separate elements.":
+    "Metin ve ikonlar artık ayrı öğeler.",
   Title: "Başlık",
   Color: "Renk",
   "Update all pages": "Tüm sayfaları güncelle",

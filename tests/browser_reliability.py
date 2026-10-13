@@ -57,7 +57,7 @@ with browser_fixture(lose_upload_response=True) as f:
     print('PASS: content-preserving layout switch, actual branded section preview and preview breakpoints',flush=True)
     cardpage=api('/stores/demo/pages','POST',{'document':document('Cards edit',[cards])});open_editor(page,base,'Cards edit')
     page.locator('[data-node-id="'+cards['id']+'"]').focus();page.locator('[data-section-design] > summary').click();page.get_by_role('button',name='Kart 1 Çoğalt',exact=True).click();expect(page.locator('[data-card-editor]')).to_have_count(4)
-    page.get_by_label('Kart 1 Başlık',exact=True).fill('Düzenlenmiş yorum');page.get_by_role('button',name='Kart 1 Aşağı',exact=True).click();expect(page.locator('.save-indicator')).to_have_text('Kaydedildi',timeout=15000)
+    page.locator('[data-card-editor]').first.locator('textarea').first.fill('Düzenlenmiş yorum');page.get_by_role('button',name='Kart 1 Aşağı',exact=True).click();expect(page.locator('.save-indicator')).to_have_text('Kaydedildi',timeout=15000)
     stored=api('/pages/'+cardpage['id'])['document'];assert 'Düzenlenmiş yorum' in json.dumps(stored,ensure_ascii=False)
     page.screenshot(path=str(shots/'section-card-management.png'),full_page=True)
     print('PASS: repeated cards edited, copied and reordered without resetting other content',flush=True)

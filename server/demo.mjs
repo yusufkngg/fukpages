@@ -1,4 +1,5 @@
 import { starterDocument, createBlock } from "../src/model.ts";
+import { setCaption } from "../src/atomicContent.ts";
 import { pageTemplate } from "../src/pageTemplates.ts";
 import { cleanCatalog } from "./catalog.mjs";
 import { validateDocument } from "./index.mjs";
@@ -23,12 +24,14 @@ export function seedDemo(db) {
   };
   const walk = (nodes) =>
     nodes.forEach((n) => {
-      if (n.kind === "button")
+      if (n.kind === "button") {
         Object.assign(n.props, {
           action: "scroll",
           actionTarget: "demo-product",
           text: "Ürünü keşfet",
         });
+        Object.assign(n, setCaption(n, "Ürünü keşfet"));
+      }
       walk(n.children);
     });
   walk(page.nodes);

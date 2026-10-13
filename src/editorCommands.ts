@@ -8,6 +8,7 @@ import {
   type Block,
   type PageDocument,
 } from "./model";
+import { isButtonContent, detachAtomicPart } from "./atomicContent.ts";
 export function isLocked(
   nodes: Block[],
   id: string,
@@ -85,18 +86,27 @@ export function pasteBlocks(
   parent: string | null,
 ) {
   if (parent && isLocked(page.nodes, parent)) throw new Error("Hedef kilitli.");
+  const target = parent && findBlock(page.nodes, parent);
+  if (
+    target &&
+    ["button", "badge"].includes(target.kind) &&
+    !blocks.every(isButtonContent)
+  )
+    throw new Error("Use text, icons or images inside a button.");
   let nodes = page.nodes;
   const ids: string[] = [];
   const clipboardRoot = createBlock("section");
   clipboardRoot.children = blocks;
-  cloneBlock(clipboardRoot).children.forEach((copy) => {
-    ids.push(copy.id);
-    nodes = insertBlock(
-      nodes,
-      parent,
-      parent ? findBlock(nodes, parent)?.children.length || 0 : nodes.length,
-      copy,
-    );
-  });
+  cloneBlock(clipboardRoot)
+    .children.map((copy) => (copy.props.slot ? detachAtomicPart(copy) : copy))
+    .forEach((copy) => {
+      ids.push(copy.id);
+      nodes = insertBlock(
+        nodes,
+        parent,
+        parent ? findBlock(nodes, parent)?.children.length || 0 : nodes.length,
+        copy,
+      );
+    });
   return { page: { ...page, nodes }, ids };
 }

@@ -98,7 +98,7 @@ export function cardFields(card: Block) {
         ? "html"
         : n.kind === "image"
           ? "src"
-          : n.kind === "button"
+          : n.kind === "button" && !n.props.atomicContent
             ? "text"
             : n.kind === "product"
               ? "title"

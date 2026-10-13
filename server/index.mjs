@@ -1,4 +1,5 @@
 import express from "express";
+import { isButtonContent } from "../src/atomicContent.ts";
 import { normalizeLink } from "../src/links.ts";
 import { normalizeStyleValue } from "../src/styleValues.ts";
 import { registerPageManagement } from "./page-management.mjs";
@@ -36,6 +37,7 @@ const kinds = new Set([
   "icon",
   "video",
   "list",
+  "itemList",
   "badge",
   "product",
   "countdown",
@@ -78,6 +80,12 @@ const containers = new Set([
   "box",
   "form",
   "popup",
+  "itemList",
+  "rating",
+  "list",
+  "button",
+  "badge",
+  "product",
 ]);
 const pageTypes = new Set([
   "landing",
@@ -136,6 +144,8 @@ const styleKeys = new Set([
   "order",
   "flexBasis",
   "flexGrow",
+  "flexShrink",
+  "minWidth",
   "aspectRatio",
   "objectPosition",
   "fontStyle",
@@ -279,6 +289,9 @@ export function validateDocument(input) {
           "freeFlowStyles",
           "resourceBinding",
           "linkedSectionId",
+          "slot",
+          "atomicContent",
+          "iconTint",
           "buttonVariant",
           "hoverStyles",
           "focusStyles",
@@ -486,7 +499,7 @@ export function validateDocument(input) {
       !["h1", "h2", "h3", "h4", "h5", "h6", "p", "div"].includes(props.tag)
     )
       props.tag = "h2";
-    return {
+    const result = {
       id: node.id,
       kind: node.kind,
       name: cleanText(node.name).slice(0, 100),
@@ -503,6 +516,12 @@ export function validateDocument(input) {
           ? node.children.map((child) => walk(child, depth + 1))
           : [],
     };
+    if (
+      ["button", "badge"].includes(node.kind) &&
+      !result.children.every(isButtonContent)
+    )
+      throw new Error("Use text, icons or images inside a button.");
+    return result;
   }
   const result = {
     schemaVersion: 1,

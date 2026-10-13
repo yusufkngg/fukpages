@@ -1,4 +1,5 @@
 import { t } from "./i18n.ts";
+import { setCaption } from "./atomicContent.ts";
 import { accordionItems } from "./AccordionItems";
 import {
   useEffect,
@@ -15,7 +16,7 @@ import { AdvancedContent, performAction } from "./AdvancedContent";
 import { buttonLink, normalizeLink, navigationActions } from "./links";
 import { freeHeight, placedStyle } from "./freePlacement";
 import { assetUrl, brandStyle, useStudio } from "./studio";
-import { Play, ShoppingBag } from "lucide-react";
+import { Play, ShoppingBag, ArrowUpRight } from "lucide-react";
 import {
   effectiveStyle,
   type Block,
@@ -164,7 +165,12 @@ export function BlockContent({
       </div>
     );
   }
-  if (["row", "column", "box"].includes(node.kind) && freeHeight(node, device))
+  if (
+    ["row", "column", "box", "itemList", "rating", "list"].includes(
+      node.kind,
+    ) &&
+    freeHeight(node, device)
+  )
     return (
       <div
         className="free-canvas"
@@ -173,7 +179,12 @@ export function BlockContent({
         {children}
       </div>
     );
-  if (["row", "column", "box"].includes(node.kind)) return <>{children}</>;
+  if (
+    ["row", "column", "box"].includes(node.kind) ||
+    (["itemList", "rating", "list"].includes(node.kind) &&
+      node.props.atomicContent)
+  )
+    return <>{children}</>;
   switch (node.kind) {
     case "heading":
     case "text": {
@@ -259,6 +270,8 @@ export function BlockContent({
       );
     }
     case "button":
+      if (editable && node.props.atomicContent)
+        return <div className="block-button">{children}</div>;
       return (
         <>
           <a
@@ -286,7 +299,7 @@ export function BlockContent({
                 trackEvent(pageId, "click");
             }}
           >
-            {String(p.text)}
+            {node.props.atomicContent ? children : String(p.text)}
           </a>
           {actionError && <small role="alert">{actionError}</small>}
         </>
@@ -343,8 +356,40 @@ export function BlockContent({
         </div>
       );
     case "icon":
+      if (p.src && p.iconTint)
+        return (
+          <span
+            className="custom-icon icon-mask"
+            role="img"
+            aria-label={String(p.alt || p.text || "Icon")}
+            style={{
+              maskImage: `url(${JSON.stringify(assetUrl(p.src, previewToken))})`,
+              WebkitMaskImage: `url(${JSON.stringify(assetUrl(p.src, previewToken))})`,
+            }}
+          />
+        );
+      if (!p.src && p.text === "↗")
+        return (
+          <>
+            <ArrowUpRight size="1em" aria-hidden="true" />
+            <span className="icon-symbol-label">↗</span>
+          </>
+        );
+      return p.src ? (
+        <img
+          className="custom-icon"
+          src={assetUrl(p.src, previewToken)}
+          alt={String(p.alt || p.text || "")}
+        />
+      ) : (
+        <span>{String(p.text)}</span>
+      );
     case "badge":
-      return <span>{String(p.text)}</span>;
+      return node.props.atomicContent ? (
+        <div className="atomic-badge">{children}</div>
+      ) : (
+        <span>{String(p.text)}</span>
+      );
     case "video":
       return p.src ? (
         <video className="block-video" src={String(p.src)} controls />
@@ -366,6 +411,7 @@ export function BlockContent({
         </ul>
       );
     case "product":
+      if (p.atomicContent) return <>{children}</>;
       if (p.productId) return <CommerceBlock node={node} editable={editable} />;
       return (
         <div className="product-content">
@@ -480,7 +526,10 @@ export function ReadOnlyBlock({
       }}
     >
       <BlockContent node={localized} device={device}>
-        {node.children.map((child) => (
+        {(node.kind === "button" && localized.props.text !== node.props.text
+          ? setCaption(localized, String(localized.props.text)).children
+          : node.children
+        ).map((child) => (
           <ReadOnlyBlock
             key={child.id}
             node={child}

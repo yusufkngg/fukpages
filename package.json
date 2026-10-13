@@ -1,6 +1,6 @@
 {
   "name": "fukpages",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -23,7 +23,8 @@
     "predev": "node scripts/build-sanitizer.mjs",
     "pretest": "node scripts/build-sanitizer.mjs",
     "prestart": "node scripts/build-sanitizer.mjs --if-missing",
-    "test:ui": "python tests/browser_ui.py"
+    "test:ui": "python tests/browser_ui.py",
+    "test:atomic": "python tests/browser_atomic.py"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",

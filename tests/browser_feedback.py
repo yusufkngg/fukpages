@@ -23,14 +23,14 @@ with browser_fixture(netlify=True) as f:
     root(image['id']).click(button='right');page.keyboard.press('Escape');expect(page.locator('.editor-context-menu')).to_have_count(0)
     root(image['id']).click(button='right');page.locator('.canvas-scroll').evaluate('(el)=>el.scrollTop+=100');expect(page.locator('.editor-context-menu')).to_have_count(0)
     print('PASS: right-click menu dismisses on outside left click, Escape and scroll; left click still selects its target',flush=True)
-    root(button['id']).click();page.locator('.inspector-tabs').get_by_role('button',name='Ayarlar',exact=True).click()
+    root(button['id']).focus();page.locator('.inspector-tabs').get_by_role('button',name='Ayarlar',exact=True).click()
     page.get_by_label('Bağlantı',exact=True).fill('www.example.com/buy');page.get_by_label('Bağlantı',exact=True).press('Tab')
     page.get_by_role('button',name='Kaydet',exact=True).click();expect(page.locator('.save-indicator')).to_contain_text('Kaydedildi',timeout=20000)
     stored=next(n for n in walk(api('/pages/demo-home')['document']['nodes']) if n['id']==button['id'])
     assert stored['props']['href']=='https://www.example.com/buy' and stored['props']['action']=='navigate' and not stored['props']['actionTarget'],stored['props']
     page.get_by_label('Sayfalar arasında geçiş').select_option('demo-product');expect(page.get_by_label('Sayfa adı')).to_have_value('Aura · Ürün sayfası')
     page.get_by_label('Sayfalar arasında geçiş').select_option('demo-home');expect(page.get_by_label('Sayfa adı')).to_have_value('Aura · Demo mağaza')
-    root(button['id']).click();page.locator('.inspector-tabs').get_by_role('button',name='Ayarlar',exact=True).click();expect(page.get_by_label('Bağlantı',exact=True)).to_have_value('https://www.example.com/buy')
+    root(button['id']).focus();page.locator('.inspector-tabs').get_by_role('button',name='Ayarlar',exact=True).click();expect(page.get_by_label('Bağlantı',exact=True)).to_have_value('https://www.example.com/buy')
     print('PASS: protocol-less URL overrides the old scroll action, persists and reopens; page bar switches both ways',flush=True)
 
     row_id=next(n for n in nodes if n['kind']=='row')['id']
@@ -48,7 +48,7 @@ with browser_fixture(netlify=True) as f:
     page.get_by_label('Sayfalar arasında geçiş').select_option('demo-home');expect(page.get_by_label('Sayfa adı')).to_have_value('Aura · Demo mağaza');expect(root(row_id)).to_have_css('padding-top','10px');expect(root(row_id)).to_have_css('margin-top','12px')
     print('PASS: typing bare 10 applies linked padding as px immediately; rem and independent mobile overrides survive save/reopen',flush=True)
 
-    root(button['id']).click();before=root(button['id']).bounding_box();handle=root(button['id']).get_by_label('Genişliği boyutlandır');r=handle.bounding_box()
+    root(button['id']).focus();before=root(button['id']).bounding_box();handle=root(button['id']).get_by_label('Genişliği boyutlandır');r=handle.bounding_box()
     page.mouse.move(r['x']+r['width']/2,r['y']+r['height']/2);page.mouse.down();page.mouse.move(r['x']+r['width']/2+60,r['y']+r['height']/2,steps=10);page.mouse.up()
     assert root(button['id']).bounding_box()['width']>before['width']+20
     before=root(button['id']).bounding_box();r=root(button['id']).get_by_label('Yüksekliği boyutlandır').bounding_box();page.mouse.move(r['x']+r['width']/2,r['y']+r['height']/2);page.mouse.down();page.mouse.move(r['x']+r['width']/2,r['y']+r['height']/2+25,steps=8);page.mouse.up();assert root(button['id']).bounding_box()['height']>before['height']+10
@@ -61,7 +61,7 @@ with browser_fixture(netlify=True) as f:
     r=root(button['id']).get_by_title('Öğeyi sürükle').bounding_box();page.mouse.move(r['x']+r['width']/2,r['y']+r['height']/2);page.mouse.down();page.mouse.move(r['x']+r['width']/2+16,r['y']+r['height']/2+16,steps=6);page.mouse.up()
     mobile_position=root(button['id']).evaluate('(el)=>({left:el.style.left,top:el.style.top,width:el.style.width})');assert mobile_position!=desktop_position
     open_actions(page);page.get_by_role('button',name='Üst öğeyi seç',exact=True).click();page.locator('.inspector-tabs').get_by_role('button',name='Ayarlar',exact=True).click();page.get_by_label('Yerleşim modu',exact=True).select_option('flow')
-    root(button['id']).click();expect(root(button['id'])).not_to_have_css('position','absolute');before=root(button['id']).bounding_box();r=root(button['id']).get_by_label('Genişliği boyutlandır').bounding_box();page.mouse.move(r['x']+r['width']/2,r['y']+r['height']/2);page.mouse.down();page.mouse.move(r['x']+r['width']/2+16,r['y']+r['height']/2,steps=6);page.mouse.up();assert root(button['id']).bounding_box()['width']>before['width']+8
+    root(button['id']).focus();expect(root(button['id'])).not_to_have_css('position','absolute');before=root(button['id']).bounding_box();r=root(button['id']).get_by_label('Genişliği boyutlandır').bounding_box();page.mouse.move(r['x']+r['width']/2,r['y']+r['height']/2);page.mouse.down();page.mouse.move(r['x']+r['width']/2+16,r['y']+r['height']/2,steps=6);page.mouse.up();assert root(button['id']).bounding_box()['width']>before['width']+8
     page.get_by_role('button',name='Masaüstü',exact=True).click();expect(root(button['id'])).to_have_css('position','absolute');assert root(button['id']).evaluate('(el)=>({left:el.style.left,top:el.style.top,width:el.style.width})')==desktop_position
     page.get_by_role('button',name='Kaydet',exact=True).click();expect(page.locator('.save-indicator')).to_contain_text('Kaydedildi',timeout=20000)
     page.screenshot(path=str(out/'editor-free-placement.png'))

@@ -102,6 +102,26 @@ export function Inspector({
     brand,
     device,
   ) as Styles;
+  const element = document.querySelector<HTMLElement>(
+    `[data-node-id="${node.id}"]`,
+  );
+  if (element)
+    for (const key of Object.keys(effective)) {
+      if (effective[key] === "inherit")
+        effective[key] = getComputedStyle(element)[
+          key as keyof CSSStyleDeclaration
+        ] as string;
+      const rgb = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(
+        String(effective.color),
+      );
+      if (rgb)
+        effective.color =
+          "#" +
+          rgb
+            .slice(1)
+            .map((v) => Number(v).toString(16).padStart(2, "0"))
+            .join("");
+    }
   const own = node.styles[device];
   const style = (key: string, value: string | number) =>
     update(
@@ -298,6 +318,7 @@ export function Inspector({
         {tab === "style" && node.kind === "icon" && (
           <IconPicker
             node={node}
+            openMedia={openMedia}
             update={update}
             fit={() =>
               update((n) => ({
@@ -352,7 +373,7 @@ export function Inspector({
                 (node.kind === "row"
                   ? node
                   : node.children.find((n) => n.kind === "row")
-                )?.children.filter((n) => n.kind === "column").length || 1
+                )?.children.filter((n) => n.kind === "column").length || 0
               }
               change={(count) =>
                 update((current) => setColumnCount(current, count, device))
@@ -401,7 +422,8 @@ export function Inspector({
                     "text",
                     node.kind === "icon" ? t("İkon karakteri") : t("Yazı"),
                   )}
-                {["image", "video", "product"].includes(node.kind) &&
+                {(["image", "video"].includes(node.kind) ||
+                  (node.kind === "product" && !node.props.atomicContent)) &&
                   textProp(
                     "src",
                     node.kind === "video" ? t("Video URL") : t("Görsel URL"),
@@ -489,13 +511,14 @@ export function Inspector({
                     t("Liste öğeleri (her satır bir öğe)"),
                     true,
                   )}
-                {["product", "accordion"].includes(node.kind) && (
+                {(node.kind === "accordion" ||
+                  (node.kind === "product" && !node.props.atomicContent)) && (
                   <>
                     {textProp("title", t("Başlık"))}
                     {textProp("description", t("Açıklama"), true)}
                   </>
                 )}
-                {node.kind === "product" && (
+                {node.kind === "product" && !node.props.atomicContent && (
                   <>
                     {textProp("price", t("Fiyat"))}
                     {textProp("comparePrice", t("Eski fiyat"))}
@@ -551,7 +574,16 @@ export function Inspector({
                   {input("order", t("Bu cihazda sıralama"), "0")}
                   {input("flexBasis", t("Kolon genişliği"), "50%")}
                 </div>
-                {["section", "row", "column", "box"].includes(node.kind) && (
+                {[
+                  "section",
+                  "row",
+                  "column",
+                  "box",
+                  "itemList",
+                  "list",
+                  "rating",
+                  "product",
+                ].includes(node.kind) && (
                   <>
                     <label className="control">
                       <span>
@@ -606,7 +638,16 @@ export function Inspector({
                     </small>
                   </>
                 )}
-                {["section", "row", "column", "box"].includes(node.kind) && (
+                {[
+                  "section",
+                  "row",
+                  "column",
+                  "box",
+                  "itemList",
+                  "list",
+                  "rating",
+                  "product",
+                ].includes(node.kind) && (
                   <>
                     {select("display", t("Düzen"), [
                       ["flex", "Flex"],

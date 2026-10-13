@@ -20,6 +20,30 @@ Canlı demo: https://fukpages.netlify.app/ . Giriş ekranı, API, demo mağaza v
 yerel sepet masaüstü/mobilde canlı olarak doğrulandı. Yönetici şifresi
 Netlify ortam ayarlarından sağlanır; gerçek sahip oturumu bu testte açılmadı.
 
+## 0.6: bağımsız öğeler
+
+Menü, yıldız puanı, ikonlu maddeler, düğme/badge içeriği ve ürün kartları artık
+tek metin içinde çizilmez. Row → **Item List → Icon + Text** yapısı eklenmiştir.
+Beş yıldız beş ayrı ikon; yorum yazısı ayrı Text öğesidir. Menü etiketleri ayrı
+Text öğeleridir; gap/hizalama üst Row'dan yönetilir. Ürün kartının görseli,
+başlığı, fiyatları ve açıklaması ayrı seçilir. Yorum gövdesi ve yazar bilgisi de
+ayrı öğelerdir.
+
+İkonun **Upload / choose custom icon** seçeneğiyle SVG/PNG gibi kendi dosyanı
+kullan; **Use icon colour** şeffaf ikonun rengini uygular. Her parçanın boyut,
+renk, görünürlük, kopyalama ve taşıma ayarı ayrıdır. Sol kütüphane ve sağ
+özellikler paneli birlikte açık kalır.
+
+Eski menü/yıldız içerikleri editör açılırken taslakta dönüştürülür; kimlik,
+bağlantı hedefi, CSS anchor, cihaz ölçüsü ve çeviriler korunur. Kaydet taslağı,
+Publish locally yayını günceller. Normal paragraf satırları aynı Text olarak
+kalır; yazdığın özel birleşik içerik için Element actions → **Split into elements**
+vardır. Kilitli veya mevcut ağaç sınırını aşacak içerik otomatik değiştirilmez.
+
+57 otomatik test; 60 hazır bölümde ikon/menü yapısı kontrolü ve
+`npm run test:atomic` gerçek tarayıcıda ayrı öğe seçimi, özel SVG yükleme,
+kayıt/yeniden açma ve yerel yayın. [Yapı ve ekran görüntüleri](docs/ATOMIC_ELEMENTS.md).
+
 ## 0.5.1 panel düzeni
 
 Hazır bölümler ve öğe kütüphanesi **solda**, seçilen öğenin ayarları **sağda**.
@@ -287,7 +311,7 @@ snapshot'ları tekrar yayınlanana kadar korunur. Bu, otomatik Shopify senkronu 
 
 ## Yeni öğeler, katalog ve formlar
 
-Toplam 49 öğe türü vardır. Temel 19'a form/select/checkbox/radio, tabs, carousel,
+Toplam 50 öğe türü vardır (Item List dahil). Temel 19'a form/select/checkbox/radio, tabs, carousel,
 galeri, logo şeridi, puan, karşılaştırma, önce/sonra, kupon, kargo eşiği, popup,
 video popup, yukarı dön, breadcrumb, mobil menü, blog kartları, kontrollü HTML,
 uygulama alanı ve ürün/varyant/adet/sepete ekle/collection/bundle öğeleri eklendi.

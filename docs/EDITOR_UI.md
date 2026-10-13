@@ -1,4 +1,4 @@
-# Editör arayüzü — 0.5.1
+# Editör arayüzü — 0.6.0
 
 Varsayılan arayüz İngilizcedir. Dişli simgesi → **Settings → Language → Türkçe**
 seçimi tarayıcıda korunur; sayfa metni, mağaza adları, katalog ve SEO alanları
@@ -12,7 +12,7 @@ müşterinin içeriğidir ve dil değişikliğinde aynı kalır. Arayüz etiketl
 | Tek tıkta yazı imleci | Tek tık seçer, contentEditable kapalıdır ve normal imleç gösterilir. Çift tık düzenlemeyi açar; blur/Escape düzenlemeden çıkar. |
 | Ctrl+X çalışmıyor | Native clipboard kes/kopyala/yapıştır; metin alanında normal metin işlemleri. Kesme pano yazımı tamamlandıktan sonra öğeyi kaldırır. Aynı sayfaya yapıştırma kimlikleri korur, kopyalar yeni kimlik alır. |
 | Diğer kısayollar | Ctrl/Cmd S/D/Z/Shift+Z, Ctrl+Y; Ctrl/Cmd A/G/Shift+G, Delete/Backspace, ok ve Shift+ok. Settings altında yardım. Ctrl+S sol marka panelinde global stili; sağ öğe ayarındaki girişte sayfa taslağını kaydeder. X/V/D/Z/Y/S tarayıcı akışında; grouping/lock/cross-root referanslar model testinde kontrol edilir. |
-| İkon çerçevesi | Varsayılan inline-flex / fit-content, ikon seçici ve Fit to icon. Sonsuzluk ikonunun kutusu tarayıcıda 70px’den küçük ve satırın yarısından dar ölçülür. Kullanıcının özel genişliği korunur. |
+| İkon çerçevesi | Varsayılan inline-flex / fit-content, ikon seçici ve Fit to icon. Özel SVG/PNG kaynağı ve ikon rengi seçeneği eklenmiştir. Sonsuzluk ikonunun kutusu tarayıcıda 70px’den küçük ve satırın yarısından dar ölçülür. Kullanıcının özel genişliği korunur. |
 | Row içinde metin ve ikon | Inline satır kartı ile doğrudan text/icon çocukları; ayrıca 1–4 kolon kartları. Bölüm/satır ayarında 1–6 kolon seçilir; azalan kolonların içeriği kalanlara taşınır, kimlik/metin korunur. |
 | Bölüm ayarları | Layout kartları, cihaz bazında ölçüler ve padding/margin diyagramı. Choose templates/Add blank section ekleme noktası; mevcut tema snapshot bölüm kartlarında ikon. Gerçek Shopify bağlantısı bu aşamada yok. |
 | Layer tree | Bağımsız floating panel, drag header, köşeden resize, arama, açılıp kapanan çocuklar ve cihaz bazında görünürlük. Kilitli üst öğenin çocukları taşınamaz/görünürlükleri değiştirilemez. |
@@ -21,7 +21,7 @@ müşterinin içeriğidir ve dil değişikliğinde aynı kalır. Arayüz etiketl
 
 ## Doğrulama
 
-- `npm test`: 52 test; arayüz dili/kimlikler, içerik koruyan kolon sayısı,
+- `npm test`: 57 test; arayüz dili/kimlikler, içerik koruyan kolon sayısı,
   kardeşler arası linklerin kopyalanması, spacing aktarımı ve accordion sınırları
   için yeni kontrat kontrolleri dahil.
 - `npm run test:ui`: gerçek Chromium + Netlify Function + resmi yerel Blobs;
@@ -42,3 +42,5 @@ Ekran görüntüleri izole test verileridir; gerçek sahip hesabı veya şifresi
 
 Shopify, AI ve e-posta/CRM sağlayıcı sınırları [FEATURE_AUDIT.md](FEATURE_AUDIT.md)
 içinde korunur. Yerel katalog ataması veya demo sepeti gerçek Shopify siparişi değildir.
+
+Menü, puan, ikonlu öğe ve ürün kartlarının ayrı çocukları: [ATOMIC_ELEMENTS.md](ATOMIC_ELEMENTS.md).

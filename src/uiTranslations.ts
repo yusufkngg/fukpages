@@ -1,4 +1,7 @@
 export const english: Record<string, string> = {
+  "İKON VE METİN": "ICON AND TEXT",
+  "“Yorum metnini kendi müşteri yorumunla değiştir.”":
+    "“Replace this text with your customer’s review.”",
   "Her ürün en az bir varyant içermeli.":
     "Every product needs at least one variant.",
   "Katalog değişti. Yeniden yükle.": "The catalogue changed. Reload it.",

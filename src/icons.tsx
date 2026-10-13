@@ -40,6 +40,7 @@ export const blockIcons: Record<Kind, typeof Box> = {
   icon: Sparkles,
   video: Video,
   list: List,
+  itemList: List,
   badge: Tag,
   product: ShoppingBag,
   countdown: Timer,

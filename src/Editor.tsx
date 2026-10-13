@@ -1,4 +1,9 @@
 import { getUiLocale, getUiLanguage, t } from "./i18n.ts";
+import {
+  normalizeAtomicDocument,
+  normalizeAtomicBlock,
+  isButtonContent,
+} from "./atomicContent.ts";
 import { FloatingPanel } from "./FloatingPanel";
 import { UiSettingsButton } from "./UiSettings";
 import { ColumnHandles, resizeColumns } from "./ColumnHandles";
@@ -413,6 +418,7 @@ function CanvasNode({
       {selected === node.id &&
         node.kind === "row" &&
         node.children.length >= 2 &&
+        node.children.every((child) => child.kind === "column") &&
         !locked &&
         !freeHeight(node, device) &&
         horizontal && (
@@ -795,8 +801,9 @@ export function Editor({
     ])
       .then(([result, status]) => {
         if (!current) return;
-        pageRef.current = result.document;
-        setPage(result.document);
+        const document = normalizeAtomicDocument(result.document);
+        pageRef.current = document;
+        setPage(document);
         setPreviewResource(result.assignments?.[0] || "");
         version.current = result.version;
         const value = JSON.stringify(result.document);
@@ -805,16 +812,18 @@ export function Editor({
         try {
           recoveryKey.current = draftKey(status.draftScope, store.id, pageId);
           const local = readDraft(recoveryKey.current);
-          if (local && JSON.stringify(local.document) !== value)
+          if (
+            local &&
+            JSON.stringify(local.document) !== value &&
+            JSON.stringify(local.document) !== JSON.stringify(document)
+          )
             setRecovery(local);
           else localStorage.removeItem(recoveryKey.current);
         } catch {
           setRecoveryWritable(false);
         }
         setSelected(
-          firstHeading(result.document.nodes) ||
-            result.document.nodes[0]?.id ||
-            null,
+          firstHeading(document.nodes) || document.nodes[0]?.id || null,
         );
         setBoundSnapshot(result.themeSnapshot ?? null);
       })
@@ -1157,12 +1166,19 @@ export function Editor({
     if (!pageRef.current) return;
     const node = createElement(kind, columns),
       selectedNode = findBlock(pageRef.current.nodes, selected);
-    const parent =
+    let parent =
       selectedNode && isContainer(selectedNode.kind)
         ? selectedNode.id
         : selected
           ? (locateBlock(pageRef.current.nodes, selected)?.parent ?? null)
           : null;
+    if (
+      selectedNode &&
+      ["button", "badge"].includes(selectedNode.kind) &&
+      !isButtonContent(node)
+    )
+      parent =
+        locateBlock(pageRef.current.nodes, selectedNode.id)?.parent ?? null;
     const siblings = parent
       ? (findBlock(pageRef.current.nodes, parent)?.children ?? [])
       : pageRef.current.nodes;
@@ -1401,7 +1417,12 @@ export function Editor({
         notify(t("Önce mobil görsel eklenecek öğeyi seç."), true);
         return;
       }
-      if (mode !== "add" && old?.kind === "image" && !old.props.locked) {
+      if (
+        mode !== "add" &&
+        old &&
+        ["image", "icon"].includes(old.kind) &&
+        !isLocked(current.nodes, old.id)
+      ) {
         commit((d) => ({
           ...d,
           nodes: mapBlock(d.nodes, old.id, (n) => ({
@@ -1675,6 +1696,22 @@ export function Editor({
       parent: string | null;
       index: number;
     };
+    const parentNode = parent && findBlock(pageRef.current.nodes, parent);
+    if (parentNode && ["button", "badge"].includes(parentNode.kind)) {
+      const candidate = event.active.data.current?.kind
+        ? createElement(
+            event.active.data.current.kind as Kind,
+            event.active.data.current.columns,
+          )
+        : findBlock(
+            pageRef.current.nodes,
+            String(event.active.data.current?.nodeId || ""),
+          );
+      if (!candidate || !isButtonContent(candidate)) {
+        notify(t("Use text, icons or images inside a button."), true);
+        return;
+      }
+    }
     if (event.active.data.current?.sectionPresetId) {
       const section = createSectionPreset(
         String(event.active.data.current.sectionPresetId),
@@ -2026,7 +2063,11 @@ export function Editor({
     commit((document) => {
       let nodes = document.nodes;
       for (const id of selection.includes(selected) ? selection : [selected])
-        nodes = mapBlock(nodes, id, change);
+        nodes = mapBlock(nodes, id, (node) =>
+          ["button", "badge", "rating", "list", "product"].includes(node.kind)
+            ? normalizeAtomicBlock(change(node), node)
+            : change(node),
+        );
       return { ...document, nodes };
     }, key);
   };
@@ -2038,9 +2079,31 @@ export function Editor({
       if (!node) return;
       const ids = selection.includes(selected) ? selection : [selected];
       if (action === "sync") void syncSelected();
-      else if (action === "freeMove") {
+      else if (action === "splitContent") {
+        commit((document) => ({
+          ...document,
+          nodes: mapBlock(
+            document.nodes,
+            node.id,
+            (current) =>
+              normalizeAtomicDocument({ ...document, nodes: [current] })
+                .nodes[0],
+          ),
+        }));
+        notify(t("Text and icons are now separate elements."));
+      } else if (action === "freeMove") {
         const parent = locateBlock(current.nodes, node.id)?.parent;
-        const target = isContainer(node.kind) ? node.id : parent;
+        const target = [
+          "section",
+          "row",
+          "column",
+          "box",
+          "itemList",
+          "list",
+          "rating",
+        ].includes(node.kind)
+          ? node.id
+          : parent;
         if (target) changeFreeLayout(target, true);
         else notify(t("Önce öğeyi bir bölüm veya kutu içine yerleştir."));
       } else if (action === "addColumn" && node.kind === "row") {

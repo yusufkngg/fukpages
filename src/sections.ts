@@ -180,16 +180,40 @@ export const sectionPresets: SectionPreset[] = localized(
               "row",
               {},
               { gap: "18px" },
-              ["Deniz", "Ece", "Mert"].map((name) =>
-                card(
+              ["Deniz", "Ece", "Mert"].map((name) => {
+                const node = card(
                   "★★★★★",
-                  t(
-                    "“Yorum metnini kendi müşteri yorumunla değiştir.”<br/><br/><b>{p0}</b> · Örnek yorum",
-                    { p0: name },
-                  ),
+                  t("“Yorum metnini kendi müşteri yorumunla değiştir.”"),
                   "❝",
-                ),
-              ),
+                );
+                node.children[2].name = t("Review text");
+                const author = block(
+                  "text",
+                  { html: `<b>${name}</b>` },
+                  { fontSize: "14px" },
+                );
+                author.name = t("Reviewer");
+                const label = block(
+                  "text",
+                  { html: t("Sample review") },
+                  { fontSize: "12px" },
+                );
+                label.name = t("Review label");
+                const attribution = block(
+                  "row",
+                  {},
+                  {
+                    alignItems: "center",
+                    gap: "8px",
+                    width: "fit-content",
+                    flexWrap: "wrap",
+                  },
+                  [author, label],
+                );
+                attribution.styles.mobile.flexDirection = "row";
+                node.children.push(attribution);
+                return node;
+              }),
             ),
           ],
           "#f8f4eb",
@@ -300,11 +324,25 @@ export const sectionPresets: SectionPreset[] = localized(
               ]),
               block("column", {}, { width: "100%" }, [
                 title(t("Keşfet"), "18px"),
-                text(t("Koleksiyonlar<br/>Hikâyemiz<br/>İletişim")),
+                block(
+                  "column",
+                  {},
+                  { gap: "12px" },
+                  [t("Koleksiyonlar"), t("Hikâyemiz"), t("İletişim")].map(text),
+                ),
               ]),
               block("column", {}, { width: "100%" }, [
                 title(t("Bilgi"), "18px"),
-                text(t("Kargo ve teslimat<br/>İade koşulları<br/>Gizlilik")),
+                block(
+                  "column",
+                  {},
+                  { gap: "12px" },
+                  [
+                    t("Kargo ve teslimat"),
+                    t("İade koşulları"),
+                    t("Gizlilik"),
+                  ].map(text),
+                ),
               ]),
             ]),
             block("divider"),
@@ -633,7 +671,7 @@ function applyPresetBrand(node: Block) {
     node.styles.desktop.boxShadow = "var(--brand-shadow)";
   }
   for (const key of ["color", "backgroundColor", "borderColor"]) {
-    if (node.styles.desktop[key])
+    if (node.styles.desktop[key] && node.styles.desktop[key] !== "inherit")
       node.styles.desktop[key] =
         key === "color"
           ? "var(--brand-text)"
@@ -641,7 +679,7 @@ function applyPresetBrand(node: Block) {
             ? "var(--brand-border)"
             : "var(--brand-background)";
   }
-  if (node.kind === "heading") {
+  if (node.kind === "heading" && node.styles.desktop.fontSize !== "inherit") {
     node.styles.desktop.fontFamily = "var(--font-heading)";
     node.styles.desktop.fontWeight = `var(--type-${node.props.tag || "h2"}Weight)`;
     node.styles.desktop.lineHeight = "var(--heading-line-height)";
@@ -649,7 +687,8 @@ function applyPresetBrand(node: Block) {
     node.styles.tablet.fontSize = `var(--type-${node.props.tag || "h2"})`;
     node.styles.mobile.fontSize = `var(--type-${node.props.tag || "h2"})`;
   }
-  if (node.kind === "text") node.styles.desktop.fontFamily = "var(--font-body)";
+  if (node.kind === "text" && node.styles.desktop.fontFamily !== "inherit")
+    node.styles.desktop.fontFamily = "var(--font-body)";
   if (node.kind === "button") {
     node.styles.desktop.fontFamily = "var(--font-button)";
     node.styles.desktop.backgroundColor = "var(--brand-primary)";
