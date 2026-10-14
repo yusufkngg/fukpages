@@ -13,7 +13,7 @@ export function NodeExtras({
   device,
 }: {
   node: Block;
-  update: (f: (b: Block) => Block) => void;
+  update: (f: (b: Block) => Block, key?: string) => void;
   openMedia: () => void;
   assets: Asset[];
   storeId: string;
@@ -132,7 +132,15 @@ export function NodeExtras({
             aria-label={t("Öğeyi kilitle")}
             type="checkbox"
             checked={!!node.props.locked}
-            onChange={(e) => prop("locked", e.target.checked)}
+            onChange={(e) =>
+              update(
+                (current) => ({
+                  ...current,
+                  props: { ...current.props, locked: e.target.checked },
+                }),
+                `lock:${node.id}`,
+              )
+            }
           />
         </label>
         <label className="toggle-row">

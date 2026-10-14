@@ -50,12 +50,35 @@ export function groupSelection(page: PageDocument, ids: string[]) {
   const group = createBlock("box");
   group.props.group = true;
   group.name = "Grup";
-  group.styles.desktop = {
-    display: "flex",
-    flexDirection: "column",
-    gap: "16px",
-    width: "100%",
-  };
+  // The group takes over its parent's flow (direction, gap, alignment) on
+  // every device, so the grouped elements keep their layout.
+  const owner = parent ? findBlock(page.nodes, parent) : null;
+  const flowKeys = [
+    "display",
+    "flexDirection",
+    "flexWrap",
+    "gap",
+    "alignItems",
+    "justifyContent",
+  ];
+  for (const device of ["desktop", "tablet", "mobile"] as const) {
+    const source = owner?.styles[device] ?? {};
+    const flow: Record<string, string | number> = {};
+    for (const key of flowKeys)
+      if (source[key] !== undefined) flow[key] = source[key];
+    if (device === "desktop") {
+      flow.display = flow.display ?? "flex";
+      flow.flexDirection = flow.flexDirection ?? "column";
+      flow.gap = flow.gap ?? "0px";
+      if (!String(flow.display).includes("flex") && flow.display !== "grid")
+        Object.assign(flow, { display: "flex", flexDirection: "column" });
+    }
+    const horizontal = String(
+      flow.flexDirection ?? group.styles.desktop.flexDirection ?? "column",
+    ).startsWith("row");
+    if (device === "desktop") flow.width = horizontal ? "auto" : "100%";
+    group.styles[device] = flow;
+  }
   group.children = siblings.filter((n) => roots.includes(n.id));
   let nodes = page.nodes;
   roots.forEach((id) => (nodes = removeBlock(nodes, id)));
@@ -109,4 +132,38 @@ export function pasteBlocks(
       );
     });
   return { page: { ...page, nodes }, ids };
+}
+
+/**
+ * Locked elements (and everything inside them) must come out of an edit
+ * unchanged and under the same parent. Returns the names of locked
+ * elements an edit would change; empty when the edit is allowed.
+ */
+export function lockedChanges(before: Block[], after: Block[]): string[] {
+  const guarded = new Map<
+    string,
+    { json: string; parent: string | null; name: string }
+  >();
+  const collect = (nodes: Block[], parent: string | null) =>
+    nodes.forEach((n) => {
+      if (n.props.locked)
+        guarded.set(n.id, { json: JSON.stringify(n), parent, name: n.name });
+      else collect(n.children, n.id);
+    });
+  collect(before, null);
+  if (!guarded.size) return [];
+  const found = new Map<string, { json: string; parent: string | null }>();
+  const scan = (nodes: Block[], parent: string | null) =>
+    nodes.forEach((n) => {
+      if (guarded.has(n.id))
+        found.set(n.id, { json: JSON.stringify(n), parent });
+      scan(n.children, n.id);
+    });
+  scan(after, null);
+  return [...guarded.entries()]
+    .filter(([id, was]) => {
+      const now = found.get(id);
+      return !now || now.json !== was.json || now.parent !== was.parent;
+    })
+    .map(([, was]) => was.name);
 }

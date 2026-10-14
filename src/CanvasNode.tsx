@@ -19,6 +19,7 @@ import { assetUrl, brandStyle } from "./studio";
 import { blockIcons } from "./icons";
 import { isContainer, labels, type Block, type Device } from "./model";
 import type { DropDescriptor } from "./dropTargets";
+import { modeFor, type SelectMode } from "./selection";
 
 /** Invisible drop target on the leading or trailing edge of a block. */
 export function NodeSlot({
@@ -85,12 +86,20 @@ const pressExclusions = [
   ".section-insert",
 ].join(",");
 
+/** The latest press on the canvas (see onFocus). */
+let lastPress: { at: number; target: EventTarget | null } = {
+  at: 0,
+  target: null,
+};
+
 export interface CanvasNodeProps {
   node: Block;
   parent?: string | null;
   device: Device;
   selected: string | null;
-  select: (id: string, multi?: boolean) => void;
+  /** Every selected element (the primary one included). */
+  selection?: string[];
+  select: (id: string, mode?: SelectMode | boolean) => void;
   updateHtml: (id: string, value: string) => void;
   duplicate: (id: string) => void;
   remove: (id: string) => void;
@@ -110,6 +119,7 @@ export function CanvasNode({
   parent = null,
   device,
   selected,
+  selection = [],
   select,
   updateHtml,
   duplicate,
@@ -126,6 +136,10 @@ export function CanvasNode({
   const locked = inheritedLocked || !!node.props.locked;
   const elementRef = useRef<HTMLDivElement | null>(null);
   const isSelected = selected === node.id;
+  const inSelection = !isSelected && selection.includes(node.id);
+  // A click focuses the block; that focus must not reset a Shift/Ctrl
+  // selection the click just made.
+  const clickFocus = useRef(false);
   // Like a page builder, the toolbar drops below a block that touches the
   // top of the page so it never covers the browser chrome or gets clipped.
   const [toolbarBelow, setToolbarBelow] = useState(false);
@@ -192,11 +206,26 @@ export function CanvasNode({
       tabIndex={isSelected ? 0 : -1}
       aria-label={`${node.name} · ${labels[node.kind]}`}
       onFocus={(event) => {
-        if (event.target === event.currentTarget) select(node.id);
+        // Keyboard or programmatic focus selects here; a mouse press also
+        // focuses the block, but then the click decides (Shift/Ctrl).
+        if (
+          event.target === event.currentTarget &&
+          !clickFocus.current &&
+          !isSelected &&
+          !(
+            Date.now() - lastPress.at < 600 &&
+            lastPress.target === event.currentTarget
+          )
+        )
+          select(node.id);
       }}
-      className={`content-block editor-block ${isSelected ? "selected" : ""} ${drag.isDragging ? "moving" : ""}`}
+      className={`content-block editor-block ${isSelected ? "selected" : ""} ${inSelection ? "multi-selected" : ""} ${drag.isDragging ? "moving" : ""}`}
       style={style}
       onPointerDown={(event) => {
+        lastPress = {
+          at: Date.now(),
+          target: (event.target as Element).closest?.("[data-node-id]") ?? null,
+        };
         // Only one block reacts to a press: the selected block when the
         // press lands inside it, otherwise the innermost block.
         const native = event.nativeEvent as PointerEvent & {
@@ -230,13 +259,16 @@ export function CanvasNode({
       onPointerCancel={gesture.stop}
       onClick={(event) => {
         event.stopPropagation();
+        select(node.id, modeFor(event));
         if (
           !(event.target as HTMLElement).closest(
             'input,textarea,select,[contenteditable="true"]',
           )
-        )
+        ) {
+          clickFocus.current = true;
           event.currentTarget.focus({ preventScroll: true });
-        select(node.id, event.shiftKey || event.ctrlKey || event.metaKey);
+          clickFocus.current = false;
+        }
       }}
       onDoubleClick={(event) => {
         // Text handles its own double-click (inline editing); everything
@@ -351,7 +383,8 @@ export function CanvasNode({
       <BlockContent
         node={node}
         device={device}
-        editable={!node.props.locked}
+        editable
+        locked={locked}
         onHtml={(html) => updateHtml(node.id, html)}
       >
         {isContainer(node.kind) && (
@@ -363,6 +396,7 @@ export function CanvasNode({
                 parent={node.id}
                 device={device}
                 selected={selected}
+                selection={selection}
                 select={select}
                 updateHtml={updateHtml}
                 duplicate={duplicate}

@@ -17,6 +17,7 @@ import {
 } from "./PageBar";
 import { CanvasNode, EmptyPage } from "./CanvasNode";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
+import { applySelection, type SelectMode } from "./selection";
 import { Layer } from "./LayerTree";
 import { ElementLibrary } from "./ElementLibrary";
 import { ToolRail, type RailTool } from "./ToolRail";
@@ -87,6 +88,7 @@ import {
   LockOpen,
   PaintBucket,
   Paintbrush,
+  Scissors,
   Sparkles,
   Trash2,
   Type,
@@ -108,6 +110,7 @@ import { BrandPanel } from "./BrandPanel";
 import { StudioProvider, defaultBrand, type Asset, type Brand } from "./studio";
 import {
   isLocked,
+  lockedChanges,
   rootSelection,
   groupSelection,
   ungroupSelection,
@@ -268,16 +271,20 @@ export function Editor({
       document.removeEventListener("scroll", dismiss, true);
     };
   }, [contextMenu]);
-  const selectMany = useCallback((id: string, multi = false) => {
-    setSelected(id);
-    setSelection((old) =>
-      multi
-        ? old.includes(id)
-          ? old.filter((v) => v !== id)
-          : [...old, id]
-        : [id],
-    );
-  }, []);
+  const selectMany = useCallback(
+    (id: string, mode: SelectMode | boolean = "replace") => {
+      const next = applySelection(
+        { primary: selectedRef.current, ids: selectionRef.current },
+        id,
+        mode,
+      );
+      selectedRef.current = next.primary;
+      selectionRef.current = next.ids;
+      setSelected(next.primary);
+      setSelection(next.ids);
+    },
+    [],
+  );
   const [device, setDevice] = useState<Device>("desktop");
   const showNewNode = useCallback((id: string) => {
     setSelected(id);
@@ -447,6 +454,20 @@ export function Editor({
       if (!current) return;
       const next = change(current);
       if (JSON.stringify(next) === JSON.stringify(current)) return;
+      // One lock rule for every path (inspector, canvas, drop, paste,
+      // shortcuts): only the lock switch itself may touch a locked element.
+      if (!key.startsWith("lock:")) {
+        const blocked = lockedChanges(current.nodes, next.nodes);
+        if (blocked.length) {
+          notify(
+            t("“{p0}” kilitli. Değiştirmek için önce kilidi aç.", {
+              p0: blocked[0],
+            }),
+            true,
+          );
+          return;
+        }
+      }
       const now = Date.now();
       if (
         !key ||
@@ -1130,45 +1151,48 @@ export function Editor({
       notify((e as Error).message, true);
     }
   }
-  useEffect(() => {
-    const typing = (target: EventTarget | null) =>
-      target instanceof HTMLElement &&
-      !!target.closest('input,textarea,select,[contenteditable="true"]');
-    const copy = (e: ClipboardEvent) => {
-      if (typing(e.target) || !selected || window.getSelection()?.toString())
-        return;
-      const current = pageRef.current;
-      if (!current) return;
+  /**
+   * One clipboard for keyboard shortcuts and the context menu: both write
+   * the same payload to the system clipboard and to local storage, and both
+   * paste through the same validation, lock and cut/move rules.
+   */
+  const clipboard = useRef({
+    take: (_cut: boolean): string | null => null,
+    paste: async (_text: string) => {},
+    stored: (): string => "",
+  });
+  clipboard.current = {
+    take(cut) {
+      const current = pageRef.current,
+        primary = selectedRef.current;
+      if (!current || !primary) return null;
+      const chosen = selectionRef.current;
       const ids = rootSelection(
         current.nodes,
-        selection.includes(selected) ? selection : [selected],
+        chosen.includes(primary) ? chosen : [primary],
       );
-      if (e.type === "cut" && ids.some((id) => isLocked(current.nodes, id))) {
-        e.preventDefault();
+      if (cut && ids.some((id) => isLocked(current.nodes, id))) {
         notify(t("Kilitli öğeyi önce aç."), true);
-        return;
+        return "";
       }
       const blocks = clipboardBlocks(current, ids);
-      if (!blocks.length) return;
-      e.preventDefault();
+      if (!blocks.length) return null;
       const payload = JSON.stringify({
         format: "fukpages-blocks",
         version: 1,
-        operation: e.type === "cut" ? "cut" : "copy",
+        operation: cut ? "cut" : "copy",
         sourcePageId: pageId,
         blocks,
       });
-      if (!e.clipboardData || payload.length > 1024 * 1024) {
+      if (payload.length > 1024 * 1024) {
         notify(t("Kopyalanan içerik çok büyük."), true);
-        return;
+        return "";
       }
-      e.clipboardData.setData("text/plain", payload);
-      e.clipboardData?.setData("application/x-fukpages-blocks", payload);
       try {
-        localStorage.setItem("fp-block-clipboard", JSON.stringify(blocks));
+        localStorage.setItem("fp-block-clipboard", payload);
       } catch {}
-      if (e.type === "cut") {
-        const parent = locateBlock(current.nodes, selected)?.parent || null;
+      if (cut) {
+        const parent = locateBlock(current.nodes, primary)?.parent || null;
         commit((d) => ({
           ...d,
           nodes: ids.reduce((nodes, id) => removeBlock(nodes, id), d.nodes),
@@ -1177,6 +1201,102 @@ export function Editor({
         setSelection(parent ? [parent] : []);
         notify(t("Element cut. Paste with Ctrl+V."));
       } else notify(t("Öğe kopyalandı. Ctrl+V ile yapıştırabilirsin."));
+      return payload;
+    },
+    stored() {
+      try {
+        const raw = localStorage.getItem("fp-block-clipboard") || "";
+        // Older versions stored the bare block list.
+        return raw.startsWith("[")
+          ? JSON.stringify({
+              format: "fukpages-blocks",
+              version: 1,
+              operation: "copy",
+              blocks: JSON.parse(raw),
+            })
+          : raw;
+      } catch {
+        return "";
+      }
+    },
+    async paste(text) {
+      const selected = selectedRef.current;
+      try {
+        if (text.length > 1024 * 1024)
+          throw new Error(t("Kopyalanan içerik çok büyük."));
+        const data = JSON.parse(text);
+        if (
+          data.format !== "fukpages-blocks" ||
+          data.version !== 1 ||
+          !Array.isArray(data.blocks)
+        )
+          throw new Error(t("Geçersiz pano içeriği."));
+        const current = pageRef.current;
+        if (!current) return;
+        const valid = await api<{
+          document: PageDocument;
+        }>("/documents/validate", {
+          method: "POST",
+          body: json({ document: { ...current, nodes: data.blocks } }),
+        });
+        const latest = pageRef.current!;
+        const anchor = findBlock(latest.nodes, selected),
+          parent =
+            anchor && isContainer(anchor.kind)
+              ? anchor.id
+              : locateBlock(latest.nodes, selected || "")?.parent || null;
+        if (parent && isLocked(latest.nodes, parent))
+          throw new Error(t("Hedef kilitli."));
+        const allIds = (nodes: Block[]): string[] =>
+          nodes.flatMap((n) => [n.id, ...allIds(n.children)]);
+        const moved =
+          data.operation === "cut" &&
+          data.sourcePageId === pageId &&
+          allIds(valid.document.nodes).every(
+            (id) => !findBlock(latest.nodes, id),
+          );
+        const copied = moved
+          ? {
+              page: {
+                ...latest,
+                nodes: valid.document.nodes.reduce(
+                  (nodes, n) =>
+                    insertBlock(
+                      nodes,
+                      parent,
+                      (parent ? findBlock(nodes, parent)?.children : nodes)
+                        ?.length || 0,
+                      n,
+                    ),
+                  latest.nodes,
+                ),
+              },
+              ids: valid.document.nodes.map((n) => n.id),
+            }
+          : pasteBlocks(latest, valid.document.nodes, parent);
+        commit(() => copied.page);
+        setSelection(copied.ids);
+        setSelected(copied.ids[0] || null);
+        notify(t("Kopyalanan öğeler eklendi."));
+      } catch (error) {
+        notify((error as Error).message, true);
+      }
+    },
+  };
+  useEffect(() => {
+    const typing = (target: EventTarget | null) =>
+      target instanceof HTMLElement &&
+      !!target.closest('input,textarea,select,[contenteditable="true"]');
+    const copy = (e: ClipboardEvent) => {
+      if (typing(e.target) || !selected || window.getSelection()?.toString())
+        return;
+      const payload = clipboard.current.take(e.type === "cut");
+      if (payload === null) return;
+      e.preventDefault();
+      if (payload) {
+        e.clipboardData?.setData("text/plain", payload);
+        e.clipboardData?.setData("application/x-fukpages-blocks", payload);
+      }
     };
     const paste = (e: ClipboardEvent) => {
       if (typing(e.target)) return;
@@ -1186,68 +1306,7 @@ export function Editor({
         "";
       if (text.includes('"fukpages-blocks"')) {
         e.preventDefault();
-        void (async () => {
-          try {
-            if (text.length > 1024 * 1024)
-              throw new Error(t("Kopyalanan içerik çok büyük."));
-            const data = JSON.parse(text);
-            if (
-              data.format !== "fukpages-blocks" ||
-              data.version !== 1 ||
-              !Array.isArray(data.blocks)
-            )
-              throw new Error(t("Geçersiz pano içeriği."));
-            const current = pageRef.current;
-            if (!current) return;
-            const valid = await api<{
-              document: PageDocument;
-            }>("/documents/validate", {
-              method: "POST",
-              body: json({ document: { ...current, nodes: data.blocks } }),
-            });
-            const latest = pageRef.current!;
-            const anchor = findBlock(latest.nodes, selected),
-              parent =
-                anchor && isContainer(anchor.kind)
-                  ? anchor.id
-                  : locateBlock(latest.nodes, selected || "")?.parent || null;
-            if (parent && isLocked(latest.nodes, parent))
-              throw new Error(t("Hedef kilitli."));
-            const allIds = (nodes: Block[]): string[] =>
-              nodes.flatMap((n) => [n.id, ...allIds(n.children)]);
-            const moved =
-              data.operation === "cut" &&
-              data.sourcePageId === pageId &&
-              allIds(valid.document.nodes).every(
-                (id) => !findBlock(latest.nodes, id),
-              );
-            const copied = moved
-              ? {
-                  page: {
-                    ...latest,
-                    nodes: valid.document.nodes.reduce(
-                      (nodes, n) =>
-                        insertBlock(
-                          nodes,
-                          parent,
-                          (parent ? findBlock(nodes, parent)?.children : nodes)
-                            ?.length || 0,
-                          n,
-                        ),
-                      latest.nodes,
-                    ),
-                  },
-                  ids: valid.document.nodes.map((n) => n.id),
-                }
-              : pasteBlocks(latest, valid.document.nodes, parent);
-            commit(() => copied.page);
-            setSelection(copied.ids);
-            setSelected(copied.ids[0] || null);
-            notify(t("Kopyalanan öğeler eklendi."));
-          } catch (error) {
-            notify((error as Error).message, true);
-          }
-        })();
+        void clipboard.current.paste(text);
         return;
       }
       const files = [...(e.clipboardData?.items || [])]
@@ -1883,25 +1942,16 @@ export function Editor({
                   },
                 },
           );
-      } else if (action === "copyBlocks")
-        localStorage.setItem(
-          "fp-block-clipboard",
-          JSON.stringify(clipboardBlocks(current, ids)),
-        );
-      else if (action === "pasteBlocks") {
-        const blocks = JSON.parse(
-          localStorage.getItem("fp-block-clipboard") || "[]",
-        );
-        const result = pasteBlocks(
-          current,
-          blocks,
-          isContainer(node.kind)
-            ? node.id
-            : locateBlock(current.nodes, node.id)?.parent || null,
-        );
-        commit(() => result.page);
-        setSelection(result.ids);
-        setSelected(result.ids[0] || null);
+      } else if (action === "copyBlocks" || action === "cutBlocks") {
+        const payload = clipboard.current.take(action === "cutBlocks");
+        if (payload)
+          void navigator.clipboard?.writeText(payload).catch(() => {
+            /* The in-app copy is kept in local storage either way. */
+          });
+      } else if (action === "pasteBlocks") {
+        const payload = clipboard.current.stored();
+        if (payload) void clipboard.current.paste(payload);
+        else notify(t("Önce bir öğe kopyala."), true);
       } else if (action === "parent") {
         const parent = locateBlock(current.nodes, selected)?.parent;
         if (parent) selectMany(parent);
@@ -1912,10 +1962,13 @@ export function Editor({
       } else if (action === "ungroup")
         commit((p) => ungroupSelection(p, selected));
       else if (action === "lock")
-        changeSelected((n) => ({
-          ...n,
-          props: { ...n.props, locked: !node.props.locked },
-        }));
+        changeSelected(
+          (n) => ({
+            ...n,
+            props: { ...n.props, locked: !node.props.locked },
+          }),
+          `lock:${node.id}`,
+        );
       else if (action.startsWith("columnWidth:") && node.children.length >= 2) {
         changeSelected((n) =>
           resizeColumns(n, device, Number(action.split(":")[1])),
@@ -1981,14 +2034,19 @@ export function Editor({
       open,
       [
         {
+          id: "cutBlocks",
+          label: t("Kes"),
+          icon: Scissors,
+          shortcut: "Ctrl+X",
+          disabled: locked,
+          run: () => command("cutBlocks"),
+        },
+        {
           id: "copyBlocks",
           label: t("Kopyala"),
           icon: Copy,
           shortcut: "Ctrl+C",
-          run: () => {
-            command("copyBlocks");
-            notify(t("Öğe kopyalandı. Ctrl+V ile yapıştırabilirsin."));
-          },
+          run: () => command("copyBlocks"),
         },
         {
           id: "pasteBlocks",
@@ -2087,8 +2145,8 @@ export function Editor({
       ],
     ];
   };
-  const selectLayer = (id: string) => {
-    selectMany(id);
+  const selectLayer = (id: string, mode: SelectMode | boolean = "replace") => {
+    selectMany(id, mode);
     document
       .querySelector(`[data-node-id="${id}"]`)
       ?.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
@@ -2718,6 +2776,7 @@ export function Editor({
                             node={node}
                             device={device}
                             selected={selected}
+                            selection={selection}
                             select={selectMany}
                             resizeColumn={resizeColumn}
                             updateHtml={updateHtml}
@@ -2950,6 +3009,7 @@ export function Editor({
                       )}
                       depth={0}
                       selected={selected}
+                      selection={selection}
                       select={selectLayer}
                       dragging={!!dragging}
                       search={layerSearch}

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { NodeSlot } from "./CanvasNode";
+import { modeFor, type SelectMode } from "./selection";
 import { blockIcons } from "./icons";
 import { findBlock, isContainer, type Block, type Device } from "./model";
 
@@ -12,6 +13,7 @@ export function Layer({
   index = 0,
   depth,
   selected,
+  selection = [],
   select,
   dragging,
   search = "",
@@ -24,7 +26,8 @@ export function Layer({
   index?: number;
   depth: number;
   selected: string | null;
-  select: (id: string, multi?: boolean) => void;
+  selection?: string[];
+  select: (id: string, mode?: SelectMode | boolean) => void;
   dragging: boolean;
   search?: string;
   visibility: (id: string) => void;
@@ -71,7 +74,7 @@ export function Layer({
           drop.setNodeRef(element);
         }}
         data-layer-id={node.id}
-        className={`layer-row ${selected === node.id ? "active" : ""} ${drop.isOver ? "drop-active" : ""}`}
+        className={`layer-row ${selected === node.id ? "active" : selection.includes(node.id) ? "multi-selected" : ""} ${drop.isOver ? "drop-active" : ""}`}
         style={{ paddingLeft: depth * 14 + 10 }}
       >
         <NodeSlot
@@ -113,7 +116,7 @@ export function Layer({
           {...drag.attributes}
           {...drag.listeners}
           className="layer-select"
-          onClick={(e) => select(node.id, e.shiftKey || e.ctrlKey || e.metaKey)}
+          onClick={(e) => select(node.id, modeFor(e))}
         >
           <Icon size={14} />
           <span>{node.name}</span>
@@ -151,6 +154,7 @@ export function Layer({
               index={node.children.indexOf(child)}
               depth={depth + 1}
               selected={selected}
+              selection={selection}
               select={select}
               dragging={dragging}
               search={search}

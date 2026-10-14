@@ -159,6 +159,10 @@ export interface DropCandidate {
   /** This block lays its own children out in a row. */
   horizontal: boolean;
   children: RectLike[];
+  /** Ids of the rendered children, in the same order as `children`. */
+  childIds?: string[];
+  /** Ids of all children in the document (hidden ones included). */
+  modelChildren?: string[];
   /** Spacing between this block's children (CSS px), when it has one. */
   gap?: number;
   /** Spacing between this block and its siblings (CSS px). */
@@ -169,6 +173,44 @@ export interface ResolvedDrop {
   index: number;
   mode: "before" | "after" | "inside";
   target: DropCandidate;
+  /** Inside drops: the children in visual order and the line position. */
+  visual?: { rects: RectLike[]; index: number };
+}
+
+/**
+ * Turns a position among the children as they appear on screen into the
+ * document index, via the neighbouring sibling's id. Hidden children, CSS
+ * `order` and reversed flex directions therefore never shift the drop.
+ */
+export function insideDrop(candidate: DropCandidate, pointer: Point) {
+  const ids = candidate.childIds;
+  const pairs = candidate.children.map((rect, i) => ({ rect, id: ids?.[i] }));
+  // Reading order on screen: by line, then along the line.
+  const line = (r: RectLike) => Math.round(r.top + r.height / 2);
+  pairs.sort((a, b) =>
+    candidate.horizontal
+      ? a.rect.top + a.rect.height <= b.rect.top
+        ? -1
+        : b.rect.top + b.rect.height <= a.rect.top
+          ? 1
+          : a.rect.left - b.rect.left
+      : line(a.rect) - line(b.rect) || a.rect.left - b.rect.left,
+  );
+  const rects = pairs.map((p) => p.rect);
+  const visualIndex = insertionIndex(rects, pointer, candidate.horizontal);
+  const model = candidate.modelChildren;
+  let index = visualIndex;
+  if (model && ids) {
+    const before = pairs[visualIndex]?.id;
+    const after = pairs[visualIndex - 1]?.id;
+    index =
+      before && model.includes(before)
+        ? model.indexOf(before)
+        : after && model.includes(after)
+          ? model.indexOf(after) + 1
+          : model.length;
+  }
+  return { index, visual: { rects, index: visualIndex } };
 }
 
 /** Decide the drop position for a pointer over `chain` (deepest first). */
@@ -199,15 +241,13 @@ export function resolveDrop(
       const edge = Math.min(band, size / 4);
       if (candidate.parentAccepts && along < edge) return before;
       if (candidate.parentAccepts && size - along < edge) return after;
+      const inside = insideDrop(candidate, pointer);
       return {
         parent: candidate.id,
-        index: insertionIndex(
-          candidate.children,
-          pointer,
-          candidate.horizontal,
-        ),
+        index: inside.index,
         mode: "inside",
         target: candidate,
+        visual: inside.visual,
       };
     }
     if (candidate.parentAccepts) return along < size / 2 ? before : after;

@@ -1829,4 +1829,7 @@ export const english: Record<string, string> = {
   "Sepete ekle düğmesi": "Add to cart button",
   "Bulunamadı.": "Not found.",
   "Çok fazla istek.": "Too many requests.",
+  "Önce bir öğe kopyala.": "Copy an element first.",
+  "“{p0}” kilitli. Değiştirmek için önce kilidi aç.":
+    "“{p0}” is locked. Unlock it before changing it.",
 };

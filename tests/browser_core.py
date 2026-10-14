@@ -41,4 +41,88 @@ with browser_fixture(ui_language='en') as f:
     time.sleep(2)
     assert api('/pages/' + pid)['version'] == before['version']
     print('PASS: opening and reopening an older page writes nothing and shows no unsaved change', flush=True)
+
+    # Selection, clipboard, lock and grouping on one page.
+    work = document('Core work', [
+        block('section', 'main', {}, [
+            block('heading', 'title', {'html': 'Core title', 'tag': 'h1'}),
+            block('text', 'body', {'html': 'Body text with a <a href="https://example.com">link</a>'}),
+            block('row', 'buttons', {}, [
+                block('text', 'first', {'html': 'First'}),
+                block('text', 'second', {'html': 'Second'}),
+                block('text', 'note', {'html': 'Note'}),
+            ], styles={'display': 'flex', 'flexDirection': 'row', 'gap': '24px', 'alignItems': 'center'}),
+        ]),
+    ])
+    wid = api('/stores/demo/pages', 'POST', {'document': work})['id']
+    f['owner'].grant_permissions(['clipboard-read', 'clipboard-write'], origin=base)
+    open_editor(wid, 'Core work')
+    node = lambda id: page.locator('.editable-surface [data-node-id="' + id + '"]')
+    node('title').click()
+    node('body').click(modifiers=['Shift'])
+    expect(node('body')).to_have_class(re.compile(r'\bselected\b'))
+    expect(node('title')).to_have_class(re.compile('multi-selected'))
+    node('title').click(modifiers=['Control'])
+    expect(node('title')).not_to_have_class(re.compile('selected'))
+    expect(node('body')).to_have_class(re.compile(r'\bselected\b'))
+    node('first').click()
+    node('second').click(modifiers=['Shift'])
+    page.get_by_role('button', name='Layers', exact=True).click()
+    layers = page.get_by_role('dialog', name='Layers', exact=True)
+    expect(layers.locator('.layer-row.multi-selected')).to_have_count(1)
+    page.keyboard.press('Control+g')
+    group = page.locator('.editable-surface [data-node-id=buttons] > [data-kind=box]')
+    expect(group).to_have_count(1)
+    assert group.evaluate('el=>getComputedStyle(el).flexDirection') == 'row'
+    gap = group.evaluate('el=>getComputedStyle(el).columnGap')
+    assert gap == '24px', gap
+    first_box = node('first').bounding_box()
+    page.keyboard.press('Control+z')
+    expect(group).to_have_count(0)
+    page.get_by_role('button', name='Layers', exact=True).click()
+    expect(layers).to_have_count(0)
+    print('PASS: Shift adds and Ctrl toggles on the canvas and in layers; a group keeps the row layout', flush=True)
+
+    # Menu copy → keyboard paste, keyboard copy → menu paste, menu cut → undo.
+    count = lambda: page.locator('.editable-surface [data-kind=heading]').count()
+    node('title').click(button='right')
+    page.get_by_role('menuitem', name=re.compile('^Copy ?Ctrl')).click()
+    node('body').click()
+    page.keyboard.press('Control+v')
+    expect(page.locator('.editable-surface [data-kind=heading]')).to_have_count(2, timeout=20000)
+    page.keyboard.press('Control+z')
+    node('title').click()
+    page.keyboard.press('Control+c')
+    node('body').click(button='right')
+    page.get_by_role('menuitem', name=re.compile('^Paste ?Ctrl')).click()
+    expect(page.locator('.editable-surface [data-kind=heading]')).to_have_count(2, timeout=20000)
+    page.keyboard.press('Control+z')
+    expect(page.locator('.editable-surface [data-kind=heading]')).to_have_count(1)
+    node('note').click(button='right')
+    page.get_by_role('menuitem', name=re.compile('^Cut')).click()
+    expect(node('note')).to_have_count(0)
+    node('title').click()
+    page.keyboard.press('Control+v')
+    expect(node('note')).to_have_count(1, timeout=20000)
+    print('PASS: menu and keyboard share one clipboard for copy, cut and paste', flush=True)
+
+    # A locked element cannot change from any path and does not act like a visitor page.
+    node('body').click(button='right')
+    page.get_by_role('menuitem', name='Lock', exact=True).click()
+    node('body').click()
+    page.get_by_label('Text content', exact=True).fill('Changed while locked')
+    expect(page.locator('.toast.error')).to_contain_text('is locked')
+    expect(node('body')).to_contain_text('Body text with a link')
+    page.keyboard.press('Delete')
+    expect(node('body')).to_have_count(1)
+    node('body').dblclick()
+    expect(node('body').locator('[contenteditable=true]')).to_have_count(0)
+    url = page.url
+    node('body').locator('a').click()
+    assert page.url == url, page.url
+    node('body').click(button='right')
+    page.get_by_role('menuitem', name='Unlock', exact=True).click()
+    page.get_by_label('Text content', exact=True).fill('Changed after unlocking')
+    expect(node('body')).to_contain_text('Changed after unlocking')
+    print('PASS: locked elements reject inspector, keyboard and inline edits and never follow links in the editor', flush=True)
     assert not errors, errors

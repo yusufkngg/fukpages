@@ -210,8 +210,8 @@ export function useCanvasDrop(pageRef: RefObject<PageDocument | null>) {
       return setIndicator({
         ...indicatorFor(
           target.rect,
-          target.children,
-          resolved.index,
+          resolved.visual?.rects ?? target.children,
+          resolved.visual?.index ?? resolved.index,
           target.horizontal,
         ),
         label: target.children.length ? "" : nameOf(target.id),
@@ -277,6 +277,8 @@ export function useCanvasDrop(pageRef: RefObject<PageDocument | null>) {
         parentHorizontal: rowFlow(element.parentElement),
         horizontal: rowFlow(children[0]?.parentElement),
         children: children.map((child) => child.getBoundingClientRect()),
+        childIds: children.map((child) => child.dataset.nodeId!),
+        modelChildren: node.children.map((child) => child.id),
         gap: frameGap(children[0]?.parentElement),
         parentGap: frameGap(element.parentElement),
       });

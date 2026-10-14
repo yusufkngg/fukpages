@@ -279,10 +279,13 @@ export function BlockContent({
   device = "desktop",
   onHtml,
   onEdit,
+  locked = false,
 }: {
   node: Block;
   children?: ReactNode;
   editable?: boolean;
+  /** Editor view of a locked element: never editable, never acts. */
+  locked?: boolean;
   device?: Device;
   onHtml?: (html: string) => void;
   onEdit?: () => void;
@@ -348,12 +351,21 @@ export function BlockContent({
     case "text": {
       const Tag = (node.kind === "heading" ? String(p.tag ?? "h2") : "div") as
         "h1" | "h2" | "h3" | "h4" | "p" | "div";
-      return editable ? (
+      return editable && !locked ? (
         <EditableText tag={Tag} html={p.html} onHtml={onHtml} onEdit={onEdit} />
       ) : (
         <Tag
           className="rich-content"
           dangerouslySetInnerHTML={{ __html: richHtml(p.html) }}
+          onClick={
+            editable
+              ? (event) => {
+                  // A locked text in the editor never follows its links.
+                  if ((event.target as Element).closest("a"))
+                    event.preventDefault();
+                }
+              : undefined
+          }
         />
       );
     }
