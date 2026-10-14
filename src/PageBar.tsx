@@ -58,6 +58,23 @@ export function usePageOverview(
   return pages;
 }
 
+/**
+ * Name + status (+ short address when the name repeats), so two pages called
+ * "Aura · Product launch" can be told apart in the picker.
+ */
+export function pageOptionLabel(page: PageSummary, pages: PageSummary[]) {
+  const status = page.published ? t("Yayında") : t("Taslak");
+  const repeated =
+    pages.filter((p) => p.name === page.name && p.type === page.type).length >
+    1;
+  const extra = repeated
+    ? page.slug
+      ? " · /" + page.slug
+      : " · " + page.id.slice(0, 6)
+    : "";
+  return `${page.name} — ${status}${extra}`;
+}
+
 /** Compact page picker that lives in the editor top bar. */
 export function PageSwitcher({
   pages,
@@ -91,7 +108,7 @@ export function PageSwitcher({
               .filter((p) => p.type === type)
               .map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name}
+                  {pageOptionLabel(p, pages)}
                 </option>
               ))}
           </optgroup>

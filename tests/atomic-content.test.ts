@@ -209,3 +209,16 @@ test("product card parts edit independently and catalogue rebindings retain comp
     next.children.length,
   );
 });
+
+test("F0: building a section preset never changes blocks of an already open page", async () => {
+  const { createSectionPreset, sectionPresets } =
+    await import("../src/sections");
+  // Tabs and carousels build their panels from shared style constants.
+  const open = [createBlock("tabs"), createBlock("carousel")];
+  const before = JSON.stringify(open);
+  for (const preset of sectionPresets) createSectionPreset(preset.id);
+  assert.equal(JSON.stringify(open), before);
+  // …and earlier presets never leaked brand styles into new blocks.
+  for (const preset of sectionPresets) createSectionPreset(preset.id);
+  assert.ok(!JSON.stringify(createBlock("tabs")).includes("brand-shadow"));
+});

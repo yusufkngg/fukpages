@@ -1,4 +1,4 @@
-import { getUiLocale, getUiLanguage, t } from "./i18n.ts";
+import { getUiLanguage, t, formatDateTime } from "./i18n.ts";
 import { BrandMark } from "./BrandMark";
 import {
   normalizeAtomicDocument,
@@ -39,6 +39,8 @@ import { ConflictDialog, type DraftConflict } from "./ConflictDialog";
 import {
   draftKey,
   findDrafts,
+  markTabAlive,
+  markTabClosed,
   writeDraft,
   downloadDocument,
   type LocalDraft,
@@ -352,6 +354,17 @@ export function Editor({
     }
     recoverySource.current = "";
   }, []);
+  useEffect(() => {
+    markTabAlive();
+    const beat = setInterval(() => markTabAlive(), 5000);
+    const closed = () => markTabClosed();
+    window.addEventListener("pagehide", closed);
+    return () => {
+      clearInterval(beat);
+      window.removeEventListener("pagehide", closed);
+      markTabClosed();
+    };
+  }, []);
   // Loading has its own state: a failed or timed-out load shows what went
   // wrong with retry / back / download instead of a spinner that never ends.
   const [loadError, setLoadError] = useState<{
@@ -425,7 +438,14 @@ export function Editor({
         setSaved(value);
         try {
           recoveryKey.current = draftKey(status.draftScope, store.id, pageId);
-          const found = findDrafts(status.draftScope, store.id, pageId);
+          const found = findDrafts(
+            status.draftScope,
+            store.id,
+            pageId,
+            localStorage,
+            Date.now(),
+            recoveryKey.current,
+          );
           const usable = found.find(({ draft }) => {
             const text = JSON.stringify(draft.document);
             return text !== value && text !== raw;
@@ -2496,7 +2516,7 @@ export function Editor({
               {recovery && (
                 <>
                   <span>
-                    {new Date(recovery.updated).toLocaleString(getUiLocale())}
+                    {formatDateTime(recovery.updated)}
                     {" " + t("tarihli kaydedilmemiş taslak bulundu.")}
                   </span>
                   <button onClick={() => void restoreRecovery()}>
@@ -2548,8 +2568,7 @@ export function Editor({
             >
               <h2>{t("Kaydedilmemiş taslağın korunuyor")}</h2>
               <p>
-                {t("Bu tarayıcıda")}{" "}
-                {new Date(recovery.updated).toLocaleString(getUiLocale())}
+                {t("Bu tarayıcıda")} {formatDateTime(recovery.updated)}
                 {" " +
                   t(
                     "tarihli bir kopya var. Düzenlemeye devam etmek için kullanacağın sürümü seç.",

@@ -5,19 +5,53 @@ export type LocalDraft = {
   version: number;
   updated: number;
 };
+export function tabId(session: Storage = sessionStorage) {
+  let tab = session.getItem("fp-draft-tab");
+  if (!tab) {
+    tab = crypto.randomUUID();
+    session.setItem("fp-draft-tab", tab);
+  }
+  return tab;
+}
 export function draftKey(
   scope: string,
   store: string,
   page: string,
   session: Storage = sessionStorage,
 ) {
-  let tab = session.getItem("fp-draft-tab");
-  if (!tab) {
-    tab = crypto.randomUUID();
-    session.setItem("fp-draft-tab", tab);
-  }
-  return `fp-recovery:${scope}:${store}:${page}:${tab}`;
+  return `fp-recovery:${scope}:${store}:${page}:${tabId(session)}`;
 }
+// An open editor tab marks itself alive; its unsaved copy belongs to that tab
+// and is not offered to other tabs until the tab is closed (or stops
+// answering for longer than ALIVE_FOR).
+export const ALIVE_FOR = 15000;
+const aliveKey = (tab: string) => `fp-tab-alive:${tab}`;
+export function markTabAlive(
+  session: Storage = sessionStorage,
+  storage: Storage = localStorage,
+  now = Date.now(),
+) {
+  try {
+    storage.setItem(aliveKey(tabId(session)), String(now));
+  } catch {
+    /* unavailable */
+  }
+}
+export function markTabClosed(
+  session: Storage = sessionStorage,
+  storage: Storage = localStorage,
+) {
+  try {
+    storage.removeItem(aliveKey(tabId(session)));
+  } catch {
+    /* unavailable */
+  }
+}
+const tabOpen = (key: string, storage: Storage, now: number) => {
+  const tab = key.slice(key.lastIndexOf(":") + 1);
+  const seen = Number(storage.getItem(aliveKey(tab)) || 0);
+  return now - seen < ALIVE_FOR;
+};
 export const DRAFT_TTL = 14 * 24 * 60 * 60 * 1000;
 const draftPrefix = (scope: string, store: string, page: string) =>
   `fp-recovery:${scope}:${store}:${page}:`;
@@ -31,6 +65,7 @@ export function findDrafts(
   page: string,
   storage: Storage = localStorage,
   now = Date.now(),
+  ownKey = "",
 ): { key: string; draft: LocalDraft }[] {
   const prefix = draftPrefix(scope, store, page);
   const found: { key: string; draft: LocalDraft }[] = [];
@@ -45,7 +80,11 @@ export function findDrafts(
       storage.removeItem(key);
       continue;
     }
-    if (key.startsWith(prefix)) found.push({ key, draft });
+    if (
+      key.startsWith(prefix) &&
+      (key === ownKey || !tabOpen(key, storage, now))
+    )
+      found.push({ key, draft });
   }
   return found.sort((a, b) => b.draft.updated - a.draft.updated);
 }

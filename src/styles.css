@@ -7525,3 +7525,94 @@ p {
   gap: 6px;
   margin-top: 8px;
 }
+.overflow-results {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0 10px;
+  font-size: 12px;
+}
+.overflow-item {
+  display: grid;
+  gap: 4px;
+}
+.quality-issue small {
+  display: block;
+  opacity: 0.7;
+  font-size: 11px;
+  margin-top: 2px;
+}
+.skeleton-text,
+.skeleton-card {
+  background: linear-gradient(
+    90deg,
+    rgba(127, 163, 95, 0.12),
+    rgba(127, 163, 95, 0.24),
+    rgba(127, 163, 95, 0.12)
+  );
+  background-size: 200% 100%;
+  animation: fp-skeleton 1.2s ease-in-out infinite;
+}
+.skeleton-text {
+  display: inline-block;
+  width: 2ch;
+  height: 0.9em;
+  border-radius: 4px;
+}
+.skeleton-card {
+  min-height: 150px;
+}
+@keyframes fp-skeleton {
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-text,
+  .skeleton-card {
+    animation: none;
+  }
+}
+.page-table-row.skeleton-card {
+  min-height: 64px;
+  border-radius: 0;
+}
+.panel-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 4px 0;
+  background: inherit;
+}
+.panel-tabs button {
+  padding: 5px 9px;
+  border-radius: 7px;
+  font-size: 12px;
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+.panel-tabs button.active {
+  background: rgba(127, 163, 95, 0.22);
+  color: #e7f3d6;
+}
+.tab-count {
+  background: #c9563f;
+  color: #fff;
+  border-radius: 9px;
+  padding: 0 5px;
+  font-size: 10px;
+}
+.editable-surface.measuring
+  :is(
+    .block-toolbar,
+    .element-resize-handle,
+    .column-resize-handle,
+    .section-insert-button,
+    .section-insert-menu
+  ) {
+  display: none !important;
+}

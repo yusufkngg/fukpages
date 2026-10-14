@@ -141,3 +141,17 @@ export function localized<T extends object>(
   proxies.get(value)!.set(cacheKey, proxy);
   return proxy;
 }
+// One way to show a moment everywhere (history, publications, activity,
+// trash, schedules, recovery): the viewer's own time zone, always labelled.
+export function formatDateTime(value: number | string | Date) {
+  return new Date(value).toLocaleString(getUiLocale(), {
+    // dateStyle/timeStyle cannot be combined with timeZoneName.
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZoneName: "short",
+  });
+}

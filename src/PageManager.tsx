@@ -1,4 +1,4 @@
-import { getUiLocale, getUiLanguage, t } from "./i18n.ts";
+import { getUiLanguage, t, formatDateTime } from "./i18n.ts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, json } from "./api";
 import { Dialog } from "./Dialog";
@@ -312,7 +312,8 @@ export function PageManager({
     [brand, setBrand] = useState<Brand>(defaultBrand),
     [chosen, setChosen] = useState<string[]>([]),
     [confirm, setConfirm] = useState<ConfirmAction | null>(null),
-    [freshCopy, setFreshCopy] = useState("");
+    [freshCopy, setFreshCopy] = useState(""),
+    [loaded, setLoaded] = useState(false);
   useEffect(() => {
     if (!picker) return;
     api<{ brand: Brand }>(`/stores/${store.id}/brand`)
@@ -338,6 +339,7 @@ export function PageManager({
       api<TrashedPage[]>(`/stores/${store.id}/trash`),
     ]);
     setPages(list);
+    setLoaded(true);
     setCatalog(c);
     setTrash(trashed);
     changedRef.current?.(list);
@@ -635,11 +637,7 @@ export function PageManager({
                 )}
               </span>
               <span>{pageNames[p.type]}</span>
-              <span>
-                {new Date(p.trashed).toLocaleString(getUiLocale(), {
-                  timeZone: "Europe/Istanbul",
-                })}
-              </span>
+              <span>{formatDateTime(p.trashed)}</span>
               <div className="page-row-actions">
                 {writable && (
                   <>
@@ -713,9 +711,8 @@ export function PageManager({
                   <span>
                     <b>{p.name}</b>
                     <small>
-                      {new Date(p.updated).toLocaleString(getUiLocale(), {
-                        timeZone: "Europe/Istanbul",
-                      })}
+                      {p.slug ? `/${p.slug} · ` : ""}
+                      {formatDateTime(p.updated)}
                     </small>
                   </span>
                 </span>
@@ -813,9 +810,29 @@ export function PageManager({
               </div>
             );
           })}
-          {!filtered.length && (
+          {!loaded && (
+            <div
+              className="page-table-loading"
+              aria-busy="true"
+              data-pages-loading
+            >
+              {[0, 1, 2].map((i) => (
+                <div className="page-table-row skeleton-card" key={i} />
+              ))}
+            </div>
+          )}
+          {loaded && !filtered.length && (
             <div className="dashboard-empty">
-              <p>{t("Bu türde eşleşen sayfa yok.")}</p>
+              <p>
+                {search
+                  ? t("Aramana uyan sayfa yok.")
+                  : t("Bu türde eşleşen sayfa yok.")}
+              </p>
+              {search && (
+                <button onClick={() => setSearch("")}>
+                  {t("Aramayı temizle")}
+                </button>
+              )}
             </div>
           )}
         </div>

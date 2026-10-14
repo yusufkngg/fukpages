@@ -84,7 +84,7 @@ export function RichTextField({
       <div
         className="rich-field-tools"
         role="toolbar"
-        aria-label={t("Metin biçimlendirme")}
+        aria-label={t("Metin içeriği biçimlendirme")}
       >
         {commands.map(([command, Icon, name]) => (
           <button

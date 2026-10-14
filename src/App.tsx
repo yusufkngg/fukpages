@@ -1,4 +1,9 @@
-import { getUiLocale, getUiLanguage, subscribeUiLanguage, t } from "./i18n.ts";
+import {
+  getUiLanguage,
+  subscribeUiLanguage,
+  t,
+  formatDateTime,
+} from "./i18n.ts";
 import { BrandMark } from "./BrandMark";
 import { UiSettingsButton } from "./UiSettings";
 import { PageManager } from "./PageManager";
@@ -263,9 +268,15 @@ function Dashboard({
       created: number;
     }[]
   >([]);
+  // First load is shown as loading, not as "0 workspaces / no match".
+  const [storesState, setStoresState] = useState<"loading" | "ready" | "error">(
+    "loading",
+  );
+  const [storesAttempt, setStoresAttempt] = useState(0);
   const reload = useCallback(async () => {
     const result = await api<Store[]>("/stores");
     setStores(result);
+    setStoresState("ready");
     return result;
   }, []);
   useEffect(() => {
@@ -274,8 +285,13 @@ function Dashboard({
         if (initialStoreId)
           setSelected(result.find((s) => s.id === initialStoreId) || null);
       })
-      .catch((error) => notify(error.message, true));
-  }, [reload, notify, initialStoreId]);
+      .catch((error) => {
+        setStoresState((state) => (state === "ready" ? state : "error"));
+        notify(error.message, true);
+      });
+  }, [reload, notify, initialStoreId, storesAttempt]);
+  const count = (value: number) =>
+    storesState === "ready" ? value : <span className="skeleton-text" />;
   useEffect(() => {
     if (!selected) return;
     let valid = true;
@@ -496,21 +512,26 @@ function Dashboard({
                 <div>
                   <span>{t("Çalışma alanları")}</span>
                   <b>
-                    {stores.length}
+                    {count(stores.length)}
                     <StoreIcon size={19} />
                   </b>
                 </div>
                 <div>
                   <span>{t("Aktif alanlar")}</span>
                   <b>
-                    {stores.filter((store) => store.status === "active").length}
+                    {count(
+                      stores.filter((store) => store.status === "active")
+                        .length,
+                    )}
                     <Power size={19} />
                   </b>
                 </div>
                 <div>
                   <span>{t("Kaydedilen sayfalar")}</span>
                   <b>
-                    {stores.reduce((sum, store) => sum + store.pageCount, 0)}
+                    {count(
+                      stores.reduce((sum, store) => sum + store.pageCount, 0),
+                    )}
                     <FileText size={19} />
                   </b>
                 </div>
@@ -518,7 +539,7 @@ function Dashboard({
               <div className="stores-heading">
                 <h2>
                   {t("Mağazaların") + " "}
-                  <span>{stores.length}</span>
+                  <span>{count(stores.length)}</span>
                 </h2>
                 <label className="dashboard-search">
                   <Search size={15} />
@@ -601,9 +622,40 @@ function Dashboard({
                   </article>
                 ))}
               </div>
-              {!filtered.length && (
+              {storesState === "loading" && (
+                <div
+                  className="store-grid"
+                  aria-busy="true"
+                  data-stores-loading
+                >
+                  {[0, 1, 2].map((i) => (
+                    <article className="store-card skeleton-card" key={i} />
+                  ))}
+                </div>
+              )}
+              {storesState === "error" && (
+                <div className="dashboard-empty" role="alert">
+                  {t("Mağazalar yüklenemedi.")}{" "}
+                  <button
+                    onClick={() => {
+                      setStoresState("loading");
+                      setStoresAttempt((n) => n + 1);
+                    }}
+                  >
+                    {t("Tekrar dene")}
+                  </button>
+                </div>
+              )}
+              {storesState === "ready" && !filtered.length && (
                 <div className="dashboard-empty">
-                  {t("Eşleşen çalışma alanı yok.")}
+                  {stores.length
+                    ? t("Eşleşen çalışma alanı yok.")
+                    : t("Henüz çalışma alanı yok. İlkini ekle.")}
+                  {search && stores.length > 0 && (
+                    <button onClick={() => setSearch("")}>
+                      {t("Aramayı temizle")}
+                    </button>
+                  )}
                 </div>
               )}
             </>
@@ -692,11 +744,7 @@ function Dashboard({
                   <div key={index}>
                     <span>●</span>
                     <p>{t(event.action)}</p>
-                    <small>
-                      {new Date(event.created).toLocaleString(getUiLocale(), {
-                        timeZone: "Europe/Istanbul",
-                      })}
-                    </small>
+                    <small>{formatDateTime(event.created)}</small>
                   </div>
                 ))}
                 {!audit.length && <p>{t("Henüz işlem yok.")}</p>}

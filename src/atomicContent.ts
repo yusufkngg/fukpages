@@ -43,8 +43,10 @@ export const make = (
       } as Record<string, string>
     )[kind] || kind,
   ),
-  props,
-  styles: { desktop: styles, tablet: {}, mobile: {} },
+  props: { ...props },
+  // Each block gets its own style object: shared constants (panelStyles…)
+  // must never be mutated through one block into another or into a page.
+  styles: { desktop: { ...styles }, tablet: {}, mobile: {} },
   hidden: { desktop: false, tablet: false, mobile: false },
   children,
 });

@@ -71,7 +71,7 @@ with TemporaryDirectory(prefix='fukpages-studio-browser-') as temporary:
             row.dispatch_event('click');handle=row.get_by_label('Kolonları boyutlandır');expect(handle).to_be_visible();handle.scroll_into_view_if_needed();start_width=row.locator(':scope > .editor-block[data-kind=column]').first.evaluate('(el)=>el.getBoundingClientRect().width');bounds=handle.bounding_box();page.mouse.move(bounds['x']+4,bounds['y']+20);page.mouse.down();page.mouse.move(bounds['x']+64,bounds['y']+20,steps=10);page.mouse.up()
             changed_width=row.locator(':scope > .editor-block[data-kind=column]').first.evaluate('(el)=>el.getBoundingClientRect().width');assert abs(changed_width-start_width)>10
             page.get_by_role('button',name='Geri al',exact=True).click()
-            page.get_by_role('button',name='Sayfa',exact=True).click();page.get_by_role('button',name='Görsel yükleme sürelerini ölç',exact=True).click();expect(page.locator('[data-image-timings] p').first).to_be_visible()
+            page.get_by_role('button',name='Sayfa',exact=True).click();page.get_by_role('tab',name='Kalite').click();page.get_by_role('button',name='Görsel yükleme sürelerini ölç',exact=True).click();expect(page.locator('[data-image-timings] p').first).to_be_visible()
             print('PASS: direct column resize handle and actual image resource timings')
             print('PASS: variable font axis editor and native clipboard image upload')
             page.get_by_role('button',name='Yerel yayın',exact=True).click()

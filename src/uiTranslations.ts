@@ -2016,4 +2016,25 @@ export const english: Record<string, string> = {
     "These files will be deleted permanently. Drafts, version history and publications are not affected.",
   "{p0} dosya silindi, {p1} boşaldı.": "{p0} files deleted, {p1} freed.",
   "{p0} alanı boşalt": "Free up {p0}",
+  "{p0} · {p1} px: {p2} öğe taşıyor.":
+    "{p0} · {p1} px: overflowing elements: {p2}",
+  "{p0} · {p1} px: taşan öğe yok ✓": "{p0} · {p1} px: nothing overflows ✓",
+  "İçerik {p0} px, kutu {p1} px": "Content {p0} px, box {p1} px",
+  "Bu cihazdaki sabit genişliği kaldır":
+    "Remove the fixed width on this device",
+  "Tasarım: {p0} uyarı var": "Design: {p0} warnings",
+  "Tasarım: hazır": "Design: ready",
+  "Veri: yerel katalog · Yayınlama: yerel · Shopify: ertelendi":
+    "Data: local catalogue · Publishing: local · Shopify: deferred",
+  Tablet: "Tablet",
+  "Mağazalar yüklenemedi.": "Stores couldn't be loaded.",
+  "Henüz çalışma alanı yok. İlkini ekle.":
+    "No workspaces yet. Add the first one.",
+  "Aramana uyan sayfa yok.": "No pages match your search.",
+  "Sayfa ayarları": "Page settings",
+  Kalite: "Quality",
+  Yayın: "Publishing",
+  Geçmiş: "History",
+  "Formlar ve ölçüm": "Forms and analytics",
+  "Metin içeriği biçimlendirme": "Text content formatting",
 };

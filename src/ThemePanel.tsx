@@ -1,4 +1,4 @@
-import { getUiLocale, t } from "./i18n.ts";
+import { t, formatDateTime } from "./i18n.ts";
 import { useEffect, useState } from "react";
 import {
   ExternalLink,
@@ -82,13 +82,7 @@ export function ThemePanel({
             <strong>{status.snapshot.themeName}</strong>
             <small>{status.snapshot.templateFilename}</small>
             <span>
-              {t("Son okuma:")}{" "}
-              {new Date(status.snapshot.syncedAt).toLocaleString(
-                getUiLocale(),
-                {
-                  timeZone: "Europe/Istanbul",
-                },
-              )}
+              {t("Son okuma:")} {formatDateTime(status.snapshot.syncedAt)}
             </span>
           </div>
           <label className="toggle-row theme-shell-toggle">

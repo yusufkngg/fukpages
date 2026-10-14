@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  ALIVE_FOR,
   DRAFT_TTL,
+  markTabAlive,
+  markTabClosed,
   draftKey,
   findDrafts,
   mergeDocuments,
