@@ -48,6 +48,10 @@ const aliases: Record<string, string> = {
   "Content and behaviour": "İçerik ve davranış",
   "Item content": "Öğe içeriği",
   "Element actions": "Öğe işlemleri",
+  "Delete item": "Öğeyi sil",
+  Item: "Öğe",
+  "Use text, icons or images inside a button.":
+    "Buton içinde metin, ikon veya görsel kullan.",
 };
 const reverse = new Map(Object.entries(english).map(([tr, en]) => [en, tr]));
 const patternEntries = Object.entries(english)

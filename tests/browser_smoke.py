@@ -125,7 +125,7 @@ with TemporaryDirectory(prefix='fukpages-browser-') as temporary:
             page.wait_for_timeout(1800)
             expect(text).to_have_text('EVERY DETAIL. FULLY YOURS.')
             page.locator('.inspector-tabs').get_by_role('button',name='Ayarlar',exact=True).click()
-            expect(page.get_by_label('Metin içeriği')).to_have_value('EVERY DETAIL. FULLY YOURS.')
+            expect(page.get_by_label('Metin içeriği')).to_have_text('EVERY DETAIL. FULLY YOURS.')
             page.get_by_role('button', name='Kaydet', exact=True).click()
             expect(page.locator('.save-indicator')).to_have_text('Kaydedildi', timeout=10000)
             list_response = page.request.get(base + '/api/stores/demo/pages').json()

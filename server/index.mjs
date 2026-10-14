@@ -88,6 +88,8 @@ const containers = new Set([
   "button",
   "badge",
   "product",
+  "tabs",
+  "carousel",
 ]);
 const pageTypes = new Set([
   "landing",
@@ -340,9 +342,15 @@ export function validateDocument(input) {
           "showHeader",
           "showDescription",
           "showAddToCart",
+          "panelTitle",
+          "autoplay",
         ].includes(key)
       )
         continue;
+      if (key === "autoplay") {
+        props.autoplay = String(Math.min(30, Math.max(0, Number(value) || 0)));
+        continue;
+      }
       if (key === "iconNode") {
         if (value === "" || value === undefined || value === null) continue;
         // Vector icons are geometry only; anything else is rejected.

@@ -4,6 +4,7 @@ import { Dialog, scrollBehavior } from "./Dialog";
 import { trackEvent } from "./metrics";
 import { CommerceBlock } from "./Commerce";
 import DOMPurify from "dompurify";
+import { PanelCarousel, PanelTabs } from "./Panels";
 import { api, json } from "./api";
 import type { Block } from "./model";
 import { buttonLink, navigationActions } from "./links";
@@ -274,6 +275,12 @@ export function AdvancedContent({
         </label>
       );
     case "tabs":
+      if (node.children.length)
+        return (
+          <PanelTabs node={node} editable={editable}>
+            {children}
+          </PanelTabs>
+        );
       return (
         <div className="builder-tabs">
           <div role="tablist">
@@ -322,6 +329,12 @@ export function AdvancedContent({
         </div>
       );
     case "carousel":
+      if (node.children.length)
+        return (
+          <PanelCarousel node={node} editable={editable}>
+            {children}
+          </PanelCarousel>
+        );
       return (
         <div className="builder-carousel">
           {images[active % images.length] && (

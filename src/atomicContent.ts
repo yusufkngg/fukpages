@@ -24,7 +24,7 @@ const horizontal: Styles = {
   width: "fit-content",
   maxWidth: "100%",
 };
-const make = (
+export const make = (
   kind: Block["kind"],
   props: Block["props"],
   styles: Styles = {},
@@ -333,8 +333,71 @@ export function setCaption(node: Block, caption: string): Block {
     children,
   };
 }
+export const panelStyles: Styles = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "12px",
+  width: "100%",
+  paddingTop: "20px",
+  paddingRight: "4px",
+  paddingBottom: "8px",
+  paddingLeft: "4px",
+};
+/**
+ * Tabs and carousels keep their panels as child blocks. Older blocks stored
+ * them as "Title|content" lines and image lists; those become panels once.
+ */
+export function panelsFromItems(node: Block): Block[] {
+  const lines = (value: unknown) =>
+    String(value ?? "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  if (node.kind === "tabs") {
+    const items = lines(node.props.items);
+    return (items.length ? items : [t("Sekme")]).map((item) => {
+      const [title, ...rest] = item.split("|");
+      const content =
+        rest.join("|").trim() ||
+        String(node.props.description || t("Sekme içeriği"));
+      return {
+        ...make("box", { panelTitle: title.trim() }, panelStyles, [
+          make("text", { html: escapeMarkup(content) }, { fontSize: "16px" }),
+        ]),
+        name: title.trim() || t("Sekme"),
+      };
+    });
+  }
+  const images = lines(node.props.images),
+    captions = lines(node.props.items);
+  return Array.from({ length: Math.max(1, images.length) }, (_, index) => {
+    const caption = captions[index] ?? "";
+    const slide = make(
+      "box",
+      { panelTitle: t("Slayt {p0}", { p0: index + 1 }) },
+      { ...panelStyles, alignItems: "center", textAlign: "center" },
+      [
+        make(
+          "image",
+          {
+            src: images[index] || "/assets/headphones.svg",
+            alt: String(node.props.alt || caption || ""),
+          },
+          { width: "100%", maxWidth: "720px", objectFit: "contain" },
+        ),
+        ...(caption ? [make("text", { html: escapeMarkup(caption) }, {})] : []),
+      ],
+    );
+    return { ...slide, name: String(slide.props.panelTitle) };
+  });
+}
 export function normalizeAtomicBlock(input: Block, previous?: Block): Block {
   let node = input;
+  if (
+    (node.kind === "tabs" || node.kind === "carousel") &&
+    !node.children.length
+  )
+    node = { ...node, children: panelsFromItems(node) };
   if (node.kind === "product") {
     const bound = String(node.props.productId || "");
     const rebinding = !!(

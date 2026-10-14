@@ -122,9 +122,9 @@ export function NodeExtras({
       )}
     </label>
   );
+  // The inspector wraps this in its own collapsible section.
   return (
-    <details open>
-      <summary>{t("Ek içerik ve davranış")}</summary>
+    <>
       <div className="settings-body">
         <label className="toggle-row">
           {t("Öğeyi kilitle")}
@@ -183,7 +183,6 @@ export function NodeExtras({
           "image",
           "productGallery",
           "gallery",
-          "carousel",
           "logos",
           "beforeAfter",
           "product",
@@ -399,11 +398,9 @@ export function NodeExtras({
             {field("redirect", t("Başarılı gönderim yönlendirmesi"))}
           </>
         )}
-        {["gallery", "carousel", "logos", "beforeAfter"].includes(node.kind) &&
+        {["gallery", "logos", "beforeAfter"].includes(node.kind) &&
           field("images", t("Görseller (her satır bir URL)"), true)}
-        {["tabs", "carousel", "breadcrumb", "mobileMenu", "blogList"].includes(
-          node.kind,
-        ) &&
+        {["breadcrumb", "mobileMenu", "blogList"].includes(node.kind) &&
           field(
             "items",
             t("İçerik satırları (başlık | içerik / bağlantı)"),
@@ -589,6 +586,6 @@ export function NodeExtras({
           ))}
         <StateStyles node={node} update={update} />
       </div>
-    </details>
+    </>
   );
 }

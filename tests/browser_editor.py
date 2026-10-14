@@ -229,7 +229,7 @@ with browser_fixture(ui_language='en') as f:
     expect(page.locator('[data-text-toolbar]')).to_have_count(0)
     text.locator('a').click()
     assert page.url.rstrip('/') == base.rstrip('/'), page.url
-    expect(page.get_by_label('Text content', exact=True)).to_have_value('Second paragraph\nThird line')
+    assert page.get_by_label('Text content', exact=True).inner_text() == 'Second paragraph\nThird line'
     page.keyboard.press('Control+s')
     expect(page.locator('.save-indicator')).to_contain_text('Saved', timeout=20000)
     stored = find(api('/pages/' + pid)['document']['nodes'], 'second')['props']['html']

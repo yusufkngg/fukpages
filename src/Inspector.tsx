@@ -30,7 +30,8 @@ import {
   type Device,
   type Styles,
 } from "./model";
-import { editableText } from "./Renderer";
+import { RichTextField } from "./RichTextField";
+import { PanelSettings } from "./PanelSettings";
 import { NodeExtras } from "./NodeExtras";
 import {
   resolveBrandStyles,
@@ -264,39 +265,35 @@ export function Inspector({
       </div>
     </div>
   );
-  const textProp = (key: string, label: string, multiline = false) => (
-    <label className="control">
-      <span>{label}</span>
-      {multiline ? (
-        <textarea
-          aria-label={label}
-          rows={4}
-          value={
-            key === "html"
-              ? editableText(node.props[key])
-              : String(node.props[key] ?? "")
-          }
-          onChange={(event) =>
-            prop(
-              key,
-              key === "html"
-                ? event.target.value
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/\n/g, "<br/>")
-                : event.target.value,
-            )
-          }
+  const textProp = (key: string, label: string, multiline = false) =>
+    key === "html" && multiline ? (
+      <div className="control">
+        <span>{label}</span>
+        <RichTextField
+          label={label}
+          value={String(node.props.html ?? "")}
+          onChange={(html) => prop("html", html)}
         />
-      ) : (
-        <input
-          aria-label={label}
-          value={String(node.props[key] ?? "")}
-          onChange={(event) => prop(key, event.target.value)}
-        />
-      )}
-    </label>
-  );
+      </div>
+    ) : (
+      <label className="control">
+        <span>{label}</span>
+        {multiline ? (
+          <textarea
+            aria-label={label}
+            rows={4}
+            value={String(node.props[key] ?? "")}
+            onChange={(event) => prop(key, event.target.value)}
+          />
+        ) : (
+          <input
+            aria-label={label}
+            value={String(node.props[key] ?? "")}
+            onChange={(event) => prop(key, event.target.value)}
+          />
+        )}
+      </label>
+    );
   return (
     <aside className="inspector">
       <div className="inspector-heading">
@@ -380,6 +377,10 @@ export function Inspector({
         {tab === "style" && node.kind === "collectionGrid" && (
           <CollectionGridSettings node={node} update={update} />
         )}
+        {tab === "style" &&
+          (node.kind === "tabs" || node.kind === "carousel") && (
+            <PanelSettings node={node} update={update} />
+          )}
         {tab === "style" && node.kind === "accordion" && (
           <AccordionItemsPanel node={node} update={update} />
         )}
@@ -764,9 +765,19 @@ export function Inspector({
                 />
               </div>
             </details>
-            {!["heading", "text", "button", "badge", "icon"].includes(
-              node.kind,
-            ) && (
+            {![
+              "heading",
+              "text",
+              "button",
+              "badge",
+              "icon",
+              // No text inside: typography would do nothing.
+              "image",
+              "video",
+              "divider",
+              "spacer",
+              "productGallery",
+            ].includes(node.kind) && (
               <>
                 <details>
                   <summary>{t("Tipografi")}</summary>
@@ -859,7 +870,7 @@ export function Inspector({
         )}
         {tab === "style" && node && (
           <details className="content-behaviour">
-            <summary>{t("Content and behaviour")}</summary>
+            <summary>{t("Ek içerik ve davranış")}</summary>
             <NodeExtras
               node={node}
               update={update}

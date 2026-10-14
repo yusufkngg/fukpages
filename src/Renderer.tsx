@@ -527,55 +527,52 @@ export function BlockContent({
       );
     case "icon": {
       const vector = !p.src && parseIconNode(p.iconNode);
-      if (vector) {
-        const svg = (
-          <VectorIcon
-            node={vector}
-            strokeWidth={iconStroke(p.strokeWidth)}
-            fill={!!p.iconFill}
-            label={String(p.alt || "")}
-          />
-        );
-        return p.href && !editable ? (
-          <a
-            className="icon-link"
-            href={safeHref(p.href)}
-            target={p.targetBlank ? "_blank" : undefined}
-            rel={p.targetBlank ? "noopener noreferrer" : undefined}
-          >
-            {svg}
-          </a>
-        ) : (
-          svg
-        );
-      }
-      if (p.src && p.iconTint)
-        return (
-          <span
-            className="custom-icon icon-mask"
-            role="img"
-            aria-label={String(p.alt || p.text || "Icon")}
-            style={{
-              maskImage: `url(${JSON.stringify(assetUrl(p.src, previewToken))})`,
-              WebkitMaskImage: `url(${JSON.stringify(assetUrl(p.src, previewToken))})`,
-            }}
-          />
-        );
-      if (!p.src && p.text === "↗")
-        return (
-          <>
-            <ArrowUpRight size="1em" aria-hidden="true" />
-            <span className="icon-symbol-label">↗</span>
-          </>
-        );
-      return p.src ? (
+      const label = String(p.alt || p.text || "");
+      const glyph = vector ? (
+        <VectorIcon
+          node={vector}
+          strokeWidth={iconStroke(p.strokeWidth)}
+          fill={!!p.iconFill}
+          label={String(p.alt || "")}
+        />
+      ) : p.src && p.iconTint ? (
+        <span
+          className="custom-icon icon-mask"
+          role="img"
+          aria-label={label || "Icon"}
+          style={{
+            maskImage: `url(${JSON.stringify(assetUrl(p.src, previewToken))})`,
+            WebkitMaskImage: `url(${JSON.stringify(assetUrl(p.src, previewToken))})`,
+          }}
+        />
+      ) : !p.src && p.text === "↗" ? (
+        <>
+          <ArrowUpRight size="1em" aria-hidden="true" />
+          <span className="icon-symbol-label">↗</span>
+        </>
+      ) : p.src ? (
         <img
           className="custom-icon"
           src={assetUrl(p.src, previewToken)}
-          alt={String(p.alt || p.text || "")}
+          alt={label}
         />
       ) : (
         <span>{String(p.text)}</span>
+      );
+      // Every kind of icon (vector, uploaded image, tinted mask or symbol)
+      // follows its link on the live page; the editor never navigates.
+      return p.href && !editable ? (
+        <a
+          className="icon-link"
+          href={safeHref(p.href)}
+          target={p.targetBlank ? "_blank" : undefined}
+          rel={p.targetBlank ? "noopener noreferrer" : undefined}
+          aria-label={label || undefined}
+        >
+          {glyph}
+        </a>
+      ) : (
+        glyph
       );
     }
     case "badge":

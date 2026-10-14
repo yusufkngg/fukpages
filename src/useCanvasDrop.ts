@@ -24,6 +24,7 @@ import {
 import {
   findBlock,
   isContainer,
+  acceptsChildren,
   locateBlock,
   type Block,
   type PageDocument,
@@ -260,7 +261,7 @@ export function useCanvasDrop(pageRef: RefObject<PageDocument | null>) {
         index: where.index,
         rect: element.getBoundingClientRect(),
         acceptsChild:
-          isContainer(node.kind) &&
+          acceptsChildren(node.kind) &&
           node.id !== moving?.id &&
           !isLocked(nodes, node.id) &&
           acceptsDrop({ parent: id, index: 0, parentKind: node.kind }, dragged),

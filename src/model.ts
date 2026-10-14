@@ -268,7 +268,15 @@ export const isContainer = (kind: Kind) =>
     "button",
     "badge",
     "product",
+    "tabs",
+    "carousel",
   ].includes(kind);
+/** Tabs and carousels hold panels only; new elements go into a panel. */
+export const holdsPanels = (kind: Kind) =>
+  kind === "tabs" || kind === "carousel";
+/** Containers that take arbitrary new elements as direct children. */
+export const acceptsChildren = (kind: Kind) =>
+  isContainer(kind) && !holdsPanels(kind);
 export const uid = () => crypto.randomUUID();
 const boxStyle = {
   paddingTop: "24px",

@@ -46,7 +46,8 @@ import {
 import { Dialog, scrollBehavior } from "./Dialog";
 import { TeamPanel } from "./TeamPanel";
 import { GrowthPanel } from "./GrowthPanel";
-import { CatalogPanel, type Catalog } from "./Commerce";
+import { type Catalog } from "./Commerce";
+import { CatalogPanel } from "./CatalogEditor";
 import {
   Fragment,
   useCallback,
@@ -102,6 +103,8 @@ import {
   Upload,
   X,
   ZoomIn,
+  Maximize2,
+  Minimize2,
   ZoomOut,
 } from "lucide-react";
 import { ApiError, api, json, uploadFiles } from "./api";
@@ -146,6 +149,7 @@ import {
   firstHeading,
   insertBlock,
   isContainer,
+  acceptsChildren,
   labels,
   locateBlock,
   mapBlock,
@@ -340,6 +344,8 @@ export function Editor({
   const [published, setPublished] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [zoom, setZoom] = useState(1);
+  // Focus mode hides the side panels so the canvas gets the whole width.
+  const [focusMode, setFocusMode] = useState(false);
   const [available, setAvailable] = useState(800);
   const canvasRef = useRef<HTMLDivElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
@@ -827,7 +833,7 @@ export function Editor({
     const node = createElement(kind, columns),
       selectedNode = findBlock(pageRef.current.nodes, selected);
     let parent =
-      selectedNode && isContainer(selectedNode.kind)
+      selectedNode && acceptsChildren(selectedNode.kind)
         ? selectedNode.id
         : selected
           ? (locateBlock(pageRef.current.nodes, selected)?.parent ?? null)
@@ -882,6 +888,11 @@ export function Editor({
         return;
       }
       if (typing) return;
+      if (event.key === "\\" && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+        setFocusMode((on) => !on);
+        return;
+      }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "y") {
         event.preventDefault();
         redo();
@@ -1113,7 +1124,7 @@ export function Editor({
         image.props.alt = asset.name;
         const where = old && locateBlock(current.nodes, old.id);
         const parent =
-          old && isContainer(old.kind) ? old.id : where?.parent || null;
+          old && acceptsChildren(old.kind) ? old.id : where?.parent || null;
         const siblings = parent
           ? findBlock(current.nodes, parent)?.children || []
           : current.nodes;
@@ -1123,7 +1134,7 @@ export function Editor({
           nodes: insertBlock(
             d.nodes,
             parent,
-            old && !isContainer(old.kind) && where
+            old && !acceptsChildren(old.kind) && where
               ? where.index + 1
               : siblings.length,
             image,
@@ -1244,7 +1255,7 @@ export function Editor({
         const latest = pageRef.current!;
         const anchor = findBlock(latest.nodes, selected),
           parent =
-            anchor && isContainer(anchor.kind)
+            anchor && acceptsChildren(anchor.kind)
               ? anchor.id
               : locateBlock(latest.nodes, selected || "")?.parent || null;
         if (parent && isLocked(latest.nodes, parent))
@@ -2510,7 +2521,7 @@ export function Editor({
             />
           )}
           <div
-            className="studio-workspace"
+            className={`studio-workspace${focusMode ? " focus-mode" : ""}`}
             style={
               {
                 "--library-width": panels.widths.library + "px",
@@ -2523,6 +2534,7 @@ export function Editor({
               layersOpen={layersOpen}
               owner={role === "owner"}
               open={(tool: RailTool) => {
+                setFocusMode(false);
                 if (tool === "layers") setLayersOpen((v) => !v);
                 else setLibrary(tool);
               }}
@@ -2607,6 +2619,7 @@ export function Editor({
               {library === "catalog" && (
                 <CatalogPanel
                   storeId={store.id}
+                  assets={assets}
                   refresh={refreshCatalog}
                   notify={notify}
                 />
@@ -2889,6 +2902,19 @@ export function Editor({
                   select={selectLayer}
                 />
                 <div>
+                  <button
+                    className="focus-toggle"
+                    aria-pressed={focusMode}
+                    title={t("Odak modu (\\)")}
+                    aria-label={t("Odak modu")}
+                    onClick={() => setFocusMode(!focusMode)}
+                  >
+                    {focusMode ? (
+                      <Minimize2 size={14} />
+                    ) : (
+                      <Maximize2 size={14} />
+                    )}
+                  </button>
                   <button
                     title={t("Uzaklaştır")}
                     onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}

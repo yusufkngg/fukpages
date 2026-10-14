@@ -286,7 +286,7 @@ export function CommerceProvider({
     </CatalogContext.Provider>
   );
 }
-const money = (n: number, currency: string) =>
+export const money = (n: number, currency: string) =>
   new Intl.NumberFormat(getUiLocale(), {
     style: "currency",
     currency: /^[A-Z]{3}$/.test(currency) ? currency : "TRY",
@@ -722,129 +722,6 @@ export function CommerceBlock({
       return null;
   }
 }
-export function CatalogPanel({
-  storeId,
-  refresh,
-  notify,
-}: {
-  storeId: string;
-  refresh: () => Promise<void>;
-  notify: (s: string, e?: boolean) => void;
-}) {
-  const [data, setData] = useState(""),
-    [version, setVersion] = useState(0);
-  useEffect(() => {
-    api<Catalog>(`/stores/${storeId}/catalog`)
-      .then((r) => {
-        setData(
-          JSON.stringify(
-            { products: r.products, collections: r.collections },
-            null,
-            2,
-          ),
-        );
-        setVersion(r.version || 0);
-      })
-      .catch((e) => notify(e.message, true));
-  }, [storeId]);
-  return (
-    <div className="library-scroll feature-panel">
-      <h3>{t("Yerel ürün kataloğu")}</h3>
-      <p>
-        {t(
-          "Shopify bağlantısı olmadan kendi ürün/varyant verilerini ekle. Fiyatlar kuruş cinsindendir. Bu katalog ödeme oluşturmaz.",
-        )}
-      </p>
-      <textarea
-        aria-label={t("Yerel katalog JSON")}
-        rows={24}
-        value={data}
-        onChange={(e) => setData(e.target.value)}
-      />
-      <button
-        onClick={() =>
-          setData(
-            JSON.stringify(
-              {
-                products: [
-                  {
-                    id: "product-1",
-                    title: t("Ürün adı"),
-                    description: t("Ürün açıklaması"),
-                    currency: "TRY",
-                    images: ["/assets/headphones.svg"],
-                    metafields: { "details.material": t("Malzeme") },
-                    variants: [
-                      {
-                        id: "variant-1",
-                        title: t("Standart"),
-                        price: 19900,
-                        comparePrice: 24900,
-                        stock: 10,
-                        options: { Renk: t("Siyah") },
-                        image: "/assets/headphones.svg",
-                      },
-                    ],
-                  },
-                ],
-                collections: [
-                  {
-                    id: "collection-1",
-                    title: t("Koleksiyon"),
-                    description: t("Koleksiyon açıklaması"),
-                    productIds: ["product-1"],
-                  },
-                ],
-              },
-              null,
-              2,
-            ),
-          )
-        }
-      >
-        {t("Düzenlenebilir veri örneği")}
-      </button>
-      <button
-        onClick={() => {
-          // Adds sample products and collections next to the current ones so
-          // per-product page assignments can be tried; nothing is saved yet.
-          try {
-            const current = JSON.parse(data || "{}");
-            setData(JSON.stringify(withSampleProducts(current), null, 2));
-            notify(
-              t(
-                "Örnek ürünler eklendi. Kaydetmek için “Kataloğu kaydet”e bas.",
-              ),
-            );
-          } catch {
-            notify(t("Katalog JSON’u okunamadı; önce hatayı düzelt."), true);
-          }
-        }}
-      >
-        {t("8 örnek ürün ve 2 koleksiyon ekle")}
-      </button>
-      <button
-        className="feature-primary"
-        onClick={async () => {
-          try {
-            const r = await api<Catalog>(`/stores/${storeId}/catalog`, {
-              method: "PUT",
-              body: json({ ...JSON.parse(data), version }),
-            });
-            setVersion(r.version || 0);
-            await refresh();
-            notify(t("Yerel katalog kaydedildi."));
-          } catch (e) {
-            notify((e as Error).message, true);
-          }
-        }}
-      >
-        {t("Kataloğu kaydet")}
-      </button>
-    </div>
-  );
-}
-
 const sampleImages = [
   "/assets/headphones.svg",
   "/assets/templates/still-life.svg",
