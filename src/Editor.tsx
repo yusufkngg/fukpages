@@ -179,6 +179,9 @@ export function Editor({
 }: EditorProps) {
   const panels = usePanelWidths();
   const pages = usePageOverview(store.id, pageId, notify);
+  const ownTarget =
+    pages.find((p) => p.id === pageId)?.assignments?.find((id) => id !== "*") ??
+    "";
   const [catalog, setCatalog] = useState<Catalog>({
     source: "local",
     products: [],
@@ -360,7 +363,9 @@ export function Editor({
         const document = normalizeAtomicDocument(result.document);
         pageRef.current = document;
         setPage(document);
-        setPreviewResource(result.assignments?.[0] || "");
+        setPreviewResource(
+          result.assignments?.find((id: string) => id !== "*") || "",
+        );
         version.current = result.version;
         const value = JSON.stringify(result.document);
         savedRef.current = value;
@@ -2095,13 +2100,14 @@ export function Editor({
         pageId,
         editable: true,
         formDestination,
+        // Preview the page's own product/collection first, then the catalogue.
         activeProductId:
           page.type === "product"
-            ? previewResource || catalog.products[0]?.id || ""
+            ? previewResource || ownTarget || catalog.products[0]?.id || ""
             : "",
         activeCollectionId:
           page.type === "collection"
-            ? previewResource || catalog.collections[0]?.id || ""
+            ? previewResource || ownTarget || catalog.collections[0]?.id || ""
             : "",
       }}
     >
@@ -2655,7 +2661,7 @@ export function Editor({
                   <PreviewResourcePicker
                     type={page.type}
                     catalog={catalog}
-                    resource={previewResource}
+                    resource={previewResource || ownTarget}
                     onResource={setPreviewResource}
                   />
                 </span>

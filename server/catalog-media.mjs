@@ -2,8 +2,14 @@ export function catalogDocumentUses(document, asset, catalog, targets = []) {
   if (asset.type !== "image") return false;
   const products = new Set(),
     collections = new Set();
+  // A default page ("*") shows every product or collection.
+  const everything = targets.includes("*")
+    ? document.type === "product"
+      ? catalog.products.map((p) => p.id)
+      : catalog.collections.map((c) => c.id)
+    : [];
   const dynamic = targets.length
-    ? targets
+    ? [...targets.filter((id) => id !== "*"), ...everything]
     : document.type === "product"
       ? [catalog.products[0]?.id]
       : document.type === "collection"

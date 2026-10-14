@@ -310,7 +310,6 @@ export function NodeExtras({
           "quantity",
           "addToCart",
           "stickyCart",
-          "collectionGrid",
         ].includes(node.kind) && (
           <label className="control">
             <span>
@@ -460,7 +459,6 @@ export function NodeExtras({
           "addToCart",
           "stickyCart",
           "bundle",
-          "collectionGrid",
         ].includes(node.kind) && (
           <>
             <label className="control">

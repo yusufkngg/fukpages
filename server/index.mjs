@@ -336,6 +336,10 @@ export function validateDocument(input) {
           "iconNode",
           "strokeWidth",
           "iconFill",
+          "gridColumns",
+          "showHeader",
+          "showDescription",
+          "showAddToCart",
         ].includes(key)
       )
         continue;

@@ -360,3 +360,95 @@ test("older data with two homepages: trashing one routes the other home; viewers
     "a disabled store is read-only",
   );
 });
+
+test("the first product/collection page is the default for every item; own assignments win and the default can move", async (t) => {
+  const f = await fixture(t);
+  await f.api("/stores/demo/catalog", "PUT", {
+    version: 0,
+    products: ["p1", "p2", "p3", "p4"].map(product),
+    collections: [
+      { id: "c1", title: "Bir", productIds: ["p1", "p2"] },
+      { id: "c2", title: "İki", productIds: ["p3", "p4"] },
+    ],
+  });
+  const visitor = f.requestAs(null);
+  const pageFor = async (path) => {
+    const r = await visitor("/public/stores/demo/" + path);
+    return r.ok ? (await r.json()).pageId : r.status;
+  };
+  const general = await f.create("product", "Genel ürün");
+  assert.deepEqual(
+    (await f.overview()).find((p) => p.id === general.id).assignments,
+    ["*"],
+    "the first product page covers all products",
+  );
+  await f.api(`/pages/${general.id}/publish`, "POST", {});
+  for (const id of ["p1", "p2", "p3", "p4"])
+    assert.equal(await pageFor("products/" + id), general.id, id);
+  assert.equal(await pageFor("products/unknown"), 404);
+  assert.equal(await pageFor("products/*"), 404);
+  const preview = await (
+    await visitor("/public/stores/demo/products/p3")
+  ).json();
+  assert.equal(preview.activeProductId, "p3");
+
+  const special = await f.api(`/pages/${general.id}/duplicate`, "POST", {});
+  assert.deepEqual(
+    (await f.overview()).find((p) => p.id === special.id).assignments,
+    [],
+    "a copy does not take the default",
+  );
+  await f.api(`/pages/${special.id}/assignments`, "PUT", {
+    version: 1,
+    ids: ["p1", "p2"],
+  });
+  assert.equal(
+    await pageFor("products/p1"),
+    general.id,
+    "an unpublished design does not replace the live default",
+  );
+  await f.api(`/pages/${special.id}/publish`, "POST", {});
+  assert.equal(await pageFor("products/p1"), special.id);
+  assert.equal(await pageFor("products/p2"), special.id);
+  assert.equal(await pageFor("products/p3"), general.id);
+
+  const version = (await f.api(`/pages/${special.id}`)).version;
+  const taken = await f.request(`/pages/${special.id}/assignments`, "PUT", {
+    version,
+    ids: ["*", "p1"],
+  });
+  assert.equal(taken.status, 409, "the default belongs to one page");
+  await f.api(`/pages/${special.id}/assignments`, "PUT", {
+    version,
+    ids: ["*", "p1"],
+    takeDefault: true,
+  });
+  const overview = await f.overview();
+  assert.deepEqual(overview.find((p) => p.id === general.id).assignments, []);
+  assert.deepEqual(overview.find((p) => p.id === special.id).assignments, [
+    "*",
+    "p1",
+  ]);
+  assert.equal(await pageFor("products/p4"), special.id);
+
+  const collection = await f.create("collection", "Koleksiyon");
+  assert.deepEqual(
+    (await f.overview()).find((p) => p.id === collection.id).assignments,
+    ["*"],
+  );
+  await f.api(`/pages/${collection.id}/publish`, "POST", {});
+  const shown = await (
+    await visitor("/public/stores/demo/collections/c2")
+  ).json();
+  assert.equal(shown.pageId, collection.id);
+  assert.equal(shown.activeCollectionId, "c2");
+  assert.equal(
+    (
+      await f.request(`/pages/${collection.id}/assignments`, "PUT", {
+        version: (await f.api(`/pages/${collection.id}`)).version,
+        ids: ["*", "nope"],
+      })
+    ).status,
+    400,
+  );
+});

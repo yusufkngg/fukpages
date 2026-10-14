@@ -74,7 +74,14 @@ const patternEntries = Object.entries(english)
       };
     };
     return { tr, en, trPattern: compile(tr), enPattern: compile(en) };
-  });
+  })
+  // Most specific pattern first: "Sayfa çoğaltıldı: {p0}" must win over a
+  // generic "{p0} · {p1}" that would match the same text.
+  .sort(
+    (a, b) =>
+      b.tr.replace(/\{p\d+\}/g, "").length -
+      a.tr.replace(/\{p\d+\}/g, "").length,
+  );
 export function t(
   value: string,
   params: Record<string, unknown> = {},

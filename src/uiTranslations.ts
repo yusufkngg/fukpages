@@ -1766,4 +1766,65 @@ export const english: Record<string, string> = {
   "Medya ve teknoloji": "Media and tech",
   Yaşam: "Lifestyle",
   "Şekiller ve işaretler": "Shapes and marks",
+  // 0.11 collections and assignments
+  "Tüm koleksiyonlar · varsayılan": "All collections · default",
+  "Tüm ürünler · varsayılan": "All products · default",
+  "{p0} ürün": "{p0} products",
+  "Kendine ait sayfası olmayan her ürün bu tasarımla açılır. Aşağıda seçtiğin ürünler ise her zaman bu sayfayı kullanır.":
+    "Every product without a page of its own opens with this design. Products you select below always use this page.",
+  "Kendine ait sayfası olmayan her koleksiyon bu tasarımla açılır. Aşağıda seçtiğin koleksiyonlar ise her zaman bu sayfayı kullanır.":
+    "Every collection without a page of its own opens with this design. Collections you select below always use this page.",
+  "Şu an varsayılan: “{p0}”.": "Current default: “{p0}”.",
+  "Varsayılanı bu sayfaya taşı": "Make this page the default",
+  "Ürün ara": "Search products",
+  "Koleksiyon ara": "Search collections",
+  "Ürün ara…": "Search products…",
+  "Koleksiyon ara…": "Search collections…",
+  "Listedekileri seç": "Select listed",
+  "{p0} ürün seçili": "{p0} products selected",
+  "{p0} koleksiyon seçili": "{p0} collections selected",
+  "Aramayla eşleşen sonuç yok.": "Nothing matches the search.",
+  "Varsayılan ürün sayfası yok: kendi sayfası olmayan ürünler açılmaz. Bir ürün sayfasının Atamalar penceresinde “Tüm ürünler” seçeneğini işaretle.":
+    "No default product page: products without their own page will not open. Tick “All products” in a product page's Assignments.",
+  "Varsayılan koleksiyon sayfası yok: kendi sayfası olmayan koleksiyonlar açılmaz. Bir koleksiyon sayfasının Atamalar penceresinde “Tüm koleksiyonlar” seçeneğini işaretle.":
+    "No default collection page: collections without their own page will not open. Tick “All collections” in a collection page's Assignments.",
+  "Koleksiyon seçilmedi": "No collection selected",
+  Sırala: "Sort",
+  Önerilen: "Featured",
+  "Fiyat: düşükten yükseğe": "Price: low to high",
+  "Fiyat: yüksekten düşüğe": "Price: high to low",
+  "Ürün adı (A–Z)": "Name (A–Z)",
+  Tükendi: "Sold out",
+  "Bu koleksiyonda henüz ürün yok.": "This collection has no products yet.",
+  "Bu sayfaya bir koleksiyon ata ya da öğe ayarlarından sabit bir koleksiyon seç.":
+    "Assign a collection to this page, or choose a fixed collection in the element settings.",
+  "Koleksiyon bulunamadı.": "Collection not found.",
+  "Örnek ürünler eklendi. Kaydetmek için “Kataloğu kaydet”e bas.":
+    "Sample products added. Press “Save catalogue” to keep them.",
+  "Katalog JSON’u okunamadı; önce hatayı düzelt.":
+    "The catalogue JSON could not be read; fix the error first.",
+  "8 örnek ürün ve 2 koleksiyon ekle":
+    "Add 8 sample products and 2 collections",
+  "Örnek ürün açıklaması. Yerel demo kataloğu.":
+    "Sample product description. Local demo catalogue.",
+  "Yeni gelenler": "New arrivals",
+  "Çok satanlar": "Best sellers",
+  "Örnek koleksiyon açıklaması.": "Sample collection description.",
+  Kaynak: "Source",
+  "Sayfanın koleksiyonu": "Page's collection",
+  "Belirli koleksiyon": "Specific collection",
+  "Bu öğe her sayfada aynı koleksiyonu gösterir.":
+    "This element shows the same collection on every page.",
+  "Ziyaretçinin açtığı koleksiyon gösterilir. Hangi koleksiyonların bu tasarımı kullanacağını sayfanın Atamalar penceresinden seç.":
+    "Shows the collection the visitor opened. Choose which collections use this design in the page's Assignments.",
+  "Gösterilecek koleksiyon": "Collection to show",
+  Görünüm: "View",
+  Izgara: "Grid",
+  Kaydırmalı: "Carousel",
+  "Sütun (masaüstü)": "Columns (desktop)",
+  Sütun: "Columns",
+  "Sayfa başına ürün": "Products per page",
+  "Kartlarda göster": "Show on cards",
+  "Koleksiyon başlığı ve açıklaması": "Collection title and description",
+  "Sepete ekle düğmesi": "Add to cart button",
 };

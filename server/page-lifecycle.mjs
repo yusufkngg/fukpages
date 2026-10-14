@@ -29,8 +29,31 @@ export function createPageRules(db) {
     db
       .prepare("DELETE FROM page_assignments WHERE page_id=? AND kind<>?")
       .run(pageId, assignmentKind(type) ?? "");
-  /** The only homepage of a store is always routed as its home. */
+  /**
+   * The only homepage of a store is always routed as its home, and the first
+   * product/collection page becomes the default for every product/collection
+   * that has no page of its own ("*").
+   */
   const syncHomeAssignment = (storeId) => {
+    for (const kind of ["product", "collection"]) {
+      const holder = db
+        .prepare(
+          "SELECT page_id FROM page_assignments WHERE store_id=? AND kind=? AND entity_id='*'",
+        )
+        .get(storeId, kind);
+      if (holder) continue;
+      const first = db
+        .prepare(
+          "SELECT id FROM pages WHERE store_id=? AND json_extract(document,'$.type')=? ORDER BY rowid LIMIT 1",
+        )
+        .get(storeId, kind);
+      if (first)
+        db.prepare("INSERT INTO page_assignments VALUES(?,?,'*',?)").run(
+          storeId,
+          kind,
+          first.id,
+        );
+    }
     const homes = pagesOfType(storeId, "home");
     if (homes.length !== 1) return;
     const taken = db

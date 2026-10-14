@@ -299,7 +299,8 @@ export function CommerceBlock({
   editable?: boolean;
 }) {
   const c = useContext(CatalogContext),
-    { previewToken, activeProductId, activeCollectionId } = useStudio(),
+    { previewToken, activeProductId, activeCollectionId, storeId } =
+      useStudio(),
     p = node.props,
     product = c.catalog.products.find(
       (v) =>
@@ -329,61 +330,178 @@ export function CommerceBlock({
           .map((id) => c.catalog.products.find((p) => p.id === id)!)
           .filter(Boolean)
       : [];
-    if (sort === "price")
-      products = [...products].sort(
-        (a, b) => a.variants[0].price - b.variants[0].price,
-      );
+    const price = (pr: Product) => pr.variants[0]?.price ?? 0;
+    if (sort === "price" || sort === "price-asc")
+      products = [...products].sort((a, b) => price(a) - price(b));
+    if (sort === "price-desc")
+      products = [...products].sort((a, b) => price(b) - price(a));
     if (sort === "title")
-      products = [...products].sort((a, b) => a.title.localeCompare(b.title));
-    const size = Math.max(1, Math.min(24, Number(p.pageSize || 6)));
-    const Heading = p.tag === "h1" ? "h1" : "h3";
+      products = [...products].sort((a, b) =>
+        a.title.localeCompare(b.title, getUiLocale()),
+      );
+    const size = Math.max(1, Math.min(24, Number(p.pageSize || 8)));
+    const pages = Math.max(1, Math.ceil(products.length / size));
+    const columns = Math.max(1, Math.min(6, Number(p.gridColumns || 4)));
+    const Heading = p.tag === "h1" ? "h1" : "h2";
+    const CardTitle = p.tag === "h1" ? "h2" : "h3";
+    const showHeader = p.showHeader !== false;
+    const link = (id: string) =>
+      editable || !storeId
+        ? undefined
+        : `/p/${storeId}/products/${encodeURIComponent(id)}`;
     return (
-      <div>
-        <Heading>{collection?.title || t("Yerel koleksiyon seç")}</Heading>
-        <p>{collection?.description}</p>
-        {collection?.image && (
-          <img
-            src={assetUrl(collection.image, previewToken)}
-            alt={collection.title}
-          />
-        )}
-        <select
-          aria-label={t("Ürün sıralaması")}
-          value={sort}
-          onChange={(e) => {
-            setSort(e.target.value);
-            setPage(0);
-          }}
-        >
-          <option value="default">{t("Varsayılan")}</option>
-          <option value="price">{t("Fiyat")}</option>
-          <option value="title">{t("Ürün adı")}</option>
-        </select>
-        <div
-          className={`builder-product-grid ${p.view === "carousel" ? "carousel" : ""}`}
-        >
-          {products.slice(page * size, (page + 1) * size).map((pr) => (
-            <article key={pr.id}>
+      <div
+        className={`collection-view ${p.view === "carousel" ? "is-carousel" : ""}`}
+        style={{ ["--collection-columns" as string]: columns }}
+      >
+        {showHeader && (
+          <header className="collection-head">
+            {collection?.image && (
               <img
-                src={assetUrl(pr.images[0], previewToken)}
-                alt={pr.title}
-                loading="lazy"
+                className="collection-banner"
+                src={assetUrl(collection.image, previewToken)}
+                alt=""
               />
-              <h4>{pr.title}</h4>
-              <b>{money(pr.variants[0].price, pr.currency)}</b>
-              <p>{pr.description}</p>
-            </article>
-          ))}
-        </div>
-        <button disabled={!page} onClick={() => setPage(page - 1)}>
-          {t("Önceki")}
-        </button>
-        <button
-          disabled={(page + 1) * size >= products.length}
-          onClick={() => setPage(page + 1)}
-        >
-          {t("Sonraki")}
-        </button>
+            )}
+            <Heading className="collection-title">
+              {collection?.title || t("Koleksiyon seçilmedi")}
+            </Heading>
+            {collection?.description && (
+              <p className="collection-description">{collection.description}</p>
+            )}
+          </header>
+        )}
+        {collection ? (
+          <>
+            <div className="collection-toolbar">
+              <span>{t("{p0} ürün", { p0: products.length })}</span>
+              <label>
+                {t("Sırala")}
+                <select
+                  aria-label={t("Ürün sıralaması")}
+                  value={sort}
+                  onChange={(e) => {
+                    setSort(e.target.value);
+                    setPage(0);
+                  }}
+                >
+                  <option value="default">{t("Önerilen")}</option>
+                  <option value="price-asc">
+                    {t("Fiyat: düşükten yükseğe")}
+                  </option>
+                  <option value="price-desc">
+                    {t("Fiyat: yüksekten düşüğe")}
+                  </option>
+                  <option value="title">{t("Ürün adı (A–Z)")}</option>
+                </select>
+              </label>
+            </div>
+            <div
+              className={`builder-product-grid collection-grid ${p.view === "carousel" ? "carousel" : ""}`}
+            >
+              {products.slice(page * size, (page + 1) * size).map((pr) => {
+                const v = pr.variants[0];
+                const off =
+                  v?.comparePrice && v.comparePrice > v.price
+                    ? Math.round((1 - v.price / v.comparePrice) * 100)
+                    : 0;
+                const inStock = pr.variants.some((x) => x.stock > 0);
+                return (
+                  <article key={pr.id} className="collection-card">
+                    <a
+                      className="collection-card-media"
+                      href={link(pr.id)}
+                      aria-label={pr.title}
+                    >
+                      {pr.images[0] ? (
+                        <img
+                          src={assetUrl(pr.images[0], previewToken)}
+                          alt={pr.title}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span className="collection-card-empty" />
+                      )}
+                      {off > 0 && (
+                        <span className="collection-badge">-%{off}</span>
+                      )}
+                      {!inStock && (
+                        <span className="collection-badge muted">
+                          {t("Tükendi")}
+                        </span>
+                      )}
+                    </a>
+                    <div className="collection-card-body">
+                      <CardTitle className="collection-card-title">
+                        <a href={link(pr.id)}>{pr.title}</a>
+                      </CardTitle>
+                      {p.showDescription === true && pr.description && (
+                        <p>{pr.description}</p>
+                      )}
+                      <div className="collection-price">
+                        <b>{money(v?.price || 0, pr.currency)}</b>
+                        {off > 0 && (
+                          <s>{money(v!.comparePrice, pr.currency)}</s>
+                        )}
+                      </div>
+                      {p.showAddToCart !== false && (
+                        <button
+                          className="collection-add"
+                          disabled={!inStock}
+                          onClick={() => {
+                            if (!editable) c.add(pr.id);
+                          }}
+                        >
+                          {inStock ? t("Sepete ekle") : t("Stokta yok")}
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+            {!products.length && (
+              <p className="collection-empty">
+                {t("Bu koleksiyonda henüz ürün yok.")}
+              </p>
+            )}
+            {pages > 1 && p.view !== "carousel" && (
+              <nav className="collection-pagination" aria-label={t("Sayfalar")}>
+                <button
+                  aria-label={t("Önceki")}
+                  disabled={!page}
+                  onClick={() => setPage(page - 1)}
+                >
+                  ‹
+                </button>
+                {Array.from({ length: pages }, (_, n) => (
+                  <button
+                    key={n}
+                    aria-current={n === page ? "page" : undefined}
+                    onClick={() => setPage(n)}
+                  >
+                    {n + 1}
+                  </button>
+                ))}
+                <button
+                  aria-label={t("Sonraki")}
+                  disabled={page + 1 >= pages}
+                  onClick={() => setPage(page + 1)}
+                >
+                  ›
+                </button>
+              </nav>
+            )}
+          </>
+        ) : (
+          <p className="collection-empty">
+            {editable
+              ? t(
+                  "Bu sayfaya bir koleksiyon ata ya da öğe ayarlarından sabit bir koleksiyon seç.",
+                )
+              : t("Koleksiyon bulunamadı.")}
+          </p>
+        )}
       </div>
     );
   }
@@ -687,6 +805,25 @@ export function CatalogPanel({
         {t("Düzenlenebilir veri örneği")}
       </button>
       <button
+        onClick={() => {
+          // Adds sample products and collections next to the current ones so
+          // per-product page assignments can be tried; nothing is saved yet.
+          try {
+            const current = JSON.parse(data || "{}");
+            setData(JSON.stringify(withSampleProducts(current), null, 2));
+            notify(
+              t(
+                "Örnek ürünler eklendi. Kaydetmek için “Kataloğu kaydet”e bas.",
+              ),
+            );
+          } catch {
+            notify(t("Katalog JSON’u okunamadı; önce hatayı düzelt."), true);
+          }
+        }}
+      >
+        {t("8 örnek ürün ve 2 koleksiyon ekle")}
+      </button>
+      <button
         className="feature-primary"
         onClick={async () => {
           try {
@@ -706,4 +843,67 @@ export function CatalogPanel({
       </button>
     </div>
   );
+}
+
+const sampleImages = [
+  "/assets/headphones.svg",
+  "/assets/templates/still-life.svg",
+  "/assets/templates/arches.svg",
+  "/assets/templates/texture.svg",
+  "/assets/templates/portrait.svg",
+];
+/** Adds eight sample products and two collections, keeping existing ones. */
+export function withSampleProducts(current: {
+  products?: Product[];
+  collections?: Catalog["collections"];
+}) {
+  const products = [...(current.products ?? [])];
+  const collections = [...(current.collections ?? [])];
+  const names = [
+    "Aura Mini",
+    "Aura Studio",
+    "Aura Sport",
+    "Aura Kids",
+    "Aura Travel kılıfı",
+    "Aura şarj standı",
+    "Aura kulak pedi",
+    "Aura kablo seti",
+  ];
+  names.forEach((title, index) => {
+    const id = `sample-${index + 1}`;
+    if (products.some((p) => p.id === id)) return;
+    const price = 49900 + index * 25000;
+    products.push({
+      id,
+      title,
+      description: t("Örnek ürün açıklaması. Yerel demo kataloğu."),
+      currency: "TRY",
+      images: [sampleImages[index % sampleImages.length]],
+      metafields: {},
+      variants: [
+        {
+          id: `${id}-standard`,
+          title: t("Standart"),
+          price,
+          comparePrice: index % 3 === 0 ? Math.round(price * 1.25) : 0,
+          stock: index === 6 ? 0 : 20,
+          image: "",
+          options: {},
+        },
+      ],
+    });
+  });
+  for (const [id, title, ids] of [
+    ["sample-new", t("Yeni gelenler"), [1, 2, 3, 4, 5]],
+    ["sample-best", t("Çok satanlar"), [4, 5, 6, 7, 8]],
+  ] as const)
+    if (!collections.some((c) => c.id === id))
+      collections.push({
+        id,
+        title,
+        description: t("Örnek koleksiyon açıklaması."),
+        image: "",
+        productIds: ids.map((n) => `sample-${n}`),
+      });
+  return { products, collections };
 }

@@ -5,7 +5,7 @@ import { Dialog } from "./Dialog";
 import { pageTemplate } from "./pageTemplates";
 import { TemplatePicker } from "./TemplateLibrary";
 import { templateDocument } from "./pageTemplateLibrary";
-import { StudioProvider, defaultBrand, type Brand } from "./studio";
+import { StudioProvider, assetUrl, defaultBrand, type Brand } from "./studio";
 import { CircleAlert, LayoutTemplate, RotateCcw, Trash2 } from "lucide-react";
 import {
   assignmentsTakenBy,
@@ -23,6 +23,22 @@ import {
   type PageType,
 } from "./model";
 import type { Catalog } from "./Commerce";
+/** Label for an assignment target ("*" is the default for everything). */
+export function assignmentLabel(
+  id: string,
+  type: string,
+  catalog: Catalog,
+): string {
+  if (id === "*")
+    return type === "collection"
+      ? t("Tüm koleksiyonlar · varsayılan")
+      : t("Tüm ürünler · varsayılan");
+  return (
+    (type === "product" ? catalog.products : catalog.collections).find(
+      (v) => v.id === id,
+    )?.title || id
+  );
+}
 export function AssignmentDialog({
   page,
   store,
@@ -45,7 +61,9 @@ export function AssignmentDialog({
   const [ids, setIds] = useState<string[]>([]),
     [version, setVersion] = useState<number | null>(null),
     [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [query, setQuery] = useState(""),
+    [takeDefault, setTakeDefault] = useState(false);
   useEffect(() => {
     let active = true;
     api<{
@@ -65,12 +83,37 @@ export function AssignmentDialog({
       active = false;
     };
   }, [page.id]);
-  const options =
+  const isProduct = page.type === "product";
+  const listed: { id: string; title: string; image?: string; note?: string }[] =
     page.type === "home"
       ? [{ id: "home", title: t("Mağazanın ana sayfası") }]
-      : page.type === "product"
-        ? catalog.products
-        : catalog.collections;
+      : isProduct
+        ? catalog.products.map((p) => ({
+            id: p.id,
+            title: p.title,
+            image: p.images[0],
+          }))
+        : catalog.collections.map((c) => ({
+            id: c.id,
+            title: c.title,
+            image: c.image,
+            note: t("{p0} ürün", { p0: c.productIds.length }),
+          }));
+  const needle = query.trim().toLocaleLowerCase(getUiLanguage());
+  const options = needle
+    ? listed.filter((item) =>
+        item.title.toLocaleLowerCase(getUiLanguage()).includes(needle),
+      )
+    : listed;
+  const editable = version !== null && !busy;
+  const free = options.filter((item) => !taken[item.id]);
+  const toggle = (id: string, on: boolean) =>
+    setIds((old) =>
+      on ? [...new Set([...old, id])] : old.filter((v) => v !== id),
+    );
+  const isDefault = ids.includes("*");
+  const defaultOwner = taken["*"];
+  const specific = ids.filter((id) => id !== "*").length;
   return (
     <Dialog
       open
@@ -81,13 +124,75 @@ export function AssignmentDialog({
       <h2>{page.name}</h2>
       <p>
         {intro ??
-          (page.type === "product"
+          (isProduct
             ? t("Bu tasarımı kullanacak ürünleri seç.")
             : page.type === "collection"
               ? t("Bu tasarımı kullanacak koleksiyonları seç.")
               : t("Bu sayfayı mağazanın ana sayfası olarak seç."))}
       </p>
-      <small>{t("Yerel demo kataloğu · Shopify’a atama yapılmaz.")}</small>
+      {page.type !== "home" && (
+        <div className={`assignment-default ${isDefault ? "on" : ""}`}>
+          <label>
+            <input
+              type="checkbox"
+              aria-label={assignmentLabel("*", page.type, catalog)}
+              checked={isDefault}
+              disabled={!editable || (!!defaultOwner && !takeDefault)}
+              onChange={(e) => toggle("*", e.target.checked)}
+            />
+            <span>
+              <b>{assignmentLabel("*", page.type, catalog)}</b>
+              <small>
+                {isProduct
+                  ? t(
+                      "Kendine ait sayfası olmayan her ürün bu tasarımla açılır. Aşağıda seçtiğin ürünler ise her zaman bu sayfayı kullanır.",
+                    )
+                  : t(
+                      "Kendine ait sayfası olmayan her koleksiyon bu tasarımla açılır. Aşağıda seçtiğin koleksiyonlar ise her zaman bu sayfayı kullanır.",
+                    )}
+              </small>
+            </span>
+          </label>
+          {defaultOwner && !takeDefault && (
+            <p>
+              {t("Şu an varsayılan: “{p0}”.", { p0: defaultOwner })}{" "}
+              <button
+                disabled={!editable}
+                onClick={() => {
+                  setTakeDefault(true);
+                  toggle("*", true);
+                }}
+              >
+                {t("Varsayılanı bu sayfaya taşı")}
+              </button>
+            </p>
+          )}
+        </div>
+      )}
+      {page.type !== "home" && listed.length > 0 && (
+        <div className="assignment-tools">
+          <input
+            type="search"
+            aria-label={isProduct ? t("Ürün ara") : t("Koleksiyon ara")}
+            placeholder={isProduct ? t("Ürün ara…") : t("Koleksiyon ara…")}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <button
+            disabled={!editable || !free.length}
+            onClick={() =>
+              setIds((old) => [...new Set([...old, ...free.map((f) => f.id)])])
+            }
+          >
+            {t("Listedekileri seç")}
+          </button>
+          <span>
+            {isProduct
+              ? t("{p0} ürün seçili", { p0: specific })
+              : t("{p0} koleksiyon seçili", { p0: specific })}
+          </span>
+        </div>
+      )}
       <div className="assignment-options">
         {options.map((item) => {
           const usedBy = taken[item.id];
@@ -97,16 +202,18 @@ export function AssignmentDialog({
                 type="checkbox"
                 aria-label={t("Ata: {p0}", { p0: item.title })}
                 checked={ids.includes(item.id)}
-                disabled={version === null || busy || !!usedBy}
-                onChange={(e) =>
-                  setIds((old) =>
-                    e.target.checked
-                      ? [...old, item.id]
-                      : old.filter((id) => id !== item.id),
-                  )
-                }
+                disabled={!editable || !!usedBy}
+                onChange={(e) => toggle(item.id, e.target.checked)}
               />
-              {item.title}
+              {item.image !== undefined && (
+                <span className="assignment-thumb">
+                  {item.image && <img src={assetUrl(item.image)} alt="" />}
+                </span>
+              )}
+              <span className="assignment-title">
+                {item.title}
+                {item.note && <small>{item.note}</small>}
+              </span>
               {usedBy && (
                 <small>
                   {t("“{p0}” sayfasında kullanılıyor", { p0: usedBy })}
@@ -115,34 +222,39 @@ export function AssignmentDialog({
             </label>
           );
         })}
-        {!options.length && (
+        {!listed.length && (
           <p>
-            {page.type === "product"
+            {isProduct
               ? t("Önce yerel kataloğa ürün ekle.")
               : t("Önce yerel kataloğa koleksiyon ekle.")}
           </p>
         )}
+        {!!listed.length && !options.length && (
+          <p>{t("Aramayla eşleşen sonuç yok.")}</p>
+        )}
       </div>
-      <button disabled={version === null || busy} onClick={() => setIds([])}>
-        {t("Tüm atamaları kaldır")}
-      </button>
+      <small>{t("Yerel demo kataloğu · Shopify’a atama yapılmaz.")}</small>
       {error && (
         <p role="alert" className="form-error">
           {error}
         </p>
       )}
       <footer>
+        <button disabled={!editable} onClick={() => setIds([])}>
+          {t("Tüm atamaları kaldır")}
+        </button>
+        <span />
         <button onClick={close}>{t("Vazgeç")}</button>
         <button
           className="primary-button"
-          disabled={version === null || busy}
+          disabled={!editable}
           onClick={async () => {
             setBusy(true);
             setError("");
             try {
               await api(`/pages/${page.id}/assignments`, {
                 method: "PUT",
-                body: json({ ids, version }),
+                body: json({ ids, version, takeDefault }),
               });
               saved();
               close();
@@ -388,6 +500,26 @@ export function PageManager({
           </p>
         </div>
       )}
+      {writable &&
+        (["product", "collection"] as const).map((kind) =>
+          pages.some((p) => p.type === kind) &&
+          !pages.some(
+            (p) => p.type === kind && p.assignments?.includes("*"),
+          ) ? (
+            <div className="page-rule-banner" role="status" key={kind}>
+              <CircleAlert size={16} />
+              <p>
+                {kind === "product"
+                  ? t(
+                      "Varsayılan ürün sayfası yok: kendi sayfası olmayan ürünler açılmaz. Bir ürün sayfasının Atamalar penceresinde “Tüm ürünler” seçeneğini işaretle.",
+                    )
+                  : t(
+                      "Varsayılan koleksiyon sayfası yok: kendi sayfası olmayan koleksiyonlar açılmaz. Bir koleksiyon sayfasının Atamalar penceresinde “Tüm koleksiyonlar” seçeneğini işaretle.",
+                    )}
+              </p>
+            </div>
+          ) : null,
+        )}
       <div className="page-manager-controls">
         <input
           aria-label={t("Sayfa ara")}
@@ -595,14 +727,9 @@ export function PageManager({
                         ? t("Fazladan ana sayfa")
                         : t("Mağazanın ana sayfası")
                       : p.assignments?.length
-                        ? p.assignments
-                            .map(
-                              (id) =>
-                                (p.type === "product"
-                                  ? catalog.products
-                                  : catalog.collections
-                                ).find((v) => v.id === id)?.title || id,
-                            )
+                        ? [...p.assignments]
+                            .sort((a) => (a === "*" ? -1 : 0))
+                            .map((id) => assignmentLabel(id, p.type, catalog))
                             .join(", ")
                         : t("Atama yok")}
                   </small>
@@ -610,16 +737,31 @@ export function PageManager({
                 <span className="page-publication-state">
                   {p.published ? t("Yayında") : t("Taslak")}
                   {p.published &&
-                    p.assignments?.map((id) => (
-                      <a
-                        key={id}
-                        href={`/p/${store.id}/${p.type === "home" ? "home" : (p.type === "product" ? "products/" : "collections/") + encodeURIComponent(id)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {t("Mağazada aç ↗")}
-                      </a>
-                    ))}
+                    p.assignments?.slice(0, 1).map((assigned) => {
+                      // The default page opens on a product without its own page.
+                      const own = new Set(
+                        pages
+                          .filter((o) => o.type === p.type)
+                          .flatMap((o) => o.assignments ?? []),
+                      );
+                      const id =
+                        assigned === "*"
+                          ? ((p.type === "product"
+                              ? catalog.products
+                              : catalog.collections
+                            ).find((v) => !own.has(v.id))?.id ?? "")
+                          : assigned;
+                      return id ? (
+                        <a
+                          key={id}
+                          href={`/p/${store.id}/${p.type === "home" ? "home" : (p.type === "product" ? "products/" : "collections/") + encodeURIComponent(id)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {t("Mağazada aç ↗")}
+                        </a>
+                      ) : null;
+                    })}
                 </span>
                 <div className="page-row-actions">
                   <button

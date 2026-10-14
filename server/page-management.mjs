@@ -76,17 +76,25 @@ export function registerPageManagement({
       return res.status(400).json({ error: "Geçersiz sayfa ataması." });
     const unique = [...new Set(ids)],
       catalog = commerce.catalog(row.store_id);
+    // "*" makes the page the default for every product/collection that has
+    // no page of its own.
     const valid =
       type === "home"
         ? ["home"]
-        : (type === "product" ? catalog.products : catalog.collections).map(
-            (v) => v.id,
-          );
+        : [
+            "*",
+            ...(type === "product"
+              ? catalog.products
+              : catalog.collections
+            ).map((v) => v.id),
+          ];
     if (unique.some((id) => !valid.includes(id)))
       return res.status(400).json({
         error: "Atanacak ürün/koleksiyon bu mağazanın kataloğunda bulunamadı.",
       });
+    const takeDefault = req.body.takeDefault === true && unique.includes("*");
     const collision = unique
+      .filter((id) => !(takeDefault && id === "*"))
       .map((id) =>
         db
           .prepare(
@@ -103,6 +111,10 @@ export function registerPageManagement({
     db.exec("BEGIN");
     try {
       db.prepare("DELETE FROM page_assignments WHERE page_id=?").run(row.id);
+      if (takeDefault)
+        db.prepare(
+          "DELETE FROM page_assignments WHERE store_id=? AND kind=? AND entity_id='*'",
+        ).run(row.store_id, type);
       for (const id of unique)
         db.prepare("INSERT INTO page_assignments VALUES(?,?,?,?)").run(
           row.store_id,
@@ -156,12 +168,16 @@ export function registerPageManagement({
     audit(row.store_id, "Sayfa çoğaltıldı: " + document.name);
     res.status(201).json({ id, document, version: 1 });
   });
-  const assigned = (storeId, kind, id) =>
+  const assignedTo = (storeId, kind, id) =>
     db
       .prepare(
         "SELECT p.id,p.store_id,u.document FROM page_assignments a JOIN pages p ON p.id=a.page_id JOIN publications u ON u.page_id=p.id JOIN stores s ON s.id=p.store_id WHERE a.store_id=? AND a.kind=? AND a.entity_id=? AND u.active=1 AND s.status='active'",
       )
       .get(storeId, kind, id);
+  /** A product's own page, else the store's default product page. */
+  const assigned = (storeId, kind, id) =>
+    (id !== "*" && assignedTo(storeId, kind, id)) ||
+    (kind !== "home" && id !== "*" ? assignedTo(storeId, kind, "*") : null);
   const payload = (row, kind, id) => {
     const document = JSON.parse(row.document),
       brand = studio.brand(row.store_id),
@@ -207,7 +223,7 @@ export function registerPageManagement({
       res.json(result);
     });
   const contextFor = (pageId, document, storeId) => {
-    const ids = assignments(pageId),
+    const ids = assignments(pageId).filter((id) => id !== "*"),
       catalog = commerce.catalog(storeId);
     return {
       activeProductId:

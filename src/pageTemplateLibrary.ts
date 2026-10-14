@@ -1111,25 +1111,6 @@ function logos(background?: string) {
     { background, center: true, space: "40px", gap: "18px" },
   );
 }
-function collectionHeader() {
-  return section(
-    c("Koleksiyon başlığı", "Collection header"),
-    [
-      text(c("Ana sayfa / Koleksiyonlar", "Home / Collections"), {
-        fontSize: "13px",
-      }),
-      heading(c("Koleksiyon adı", "Collection name"), "h1"),
-      text(
-        c(
-          "Koleksiyonunu birkaç cümleyle tanıt. Bu metin sayfa başlığının altında görünür.",
-          "Introduce the collection in a few sentences. This text sits under the page title.",
-        ),
-        { maxWidth: "620px" },
-      ),
-    ],
-    { background: tint(30), center: true, gap: "14px", space: "72px" },
-  );
-}
 function collectionGrid() {
   return section(
     c("Ürün listesi", "Product grid"),
@@ -1138,9 +1119,11 @@ function collectionGrid() {
         "collectionGrid",
         {
           pageSize: "12",
-          tag: "h2",
-          // Collection pages show the assigned (or previewed) collection.
+          tag: "h1",
+          // Collection pages show the assigned (or previewed) collection,
+          // with its own title, description and image.
           resourceBinding: "page",
+          gridColumns: "4",
         },
         { width: "100%" },
       ),
@@ -1308,7 +1291,6 @@ export const pageTemplates: PageTemplate[] = [
     types: ["collection"],
     build: () => [
       header(),
-      collectionHeader(),
       collectionGrid(),
       trustBand(),
       newsletter(),

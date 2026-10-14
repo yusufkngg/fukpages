@@ -20,6 +20,14 @@ Canlı demo: https://fukpages.netlify.app/ . Giriş ekranı, API, demo mağaza v
 yerel sepet masaüstü/mobilde canlı olarak doğrulandı. Yönetici şifresi
 Netlify ortam ayarlarından sağlanır; gerçek sahip oturumu bu testte açılmadı.
 
+## 0.11: koleksiyon vitrini ve ürün/koleksiyon atamaları
+
+İlk ürün sayfası tüm ürünlerin, ilk koleksiyon sayfası tüm koleksiyonların
+varsayılan tasarımıdır. Kopyalara istediğin ürünler atanır (ör. 5 ürün bir
+tasarımla, 5 ürün başka tasarımla); kalanlar varsayılanı kullanır. Koleksiyon
+vitrini mağaza ürün listesi gibi görünür: başlık, sıralama, rozetler, sepete
+ekle, sayfalama, sütun ayarı. [Ayrıntılar](docs/COLLECTIONS_V11.md).
+
 ## 0.10: sayfa oluşturucu etkileşimleri ve vektör ikonlar
 
 Tuvalde tek tık öğeyi seçer; ikon, görsel veya butona tıklayınca artık metin
@@ -432,6 +440,7 @@ npm run build
 python tests/browser_smoke.py
 python tests/browser_pages.py
 python tests/browser_interactions.py
+python tests/browser_collections.py
 python tests/browser_smoke.py --dev
 python tests/browser_smoke.py --theme-fixture
 python tests/browser_studio.py

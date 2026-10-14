@@ -63,7 +63,18 @@ export function pageTemplate(type: PageType): PageDocument {
         paddingLeft: "48px",
         paddingRight: "48px",
       },
-      [block("collectionGrid", { pageSize: "12", tag: "h1" })],
+      [
+        block(
+          "collectionGrid",
+          {
+            pageSize: "12",
+            tag: "h1",
+            resourceBinding: "page",
+            gridColumns: "4",
+          },
+          { width: "100%" },
+        ),
+      ],
     );
     section.styles.mobile = { paddingLeft: "24px", paddingRight: "24px" };
     page.nodes = [page.nodes[0], section];

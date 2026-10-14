@@ -1,6 +1,7 @@
 import { t } from "./i18n.ts";
 import { SpacingDiagram } from "./SpacingDiagram";
 import { IconPicker } from "./IconPicker";
+import { CollectionGridSettings } from "./CatalogSettings";
 import { AccordionItemsPanel } from "./AccordionItems";
 import { TextStyleControls } from "./TextStyleControls";
 import { LayoutChoices } from "./LayoutChoices";
@@ -342,6 +343,9 @@ export function Inspector({
               }))
             }
           />
+        )}
+        {tab === "style" && node.kind === "collectionGrid" && (
+          <CollectionGridSettings node={node} update={update} />
         )}
         {tab === "style" && node.kind === "accordion" && (
           <AccordionItemsPanel node={node} update={update} />
