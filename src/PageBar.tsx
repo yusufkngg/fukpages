@@ -9,10 +9,17 @@ import {
   MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
-import { api } from "./api";
+import { api, json } from "./api";
 import { AssignmentDialog } from "./PageManager";
 import {
+  assignmentsTakenBy,
+  canDuplicatePageType,
+  copyName,
+  showsAssignments,
+} from "./pageRules";
+import {
   pageNames,
+  type PageDocument,
   type PageSummary,
   type Store,
   type PageType,
@@ -165,9 +172,15 @@ export function EditorMenu({
   footer?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const [assign, setAssign] = useState<PageSummary | null>(null);
+  const [assign, setAssign] = useState<{
+    page: PageSummary;
+    /** Page to open once the dialog closes (a fresh copy). */
+    next?: string;
+  } | null>(null);
+  const assignSaved = useRef(false);
   const root = useRef<HTMLDivElement>(null);
   const current = pages.find((p) => p.id === pageId);
+  const duplicable = !current || canDuplicatePageType(current.type);
   useEffect(() => {
     if (!open) return;
     const dismiss = (event: Event) => {
@@ -219,17 +232,45 @@ export function EditorMenu({
           </button>
           <button
             role="menuitem"
-            disabled={busy}
+            disabled={busy || !duplicable}
+            title={
+              duplicable
+                ? undefined
+                : t("Bir mağazada tek ana sayfa olur; ana sayfa çoğaltılamaz.")
+            }
             onClick={() =>
               run(async () => {
                 if (!(await save())) return;
                 try {
                   const copy = await api<{
                     id: string;
+                    document: PageDocument;
+                    version: number;
                   }>(`/pages/${pageId}/duplicate`, {
                     method: "POST",
-                    body: "{}",
+                    body: json({
+                      name: current ? copyName(current.name) : undefined,
+                    }),
                   });
+                  if (
+                    copy.document.type === "product" ||
+                    copy.document.type === "collection"
+                  ) {
+                    // A copy of a product/collection design is meant for
+                    // other items: pick them first, then open the copy.
+                    setAssign({
+                      page: {
+                        id: copy.id,
+                        name: copy.document.name,
+                        type: copy.document.type,
+                        version: copy.version,
+                        updated: Date.now(),
+                        assignments: [],
+                      },
+                      next: copy.id,
+                    });
+                    return;
+                  }
                   await switchPage(copy.id);
                 } catch (e) {
                   notify((e as Error).message, true);
@@ -240,22 +281,21 @@ export function EditorMenu({
             <Copy size={14} />
             {t("Sayfayı çoğalt")}
           </button>
-          {current &&
-            ["home", "product", "collection"].includes(current.type) && (
-              <button
-                role="menuitem"
-                disabled={busy}
-                onClick={() =>
-                  run(async () => {
-                    if (await save()) setAssign(current);
-                  })
-                }
-              >
-                <Link2 size={14} />
-                {t("Ürün / koleksiyon atamaları")}
-                <small>{current.assignments?.length || 0}</small>
-              </button>
-            )}
+          {current && showsAssignments(current.type, pages) && (
+            <button
+              role="menuitem"
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  if (await save()) setAssign({ page: current });
+                })
+              }
+            >
+              <Link2 size={14} />
+              {t("Ürün / koleksiyon atamaları")}
+              <small>{current.assignments?.length || 0}</small>
+            </button>
+          )}
           <hr />
           <p className="menu-heading">{t("Tasarım araçları")}</p>
           {designActions.map(({ id, icon: Icon, label, run: action }) => (
@@ -269,13 +309,30 @@ export function EditorMenu({
       )}
       {assign && (
         <AssignmentDialog
-          page={assign}
+          page={assign.page}
           store={store}
           catalog={catalog}
-          close={() => setAssign(null)}
+          taken={assignmentsTakenBy(assign.page, pages)}
+          intro={
+            assign.next
+              ? assign.page.type === "product"
+                ? t("Kopya oluşturuldu. Bu tasarımı kullanacak ürünleri seç.")
+                : t(
+                    "Kopya oluşturuldu. Bu tasarımı kullanacak koleksiyonları seç.",
+                  )
+              : undefined
+          }
+          close={() => {
+            const changed = assignSaved.current;
+            assignSaved.current = false;
+            setAssign(null);
+            if (changed)
+              notify(t("Atamalar kaydedildi; güncel sayfa yeniden açılıyor."));
+            const target = assign.next ?? (changed ? pageId : null);
+            if (target) void switchPage(target);
+          }}
           saved={() => {
-            notify(t("Atamalar kaydedildi; güncel sayfa yeniden açılıyor."));
-            void switchPage(pageId);
+            assignSaved.current = true;
           }}
         />
       )}

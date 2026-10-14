@@ -198,6 +198,7 @@ export function registerStudio({
   dataDir,
   validateDocument,
   catalog = () => ({ products: [], collections: [], source: "local" }),
+  pageRules,
 }) {
   const destination = () =>
     /^https:\/\//.test(process.env.FORM_WEBHOOK_URL || "")
@@ -771,6 +772,12 @@ export function registerStudio({
     if (!target) return;
     if (source.store_id === target.id)
       return res.status(400).json({ error: "Farklı bir hedef mağaza seç." });
+    // The target keeps its single homepage; check before copying any media.
+    const conflict = pageRules?.singletonConflict(
+      target.id,
+      JSON.parse(source.document).type,
+    );
+    if (conflict) return pageRules.rejectSingleton(res, conflict);
     const document =
         req.body.preserveBrand === false
           ? JSON.parse(source.document)
@@ -898,10 +905,13 @@ export function registerStudio({
       copied.name += " · Aktarılan kopya";
       const validated = validateDocument(copied);
       if (!activeStore(target.id, res)) return;
+      const late = pageRules?.singletonConflict(target.id, validated.type);
+      if (late) return pageRules.rejectSingleton(res, late);
       const pageId = id();
       db.prepare(
         "INSERT INTO pages(id,store_id,document,updated) VALUES(?,?,?,?)",
       ).run(pageId, target.id, JSON.stringify(validated), Date.now());
+      pageRules?.syncHomeAssignment(target.id);
       db.prepare("INSERT INTO revisions VALUES(?,?,?,?,?,?)").run(
         id(),
         pageId,

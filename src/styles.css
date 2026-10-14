@@ -5899,3 +5899,216 @@ p {
   align-items: center;
   gap: 6px;
 }
+
+/* 0.9 — one homepage per store, trash and bulk actions in page management. */
+.page-type-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.page-type-tabs button span {
+  margin-left: 2px;
+}
+.page-rule-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 4px 0 12px;
+  padding: 12px 14px;
+  color: #5b3d14;
+  background: #fbf1dc;
+  border: 1px solid #ecd3a3;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.page-rule-banner svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: #b06d10;
+}
+.page-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  color: #17241c;
+  background: #e6f5d2;
+  border: 1px solid #c6dfa6;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.page-bulk-bar b {
+  margin-right: auto;
+}
+.page-bulk-bar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  color: #30422b;
+  background: #fdfefb;
+  border: 1px solid #ccd9c0;
+  border-radius: 6px;
+}
+.page-manager .page-table-row,
+.page-manager .page-table-header {
+  grid-template-columns:
+    minmax(200px, 2fr) minmax(140px, 1.2fr) minmax(90px, 0.8fr)
+    360px;
+}
+.page-manager .page-trash .page-table-row,
+.page-manager .page-trash .page-table-header {
+  grid-template-columns:
+    minmax(200px, 2fr) minmax(140px, 1.2fr) minmax(150px, 1fr)
+    280px;
+}
+.page-manager .page-table-header > span:last-child {
+  text-align: right;
+}
+.page-manager .page-table-row > span.page-name-cell,
+.page-manager .page-name-heading {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+}
+.page-manager .page-table-header > span.page-name-heading {
+  display: flex;
+  align-items: center;
+}
+.page-name-cell > span {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.page-name-cell input[type="checkbox"],
+.page-name-heading input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin-top: 1px;
+  accent-color: #3e631e;
+}
+.page-manager .page-table-row.chosen {
+  background: #f1f8e6;
+}
+.page-row-actions {
+  justify-content: flex-end;
+}
+.page-manager .page-row-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.page-manager .page-row-actions .icon-only {
+  padding: 8px 9px;
+}
+.page-manager .page-row-actions .icon-only:hover:not(:disabled),
+.page-manager .page-row-actions .danger:hover:not(:disabled) {
+  color: #fff;
+  background: #c4594a;
+  border-color: #c4594a;
+}
+.page-manager .page-row-actions .danger {
+  color: #9b3a2c;
+  border-color: #e7c2bb;
+}
+.page-manager button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.page-trash .page-table-row > span:first-child {
+  flex-direction: column;
+}
+.assignment-options label.taken {
+  opacity: 0.6;
+  flex-wrap: wrap;
+}
+.assignment-options label.taken small {
+  margin-left: auto;
+  font-size: 11px;
+}
+.template-type-note {
+  display: block;
+  margin-top: 6px;
+  color: #8a5a12;
+  font-size: 11px;
+  line-height: 1.4;
+}
+/* Page dialogs are native full-screen dialogs; style their card, not the
+   transparent dialog element (that drew a dark panel at the left edge). */
+.page-assignment-dialog,
+.page-confirm-dialog {
+  width: 100vw;
+  height: 100dvh;
+  max-height: none;
+  padding: 24px;
+  color: inherit;
+  background: transparent;
+  border-radius: 0;
+  overflow: hidden;
+}
+.page-assignment-dialog .dialog-content {
+  width: min(100%, 600px);
+  padding: 28px;
+}
+.page-assignment-dialog small {
+  color: #6d7f63;
+}
+.page-confirm-dialog .dialog-content {
+  width: min(100%, 520px);
+  padding: 28px;
+}
+.page-confirm-dialog h2 {
+  font-size: 20px;
+  margin-bottom: 12px;
+  padding-right: 28px;
+}
+.page-confirm-dialog p {
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+.page-confirm-dialog .form-error {
+  color: #a33b2c;
+}
+.page-confirm-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+.page-confirm-dialog .primary-button.danger {
+  color: #fff;
+  background: #c4594a;
+}
+.new-page-controls option:disabled {
+  color: #9aa296;
+}
+@media (max-width: 1250px) {
+  .page-manager .page-table-row,
+  .page-manager .page-table-header,
+  .page-manager .page-trash .page-table-row,
+  .page-manager .page-trash .page-table-header {
+    grid-template-columns: minmax(150px, 1.6fr) minmax(110px, 1fr) 80px 290px;
+  }
+}
+@media (max-width: 1000px) {
+  /* The publication/date column is hidden at this width. */
+  .page-manager .page-table-row,
+  .page-manager .page-table-header,
+  .page-manager .page-trash .page-table-row,
+  .page-manager .page-trash .page-table-header {
+    grid-template-columns: minmax(150px, 1.6fr) minmax(110px, 1fr) 284px;
+  }
+  .page-manager .page-table-row > span:nth-child(3),
+  .page-manager .page-table-header > span:nth-child(3) {
+    display: none;
+  }
+}
+@media (max-width: 900px) {
+  .page-row-actions {
+    justify-content: flex-start;
+  }
+}

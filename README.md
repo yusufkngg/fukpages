@@ -20,6 +20,16 @@ Canlı demo: https://fukpages.netlify.app/ . Giriş ekranı, API, demo mağaza v
 yerel sepet masaüstü/mobilde canlı olarak doğrulandı. Yönetici şifresi
 Netlify ortam ayarlarından sağlanır; gerçek sahip oturumu bu testte açılmadı.
 
+## 0.9: tek ana sayfa, güvenli çoğaltma ve çöp kutusu
+
+Her mağazada tek ana sayfa olur; ana sayfa çoğaltılamaz ve ikincisi
+oluşturulamaz. Mağaza kartındaki **Open editor** artık yeni sayfa eklemez,
+mağazanın ana sayfasını açar. Ürün ve koleksiyon sayfaları çoğaltılır; kopya
+için atama penceresi hemen açılır ve başka sayfada kullanılan ürünler kilitlidir.
+Sayfa yönetiminde toplu seçim, **Çöp kutusu** (geri yükleme ve kalıcı silme) ve
+eski verilerdeki fazladan ana sayfalar için uyarı + **Açılış sayfasına dönüştür**
+var. [Ayrıntılar](docs/PAGES_V09.md).
+
 ## 0.8: tam sayfa şablonları
 
 **Templates** panelinde sekiz tam sayfa şablonu var: ürün lansmanı, mağaza ana
@@ -409,6 +419,7 @@ ve Shopify yayınlama doğrulanmış kabul edilmez; ayrıntılar özellik deneti
 npm test
 npm run build
 python tests/browser_smoke.py
+python tests/browser_pages.py
 python tests/browser_smoke.py --dev
 python tests/browser_smoke.py --theme-fixture
 python tests/browser_studio.py

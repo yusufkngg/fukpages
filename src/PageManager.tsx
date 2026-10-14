@@ -1,14 +1,23 @@
 import { getUiLocale, getUiLanguage, t } from "./i18n.ts";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, json } from "./api";
 import { Dialog } from "./Dialog";
 import { pageTemplate } from "./pageTemplates";
 import { TemplatePicker } from "./TemplateLibrary";
 import { templateDocument } from "./pageTemplateLibrary";
 import { StudioProvider, defaultBrand, type Brand } from "./studio";
-import { LayoutTemplate } from "lucide-react";
+import { CircleAlert, LayoutTemplate, RotateCcw, Trash2 } from "lucide-react";
+import {
+  assignmentsTakenBy,
+  canCreatePageType,
+  canDuplicatePageType,
+  copyName,
+  primaryPage,
+  showsAssignments,
+} from "./pageRules";
 import {
   pageNames,
+  type PageDocument,
   type Store,
   type PageSummary,
   type PageType,
@@ -20,12 +29,18 @@ export function AssignmentDialog({
   catalog,
   close,
   saved,
+  taken = {},
+  intro,
 }: {
   page: PageSummary;
   store: Store;
   catalog: Catalog;
   close: () => void;
   saved: () => void;
+  /** Replaces the default explanation, e.g. right after copying a page. */
+  intro?: string;
+  /** Items already assigned to other pages, mapped to that page's name. */
+  taken?: Record<string, string>;
 }) {
   const [ids, setIds] = useState<string[]>([]),
     [version, setVersion] = useState<number | null>(null),
@@ -65,37 +80,46 @@ export function AssignmentDialog({
     >
       <h2>{page.name}</h2>
       <p>
-        {page.type === "product"
-          ? t("Bu tasarımı kullanacak ürünleri seç.")
-          : page.type === "collection"
-            ? t("Bu tasarımı kullanacak koleksiyonları seç.")
-            : t("Bu sayfayı mağazanın ana sayfası olarak seç.")}
+        {intro ??
+          (page.type === "product"
+            ? t("Bu tasarımı kullanacak ürünleri seç.")
+            : page.type === "collection"
+              ? t("Bu tasarımı kullanacak koleksiyonları seç.")
+              : t("Bu sayfayı mağazanın ana sayfası olarak seç."))}
       </p>
       <small>{t("Yerel demo kataloğu · Shopify’a atama yapılmaz.")}</small>
       <div className="assignment-options">
-        {options.map((item) => (
-          <label key={item.id}>
-            <input
-              type="checkbox"
-              aria-label={`Ata: ${item.title}`}
-              checked={ids.includes(item.id)}
-              disabled={version === null || busy}
-              onChange={(e) =>
-                setIds((old) =>
-                  e.target.checked
-                    ? [...old, item.id]
-                    : old.filter((id) => id !== item.id),
-                )
-              }
-            />
-            {item.title}
-          </label>
-        ))}
+        {options.map((item) => {
+          const usedBy = taken[item.id];
+          return (
+            <label key={item.id} className={usedBy ? "taken" : undefined}>
+              <input
+                type="checkbox"
+                aria-label={t("Ata: {p0}", { p0: item.title })}
+                checked={ids.includes(item.id)}
+                disabled={version === null || busy || !!usedBy}
+                onChange={(e) =>
+                  setIds((old) =>
+                    e.target.checked
+                      ? [...old, item.id]
+                      : old.filter((id) => id !== item.id),
+                  )
+                }
+              />
+              {item.title}
+              {usedBy && (
+                <small>
+                  {t("“{p0}” sayfasında kullanılıyor", { p0: usedBy })}
+                </small>
+              )}
+            </label>
+          );
+        })}
         {!options.length && (
           <p>
-            {t("Önce yerel kataloğa")}{" "}
-            {page.type === "product" ? t("ürün") : "koleksiyon"}
-            {" " + t("ekle.")}
+            {page.type === "product"
+              ? t("Önce yerel kataloğa ürün ekle.")
+              : t("Önce yerel kataloğa koleksiyon ekle.")}
           </p>
         )}
       </div>
@@ -135,18 +159,34 @@ export function AssignmentDialog({
     </Dialog>
   );
 }
+interface TrashedPage {
+  id: string;
+  name: string;
+  type: PageType;
+  updated: number;
+  trashed: number;
+  wasPublished: boolean;
+}
+type ConfirmAction =
+  | { kind: "trash"; pages: PageSummary[] }
+  | { kind: "delete"; page: TrashedPage };
+
 export function PageManager({
   store,
   role,
   open,
   notify,
+  changed,
 }: {
   store: Store;
   role: string;
   open: (id: string) => void;
   notify: (m: string, e?: boolean) => void;
+  /** Called with the fresh page list after it was loaded or changed. */
+  changed?: (pages: PageSummary[]) => void;
 }) {
   const [pages, setPages] = useState<PageSummary[]>([]),
+    [trash, setTrash] = useState<TrashedPage[]>([]),
     [catalog, setCatalog] = useState<Catalog>({
       source: "local",
       products: [],
@@ -157,7 +197,10 @@ export function PageManager({
     [assign, setAssign] = useState<PageSummary | null>(null),
     [busy, setBusy] = useState(false),
     [picker, setPicker] = useState(false),
-    [brand, setBrand] = useState<Brand>(defaultBrand);
+    [brand, setBrand] = useState<Brand>(defaultBrand),
+    [chosen, setChosen] = useState<string[]>([]),
+    [confirm, setConfirm] = useState<ConfirmAction | null>(null),
+    [freshCopy, setFreshCopy] = useState("");
   useEffect(() => {
     if (!picker) return;
     api<{ brand: Brand }>(`/stores/${store.id}/brand`)
@@ -166,6 +209,9 @@ export function PageManager({
         /* previews fall back to the default brand */
       });
   }, [picker, store.id]);
+  // The callback may change identity on every render; reload stays stable.
+  const changedRef = useRef(changed);
+  changedRef.current = changed;
   const templateContext = useMemo(
     () => ({
       collectionId: catalog.collections[0]?.id,
@@ -174,27 +220,139 @@ export function PageManager({
     [catalog],
   );
   const reload = useCallback(async () => {
-    const [list, c] = await Promise.all([
+    const [list, c, trashed] = await Promise.all([
       api<PageSummary[]>(`/stores/${store.id}/page-overview`),
       api<Catalog>(`/stores/${store.id}/catalog`),
+      api<TrashedPage[]>(`/stores/${store.id}/trash`),
     ]);
     setPages(list);
     setCatalog(c);
+    setTrash(trashed);
+    changedRef.current?.(list);
+    setChosen((old) => old.filter((id) => list.some((p) => p.id === id)));
+    return list;
   }, [store.id]);
   useEffect(() => {
     void reload().catch((e) => notify(e.message, true));
   }, [reload, notify]);
   const writable = role !== "viewer" && store.status === "active";
-  const filtered = pages.filter(
-    (p) =>
-      (tab === "all" ||
-        (tab === "other" &&
-          !["home", "product", "collection"].includes(p.type)) ||
-        p.type === tab) &&
-      p.name
-        .toLocaleLowerCase(getUiLanguage())
-        .includes(search.toLocaleLowerCase(getUiLanguage())),
-  );
+  const homes = pages.filter((p) => p.type === "home");
+  const mainHome = primaryPage(pages, "home");
+  const inTab = (p: { type: string }, id: string) =>
+    id === "all" ||
+    (id === "other" && !["home", "product", "collection"].includes(p.type)) ||
+    p.type === id;
+  const matches = (name: string) =>
+    name
+      .toLocaleLowerCase(getUiLanguage())
+      .includes(search.toLocaleLowerCase(getUiLanguage()));
+  const filtered = pages.filter((p) => inTab(p, tab) && matches(p.name));
+  const filteredTrash = trash.filter((p) => matches(p.name));
+  const run = async (action: () => Promise<void>) => {
+    setBusy(true);
+    try {
+      await action();
+    } catch (e) {
+      notify((e as Error).message, true);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const createBlank = (type: PageType, label: string) =>
+    run(async () => {
+      const document = pageTemplate(type);
+      if (type === "home") document.name = t("Ana sayfa");
+      await api(`/stores/${store.id}/pages`, {
+        method: "POST",
+        body: json({ document }),
+      });
+      setTab(type);
+      await reload();
+      notify(label + t(" oluşturuldu."));
+    });
+  const duplicate = (page: PageSummary) =>
+    run(async () => {
+      const copy = await api<{ id: string }>(`/pages/${page.id}/duplicate`, {
+        method: "POST",
+        body: json({ name: copyName(page.name) }),
+      });
+      const list = await reload();
+      const created = list.find((p) => p.id === copy.id);
+      if (created && ["product", "collection"].includes(created.type)) {
+        // A copy of a product/collection design is meant for other items.
+        setAssign(created);
+        setFreshCopy(created.id);
+      } else
+        notify(t("Sayfa çoğaltıldı. Kopya taslaktır ve atamaları boştur."));
+    });
+  const convertToLanding = (page: PageSummary) =>
+    run(async () => {
+      const current = await api<{ document: PageDocument; version: number }>(
+        `/pages/${page.id}`,
+      );
+      await api(`/pages/${page.id}`, {
+        method: "PUT",
+        body: json({
+          document: { ...current.document, type: "landing" },
+          version: current.version,
+        }),
+      });
+      await reload();
+      notify(
+        t("“{p0}” artık bir açılış sayfası.", {
+          p0: page.name,
+        }),
+      );
+    });
+  const moveToTrash = (list: PageSummary[]) =>
+    run(async () => {
+      for (const page of list)
+        await api(`/pages/${page.id}/trash`, { method: "POST", body: "{}" });
+      setChosen([]);
+      await reload();
+      notify(
+        list.length === 1
+          ? t("“{p0}” çöp kutusuna taşındı.", { p0: list[0].name })
+          : t("{p0} sayfa çöp kutusuna taşındı.", { p0: list.length }),
+      );
+    });
+  const restore = (page: TrashedPage) =>
+    run(async () => {
+      await api(`/stores/${store.id}/trash/${page.id}/restore`, {
+        method: "POST",
+        body: "{}",
+      });
+      await reload();
+      notify(
+        t("“{p0}” geri yüklendi. Taslak olarak duruyor.", { p0: page.name }),
+      );
+    });
+  const deleteForever = (page: TrashedPage) =>
+    run(async () => {
+      await api(`/stores/${store.id}/trash/${page.id}`, { method: "DELETE" });
+      await reload();
+      notify(t("“{p0}” kalıcı olarak silindi.", { p0: page.name }));
+    });
+  const toggle = (id: string, on: boolean) =>
+    setChosen((old) =>
+      on ? [...new Set([...old, id])] : old.filter((v) => v !== id),
+    );
+  const tabs: [string, string, number][] = [
+    ["all", t("Tümü"), pages.length],
+    ["home", t("Ana sayfa"), homes.length],
+    [
+      "product",
+      t("Ürün sayfaları"),
+      pages.filter((p) => p.type === "product").length,
+    ],
+    [
+      "collection",
+      t("Koleksiyon sayfaları"),
+      pages.filter((p) => p.type === "collection").length,
+    ],
+    ["other", t("Diğer"), pages.filter((p) => inTab(p, "other")).length],
+    ["trash", t("Çöp kutusu"), trash.length],
+  ];
   return (
     <section className="page-manager" aria-label={t("Sayfa yönetimi")}>
       <div
@@ -202,34 +360,34 @@ export function PageManager({
         role="tablist"
         aria-label={t("Sayfa türleri")}
       >
-        {[
-          ["all", t("Tümü")],
-          ["home", t("Ana sayfa")],
-          ["product", t("Ürün sayfaları")],
-          ["collection", t("Koleksiyon sayfaları")],
-          ["other", t("Diğer")],
-        ].map(([id, name]) => (
+        {tabs.map(([id, name, count]) => (
           <button
             role="tab"
             aria-selected={tab === id}
             key={id}
-            onClick={() => setTab(id)}
+            onClick={() => {
+              setTab(id);
+              setChosen([]);
+            }}
           >
+            {id === "trash" && <Trash2 size={13} />}
             {name}
-            <span>
-              {
-                pages.filter(
-                  (p) =>
-                    id === "all" ||
-                    (id === "other" &&
-                      !["home", "product", "collection"].includes(p.type)) ||
-                    p.type === id,
-                ).length
-              }
-            </span>
+            <span>{count}</span>
           </button>
         ))}
       </div>
+      {homes.length > 1 && writable && (
+        <div className="page-rule-banner" role="status">
+          <CircleAlert size={16} />
+          <p>
+            <b>{t("Bu mağazada {p0} ana sayfa var.", { p0: homes.length })}</b>{" "}
+            {t(
+              "Bir mağazada tek ana sayfa olur. “{p0}” ana sayfa olarak kalır; diğerlerini açılış sayfasına dönüştür veya çöp kutusuna taşı.",
+              { p0: mainHome?.name ?? "" },
+            )}
+          </p>
+        </div>
+      )}
       <div className="page-manager-controls">
         <input
           aria-label={t("Sayfa ara")}
@@ -238,37 +396,31 @@ export function PageManager({
           onChange={(e) => setSearch(e.target.value)}
         />
         {writable &&
+          tab !== "trash" &&
           (
             [
               ["home", t("Yeni ana sayfa")],
               ["product", t("Yeni ürün sayfası")],
               ["collection", t("Yeni koleksiyon sayfası")],
             ] as [PageType, string][]
-          ).map(([type, label]) => (
-            <button
-              key={type}
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  await api(`/stores/${store.id}/pages`, {
-                    method: "POST",
-                    body: json({ document: pageTemplate(type) }),
-                  });
-                  setTab(type);
-                  await reload();
-                  notify(label + t(" oluşturuldu."));
-                } catch (e) {
-                  notify((e as Error).message, true);
-                } finally {
-                  setBusy(false);
+          ).map(([type, label]) => {
+            const blocked = !canCreatePageType(type, pages);
+            return (
+              <button
+                key={type}
+                disabled={busy || blocked}
+                title={
+                  blocked
+                    ? t("Bu mağazanın zaten bir ana sayfası var.")
+                    : undefined
                 }
-              }}
-            >
-              + {label}
-            </button>
-          ))}
-        {writable && (
+                onClick={() => void createBlank(type, label)}
+              >
+                + {label}
+              </button>
+            );
+          })}
+        {writable && tab !== "trash" && (
           <button
             className="template-start-button"
             disabled={busy}
@@ -279,6 +431,28 @@ export function PageManager({
           </button>
         )}
       </div>
+      {writable && chosen.length > 0 && tab !== "trash" && (
+        <div
+          className="page-bulk-bar"
+          role="region"
+          aria-label={t("Seçili sayfalar")}
+        >
+          <b>{t("{p0} sayfa seçili", { p0: chosen.length })}</b>
+          <button
+            disabled={busy}
+            onClick={() =>
+              setConfirm({
+                kind: "trash",
+                pages: pages.filter((p) => chosen.includes(p.id)),
+              })
+            }
+          >
+            <Trash2 size={13} />
+            {t("Çöp kutusuna taşı")}
+          </button>
+          <button onClick={() => setChosen([])}>{t("Seçimi temizle")}</button>
+        </div>
+      )}
       {picker && (
         <StudioProvider
           page={{ schemaVersion: 1, name: "", type: "landing", nodes: [] }}
@@ -286,6 +460,9 @@ export function PageManager({
         >
           <TemplatePicker
             context={templateContext}
+            blockedTypes={(["home"] as PageType[]).filter(
+              (type) => !canCreatePageType(type, pages),
+            )}
             onClose={() => setPicker(false)}
             create={async (template, type) => {
               const document = templateDocument(
@@ -309,110 +486,304 @@ export function PageManager({
           />
         </StudioProvider>
       )}
-      <div className="page-table">
-        <div className="page-table-header">
-          <span>{t("Sayfa adı")}</span>
-          <span>{t("Tür / atamalar")}</span>
-          <span>{t("Yayın durumu")}</span>
-          <span>{t("İşlemler")}</span>
-        </div>
-        {filtered.map((p) => (
-          <div className="page-table-row" key={p.id} data-page-id={p.id}>
-            <span>
-              <b>{p.name}</b>
-              <small>
-                {new Date(p.updated).toLocaleString(getUiLocale(), {
+      {tab === "trash" ? (
+        <div className="page-table page-trash">
+          <div className="page-table-header">
+            <span>{t("Sayfa adı")}</span>
+            <span>{t("Tür")}</span>
+            <span>{t("Taşındığı tarih")}</span>
+            <span>{t("İşlemler")}</span>
+          </div>
+          {filteredTrash.map((p) => (
+            <div className="page-table-row" key={p.id} data-trash-id={p.id}>
+              <span>
+                <b>{p.name}</b>
+                {p.wasPublished && (
+                  <small>{t("Taşınmadan önce yayındaydı")}</small>
+                )}
+              </span>
+              <span>{pageNames[p.type]}</span>
+              <span>
+                {new Date(p.trashed).toLocaleString(getUiLocale(), {
                   timeZone: "Europe/Istanbul",
                 })}
-              </small>
-            </span>
-            <span>
-              {pageNames[p.type]}
-              <small>
-                {p.assignments?.length
-                  ? p.assignments
-                      .map((id) =>
-                        p.type === "home"
-                          ? t("Ana sayfa")
-                          : (p.type === "product"
-                              ? catalog.products
-                              : catalog.collections
-                            ).find((v) => v.id === id)?.title || id,
-                      )
-                      .join(", ")
-                  : t("Atama yok")}
-              </small>
-            </span>
-            <span className="page-publication-state">
-              {p.published ? t("Yayında") : t("Taslak")}
-              {p.published &&
-                p.assignments?.map((id) => (
-                  <a
-                    key={id}
-                    href={`/p/${store.id}/${p.type === "home" ? "home" : (p.type === "product" ? "products/" : "collections/") + encodeURIComponent(id)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {t("Mağazada aç ↗")}
-                  </a>
-                ))}
-            </span>
-            <div className="page-row-actions">
-              <button
-                disabled={store.status !== "active"}
-                onClick={() => open(p.id)}
-              >
-                {role === "viewer" ? t("Görüntüle") : t("Düzenle")}
-              </button>
-              {writable && (
-                <>
-                  <button
-                    aria-label={t("{p0} çoğalt", { p0: p.name })}
-                    disabled={busy}
-                    onClick={async () => {
-                      setBusy(true);
-                      try {
-                        await api(`/pages/${p.id}/duplicate`, {
-                          method: "POST",
-                          body: "{}",
-                        });
-                        await reload();
-                        notify(
-                          t(
-                            "Sayfa çoğaltıldı. Kopya taslaktır ve atamaları boştur.",
-                          ),
-                        );
-                      } catch (e) {
-                        notify((e as Error).message, true);
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
-                  >
-                    {t("Çoğalt")}
-                  </button>
-                  {["home", "product", "collection"].includes(p.type) && (
-                    <button onClick={() => setAssign(p)}>
-                      {t("Atamalar")}
+              </span>
+              <div className="page-row-actions">
+                {writable && (
+                  <>
+                    <button
+                      disabled={busy}
+                      aria-label={t("{p0} geri yükle", { p0: p.name })}
+                      onClick={() => void restore(p)}
+                    >
+                      <RotateCcw size={13} />
+                      {t("Geri yükle")}
                     </button>
-                  )}
-                </>
-              )}
+                    <button
+                      disabled={busy}
+                      className="danger"
+                      aria-label={t("{p0} kalıcı olarak sil", { p0: p.name })}
+                      onClick={() => setConfirm({ kind: "delete", page: p })}
+                    >
+                      {t("Kalıcı olarak sil")}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
+          ))}
+          {!filteredTrash.length && (
+            <div className="dashboard-empty">
+              <p>{t("Çöp kutusu boş.")}</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="page-table">
+          <div className="page-table-header">
+            <span className="page-name-heading">
+              {writable && (
+                <input
+                  type="checkbox"
+                  aria-label={t("Listedeki tüm sayfaları seç")}
+                  checked={
+                    filtered.length > 0 &&
+                    filtered.every((p) => chosen.includes(p.id))
+                  }
+                  onChange={(e) =>
+                    filtered.forEach((p) => toggle(p.id, e.target.checked))
+                  }
+                />
+              )}
+              {t("Sayfa adı")}
+            </span>
+            <span>{t("Tür / atamalar")}</span>
+            <span>{t("Yayın durumu")}</span>
+            <span>{t("İşlemler")}</span>
           </div>
-        ))}
-        {!filtered.length && (
-          <div className="dashboard-empty">
-            <p>{t("Bu türde eşleşen sayfa yok.")}</p>
-          </div>
-        )}
-      </div>
+          {filtered.map((p) => {
+            const extraHome = p.type === "home" && p.id !== mainHome?.id;
+            return (
+              <div
+                className={`page-table-row ${chosen.includes(p.id) ? "chosen" : ""}`}
+                key={p.id}
+                data-page-id={p.id}
+              >
+                <span className="page-name-cell">
+                  {writable && (
+                    <input
+                      type="checkbox"
+                      aria-label={t("{p0} seç", { p0: p.name })}
+                      checked={chosen.includes(p.id)}
+                      onChange={(e) => toggle(p.id, e.target.checked)}
+                    />
+                  )}
+                  <span>
+                    <b>{p.name}</b>
+                    <small>
+                      {new Date(p.updated).toLocaleString(getUiLocale(), {
+                        timeZone: "Europe/Istanbul",
+                      })}
+                    </small>
+                  </span>
+                </span>
+                <span>
+                  {pageNames[p.type]}
+                  <small>
+                    {p.type === "home"
+                      ? extraHome
+                        ? t("Fazladan ana sayfa")
+                        : t("Mağazanın ana sayfası")
+                      : p.assignments?.length
+                        ? p.assignments
+                            .map(
+                              (id) =>
+                                (p.type === "product"
+                                  ? catalog.products
+                                  : catalog.collections
+                                ).find((v) => v.id === id)?.title || id,
+                            )
+                            .join(", ")
+                        : t("Atama yok")}
+                  </small>
+                </span>
+                <span className="page-publication-state">
+                  {p.published ? t("Yayında") : t("Taslak")}
+                  {p.published &&
+                    p.assignments?.map((id) => (
+                      <a
+                        key={id}
+                        href={`/p/${store.id}/${p.type === "home" ? "home" : (p.type === "product" ? "products/" : "collections/") + encodeURIComponent(id)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {t("Mağazada aç ↗")}
+                      </a>
+                    ))}
+                </span>
+                <div className="page-row-actions">
+                  <button
+                    disabled={store.status !== "active"}
+                    onClick={() => open(p.id)}
+                  >
+                    {role === "viewer" ? t("Görüntüle") : t("Düzenle")}
+                  </button>
+                  {writable && (
+                    <>
+                      {canDuplicatePageType(p.type) && (
+                        <button
+                          aria-label={t("{p0} çoğalt", { p0: p.name })}
+                          disabled={busy}
+                          onClick={() => void duplicate(p)}
+                        >
+                          {t("Çoğalt")}
+                        </button>
+                      )}
+                      {showsAssignments(p.type, pages) && (
+                        <button onClick={() => setAssign(p)}>
+                          {t("Atamalar")}
+                        </button>
+                      )}
+                      {extraHome && (
+                        <button
+                          disabled={busy}
+                          onClick={() => void convertToLanding(p)}
+                        >
+                          {t("Açılış sayfasına dönüştür")}
+                        </button>
+                      )}
+                      <button
+                        className="icon-only"
+                        disabled={busy}
+                        aria-label={t("{p0} çöp kutusuna taşı", {
+                          p0: p.name,
+                        })}
+                        title={t("Çöp kutusuna taşı")}
+                        onClick={() =>
+                          setConfirm({ kind: "trash", pages: [p] })
+                        }
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {!filtered.length && (
+            <div className="dashboard-empty">
+              <p>{t("Bu türde eşleşen sayfa yok.")}</p>
+            </div>
+          )}
+        </div>
+      )}
+      {confirm && (
+        <Dialog
+          open
+          onClose={() => setConfirm(null)}
+          label={
+            confirm.kind === "trash"
+              ? t("Çöp kutusuna taşı")
+              : t("Kalıcı olarak sil")
+          }
+          className="page-confirm-dialog"
+        >
+          {confirm.kind === "trash" ? (
+            <>
+              <h2>
+                {confirm.pages.length === 1
+                  ? t("“{p0}” çöp kutusuna taşınsın mı?", {
+                      p0: confirm.pages[0].name,
+                    })
+                  : t("{p0} sayfa çöp kutusuna taşınsın mı?", {
+                      p0: confirm.pages.length,
+                    })}
+              </h2>
+              <p>
+                {t(
+                  "Sayfalar listeden kalkar; çöp kutusundan geri yükleyebilirsin. Geçmişleri ve form kayıtları korunur.",
+                )}
+              </p>
+              {confirm.pages.some((p) => p.published) && (
+                <p className="form-error">
+                  {t(
+                    "{p0} sayfa yayında. Taşınınca yerel yayından kalkar ve ürün/koleksiyon atamaları boşalır.",
+                    {
+                      p0: confirm.pages.filter((p) => p.published).length,
+                    },
+                  )}
+                </p>
+              )}
+              {confirm.pages.some((p) => p.type === "home") && (
+                <p className="form-error">
+                  {t("Mağazanın ana sayfası da taşınacak.")}
+                </p>
+              )}
+              <footer>
+                <button onClick={() => setConfirm(null)}>{t("Vazgeç")}</button>
+                <button
+                  className="primary-button"
+                  disabled={busy}
+                  onClick={() => {
+                    const list = confirm.pages;
+                    setConfirm(null);
+                    void moveToTrash(list);
+                  }}
+                >
+                  {t("Çöp kutusuna taşı")}
+                </button>
+              </footer>
+            </>
+          ) : (
+            <>
+              <h2>
+                {t("“{p0}” kalıcı olarak silinsin mi?", {
+                  p0: confirm.page.name,
+                })}
+              </h2>
+              <p>
+                {t(
+                  "Tasarım, sürüm geçmişi ve yayın geçmişi silinir. Bu işlem geri alınamaz. Form kayıtları korunur.",
+                )}
+              </p>
+              <footer>
+                <button onClick={() => setConfirm(null)}>{t("Vazgeç")}</button>
+                <button
+                  className="primary-button danger"
+                  disabled={busy}
+                  onClick={() => {
+                    const page = confirm.page;
+                    setConfirm(null);
+                    void deleteForever(page);
+                  }}
+                >
+                  {t("Kalıcı olarak sil")}
+                </button>
+              </footer>
+            </>
+          )}
+        </Dialog>
+      )}
       {assign && (
         <AssignmentDialog
           page={assign}
           store={store}
           catalog={catalog}
-          close={() => setAssign(null)}
+          taken={assignmentsTakenBy(assign, pages)}
+          intro={
+            freshCopy === assign.id
+              ? assign.type === "product"
+                ? t("Kopya oluşturuldu. Bu tasarımı kullanacak ürünleri seç.")
+                : t(
+                    "Kopya oluşturuldu. Bu tasarımı kullanacak koleksiyonları seç.",
+                  )
+              : undefined
+          }
+          close={() => {
+            setAssign(null);
+            setFreshCopy("");
+          }}
           saved={() => {
             void reload();
             notify(

@@ -321,10 +321,13 @@ export function TemplatePicker({
   context,
   onClose,
   create,
+  blockedTypes = [],
 }: {
   context: TemplateContext;
   onClose: () => void;
   create: (template: PageTemplate, type: PageType) => Promise<void>;
+  /** Types the store cannot take another page of (its single homepage). */
+  blockedTypes?: PageType[];
 }) {
   const [filter, setFilter] = useState<TemplateFilter>("all");
   const [preview, setPreview] = useState<PageTemplate | null>(null);
@@ -332,15 +335,21 @@ export function TemplatePicker({
   const shown = pageTemplates.filter(
     (tpl) => filter === "all" || tpl.types.includes(filter),
   );
+  /** Page type a template will be created as in this store. */
+  const typeFor = (template: PageTemplate) => {
+    const preferred =
+      filter !== "all" && template.types.includes(filter)
+        ? filter
+        : template.types[0];
+    if (!blockedTypes.includes(preferred)) return preferred;
+    return template.types.find((type) => !blockedTypes.includes(type)) ?? null;
+  };
   const start = async (template: PageTemplate) => {
+    const type = typeFor(template);
+    if (!type) return;
     setBusy(template.id);
     try {
-      await create(
-        template,
-        filter !== "all" && template.types.includes(filter)
-          ? filter
-          : template.types[0],
-      );
+      await create(template, type);
     } finally {
       setBusy("");
     }
@@ -392,9 +401,20 @@ export function TemplatePicker({
                   {template.types.map((type) => pageNames[type]).join(" · ")}
                 </small>
                 <p>{label.description}</p>
+                {typeFor(template) !== template.types[0] &&
+                  blockedTypes.includes(template.types[0]) && (
+                    <small className="template-type-note">
+                      {typeFor(template)
+                        ? t(
+                            "Mağazanın zaten bir ana sayfası var; {p0} olarak oluşturulur.",
+                            { p0: pageNames[typeFor(template)!] },
+                          )
+                        : t("Mağazanın zaten bir ana sayfası var.")}
+                    </small>
+                  )}
                 <button
                   className="template-use-button"
-                  disabled={!!busy}
+                  disabled={!!busy || !typeFor(template)}
                   aria-label={t("{p0} ile sayfa oluştur", { p0: label.name })}
                   onClick={() => void start(template)}
                 >

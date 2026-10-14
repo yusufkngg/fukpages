@@ -57,7 +57,8 @@ with TemporaryDirectory(prefix='fukpages-browser-') as temporary:
             expect(page.get_by_role('heading', name='Tasarımlarının kontrolü sende.')).to_be_visible()
             page.screenshot(path=str(ARTIFACTS / 'dashboard.png'), full_page=True)
             page.get_by_role('button', name='Editörü aç').click()
-            expect(page.get_by_label('Sayfa adı')).to_have_value('Aura · Product launch')
+            # An empty store opens on its new (and only) homepage.
+            expect(page.get_by_label('Sayfa adı')).to_have_value('Ana sayfa')
             expect(page.locator('.editor-block.selected')).to_have_count(1)
             page.screenshot(path=str(ARTIFACTS / 'editor-desktop.png'), full_page=True)
             print('PASS: owner login, management dashboard, editor startup')
@@ -156,7 +157,7 @@ with TemporaryDirectory(prefix='fukpages-browser-') as temporary:
             page.reload()
             page.get_by_role('button', name='Mağaza ayrıntıları').click()
             page.get_by_role('button', name='Düzenle', exact=True).click()
-            expect(page.get_by_label('Sayfa adı')).to_have_value('Aura · Product launch')
+            expect(page.get_by_label('Sayfa adı')).to_have_value('Ana sayfa')
             expect(page.locator('[data-kind="heading"]:has(h1) .rich-content')).to_have_text('EVERY DETAIL. FULLY YOURS.')
             page.get_by_role('button', name='Bölümler', exact=True).click()
             page.locator('[data-section-preset="faq"]').click()

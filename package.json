@@ -1,6 +1,6 @@
 {
   "name": "fukpages",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -13,7 +13,7 @@
     "owner:setup": "node scripts/set-owner.mjs",
     "test": "node --import tsx --test tests/*.test.mjs tests/*.test.ts",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"server/*.mjs\" \"netlify/functions/*.mjs\" \"scripts/*.mjs\" \"tests/*.{mjs,ts}\"",
-    "test:browser": "python tests/browser_smoke.py && python tests/browser_editor.py && python tests/browser_templates.py && python tests/browser_studio.py && python tests/browser_reliability.py && python tests/browser_critical.py && python tests/browser_sections_quality.py && node scripts/netlify-context.mjs && python tests/browser_netlify.py",
+    "test:browser": "python tests/browser_smoke.py && python tests/browser_editor.py && python tests/browser_templates.py && python tests/browser_pages.py && python tests/browser_studio.py && python tests/browser_reliability.py && python tests/browser_critical.py && python tests/browser_sections_quality.py && node scripts/netlify-context.mjs && python tests/browser_netlify.py",
     "test:network": "node --use-env-proxy --use-system-ca tests/remote_media_smoke.mjs",
     "test:responsive": "python tests/browser_responsive.py",
     "test:feedback": "python tests/browser_feedback.py",
@@ -26,7 +26,8 @@
     "test:ui": "python tests/browser_ui.py",
     "test:atomic": "python tests/browser_atomic.py",
     "test:editor": "python tests/browser_editor.py",
-    "test:templates": "python tests/browser_templates.py"
+    "test:templates": "python tests/browser_templates.py",
+    "test:pages": "python tests/browser_pages.py"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",

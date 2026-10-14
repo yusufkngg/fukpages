@@ -113,7 +113,13 @@ with browser_fixture(ui_language='en') as f:
     collection = catalog['collections'][0]['id']
     for template in templates:
         document = template['document']
-        created = api('/stores/demo/pages', 'POST', {'document': document})['id']
+        if document['type'] == 'home':
+            # A store has one homepage: home templates replace its design.
+            current = api('/pages/' + home_id)
+            api('/pages/' + home_id, 'PUT', {'document': document, 'version': current['version']})
+            created = home_id
+        else:
+            created = api('/stores/demo/pages', 'POST', {'document': document})['id']
         # Product and collection pages render the resource they are assigned to.
         url = base + '/?published=' + created
         if document['type'] == 'product':

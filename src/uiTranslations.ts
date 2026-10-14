@@ -1645,4 +1645,71 @@ export const english: Record<string, string> = {
   "{p0} oluşturuldu.": "{p0} created.",
   "“{p0}” şablonu uygulandı. Geri al ile önceki tasarıma dönebilirsin.":
     "Applied the “{p0}” template. Use undo to return to the previous design.",
+  "Bir mağazada tek ana sayfa olur; ana sayfa çoğaltılamaz.":
+    "A store has one homepage; the homepage cannot be duplicated.",
+  "Kopya oluşturuldu. Bu tasarımı kullanacak ürünleri seç.":
+    "Copy created. Choose the products that will use this design.",
+  "Kopya oluşturuldu. Bu tasarımı kullanacak koleksiyonları seç.":
+    "Copy created. Choose the collections that will use this design.",
+  "“{p0}” sayfasında kullanılıyor": "Used by “{p0}”",
+  "“{p0}” artık bir açılış sayfası.": "“{p0}” is now a landing page.",
+  "“{p0}” çöp kutusuna taşındı.": "Moved “{p0}” to the trash.",
+  "{p0} sayfa çöp kutusuna taşındı.": "Moved {p0} pages to the trash.",
+  "“{p0}” geri yüklendi. Taslak olarak duruyor.":
+    "Restored “{p0}”. It is kept as a draft.",
+  "“{p0}” kalıcı olarak silindi.": "Deleted “{p0}” permanently.",
+  "Çöp kutusu": "Trash",
+  "Bu mağazada {p0} ana sayfa var.": "This store has {p0} homepages.",
+  "Bir mağazada tek ana sayfa olur. “{p0}” ana sayfa olarak kalır; diğerlerini açılış sayfasına dönüştür veya çöp kutusuna taşı.":
+    "A store has a single homepage. “{p0}” stays the homepage; convert the others to landing pages or move them to the trash.",
+  "Bu mağazanın zaten bir ana sayfası var.":
+    "This store already has a homepage.",
+  "Seçili sayfalar": "Selected pages",
+  "{p0} sayfa seçili": "{p0} pages selected",
+  "Çöp kutusuna taşı": "Move to trash",
+  "Seçimi temizle": "Clear selection",
+  Tür: "Type",
+  "Taşındığı tarih": "Moved to trash",
+  "Taşınmadan önce yayındaydı": "Was published before it was moved",
+  "{p0} geri yükle": "Restore {p0}",
+  "Geri yükle": "Restore",
+  "{p0} kalıcı olarak sil": "Delete {p0} permanently",
+  "Kalıcı olarak sil": "Delete permanently",
+  "Çöp kutusu boş.": "The trash is empty.",
+  "Listedeki tüm sayfaları seç": "Select every page in the list",
+  "{p0} seç": "Select {p0}",
+  "Fazladan ana sayfa": "Extra homepage",
+  "Açılış sayfasına dönüştür": "Convert to landing page",
+  "{p0} çöp kutusuna taşı": "Move {p0} to the trash",
+  "“{p0}” çöp kutusuna taşınsın mı?": "Move “{p0}” to the trash?",
+  "{p0} sayfa çöp kutusuna taşınsın mı?": "Move {p0} pages to the trash?",
+  "Sayfalar listeden kalkar; çöp kutusundan geri yükleyebilirsin. Geçmişleri ve form kayıtları korunur.":
+    "The pages leave the list; you can restore them from the trash. Their history and form submissions are kept.",
+  "{p0} sayfa yayında. Taşınınca yerel yayından kalkar ve ürün/koleksiyon atamaları boşalır.":
+    "{p0} of these pages are published. Moving them unpublishes them locally and clears their product/collection assignments.",
+  "Mağazanın ana sayfası da taşınacak.":
+    "The store's homepage will be moved too.",
+  "“{p0}” kalıcı olarak silinsin mi?": "Delete “{p0}” permanently?",
+  "Tasarım, sürüm geçmişi ve yayın geçmişi silinir. Bu işlem geri alınamaz. Form kayıtları korunur.":
+    "The design, its version history and publication history are deleted. This cannot be undone. Form submissions are kept.",
+  "{p0} (zaten var)": "{p0} (already exists)",
+  "Mağazanın zaten bir ana sayfası var; {p0} olarak oluşturulur.":
+    "The store already has a homepage; this will be created as a {p0}.",
+  "Mağazanın zaten bir ana sayfası var.": "The store already has a homepage.",
+  "Bu mağazanın zaten bir ana sayfası var: “{p0}”. Bir mağazada tek ana sayfa olur; onu düzenle ya da yeni sayfayı açılış sayfası olarak oluştur.":
+    "This store already has a homepage: “{p0}”. A store has a single homepage; edit it, or create the new page as a landing page.",
+  "Sayfa çöp kutusunda yok.": "The page is not in the trash.",
+  "Sayfa taşınamadı.": "The page could not be moved.",
+  "Sayfa geri yüklenemedi.": "The page could not be restored.",
+  "Sayfa silinemedi.": "The page could not be deleted.",
+  "Sayfa çöp kutusuna taşındı: {p0}": "Page moved to trash: {p0}",
+  "Sayfa geri yüklendi: {p0}": "Page restored: {p0}",
+  "Sayfa kalıcı olarak silindi: {p0}": "Page deleted permanently: {p0}",
+  "Sayfa çoğaltıldı: {p0}": "Page duplicated: {p0}",
+  "Sayfa atamaları güncellendi: {p0}": "Page assignments updated: {p0}",
+  "Ata: {p0}": "Assign: {p0}",
+  "Önce yerel kataloğa ürün ekle.":
+    "Add a product to the local catalogue first.",
+  "Önce yerel kataloğa koleksiyon ekle.":
+    "Add a collection to the local catalogue first.",
 };

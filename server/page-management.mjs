@@ -12,6 +12,7 @@ export function registerPageManagement({
   commerce,
   validateDocument,
   audit,
+  pageRules,
 }) {
   db.exec(
     "CREATE TABLE IF NOT EXISTS page_assignments(store_id TEXT NOT NULL,kind TEXT NOT NULL,entity_id TEXT NOT NULL,page_id TEXT NOT NULL,PRIMARY KEY(store_id,kind,entity_id))",
@@ -128,8 +129,16 @@ export function registerPageManagement({
     const row = db.prepare("SELECT * FROM pages WHERE id=?").get(req.params.id);
     if (!row) return res.status(404).json({ error: "Sayfa bulunamadı." });
     if (!activeStore(row.store_id, res)) return;
+    const original = JSON.parse(row.document);
+    // A store has one homepage; product, collection and other pages can be
+    // copied and assigned to different products/collections.
+    const conflict = pageRules?.singletonConflict(row.store_id, original.type);
+    if (conflict) return pageRules.rejectSingleton(res, conflict);
     const id = randomBytes(12).toString("hex"),
-      copied = duplicateDocument(JSON.parse(row.document));
+      copied = duplicateDocument(original);
+    // The editor names copies in the owner's interface language.
+    const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+    if (name && name.length <= 160) copied.name = name;
     if (copied.seo)
       copied.seo.slug =
         (copied.seo.slug || "page").slice(0, 70) + "-copy-" + id.slice(0, 6);

@@ -3,6 +3,7 @@ import { BrandMark } from "./BrandMark";
 import { UiSettingsButton } from "./UiSettings";
 import { PageManager } from "./PageManager";
 import { pageTemplate } from "./pageTemplates";
+import { canCreatePageType } from "./pageRules";
 import { Viewer } from "./Viewer";
 import { PreviewReview } from "./GrowthPanel";
 import { StudioProvider, type Asset, type Brand } from "./studio";
@@ -297,23 +298,46 @@ function Dashboard({
       valid = false;
     };
   }, [selected, notify]);
+  /**
+   * Open the store in the editor: its homepage, else the latest page. Only an
+   * empty store gets a new page (its homepage); nothing is duplicated.
+   */
+  async function openEditor(store: Store) {
+    setBusy(true);
+    try {
+      const list = await api<PageSummary[]>(`/stores/${store.id}/pages`);
+      const existing = list.find((p) => p.type === "home") ?? list[0];
+      if (existing) {
+        openPage(existing.id, store);
+        return;
+      }
+      if (role === "viewer") {
+        notify(t("Bu mağazada izlenecek taslak yok."));
+        return;
+      }
+      const document = pageTemplate("home");
+      document.name = t("Ana sayfa");
+      const result = await api<{ id: string }>(`/stores/${store.id}/pages`, {
+        method: "POST",
+        body: json({ document }),
+      });
+      openPage(result.id, store);
+    } catch (error) {
+      notify((error as Error).message, true);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function createPage(store: Store) {
     setBusy(true);
     try {
-      if (role === "viewer") {
-        const list = await api<PageSummary[]>(`/stores/${store.id}/pages`);
-        if (!list.length) {
-          notify(t("Bu mağazada izlenecek taslak yok."));
-          return;
-        }
-        openPage(list[0].id, store);
-        return;
-      }
+      const document = pageTemplate(type);
+      if (type === "home") document.name = t("Ana sayfa");
       const result = await api<{
         id: string;
       }>(`/stores/${store.id}/pages`, {
         method: "POST",
-        body: json({ document: pageTemplate(type) }),
+        body: json({ document }),
       });
       openPage(result.id, store);
     } catch (error) {
@@ -564,12 +588,12 @@ function Dashboard({
                         <button
                           className="primary-small"
                           disabled={busy}
-                          onClick={() => void createPage(store)}
+                          onClick={() => void openEditor(store)}
                         >
                           {role === "viewer"
                             ? t("Tasarımı görüntüle")
                             : t("Editörü aç")}{" "}
-                          <Plus size={13} />
+                          <ArrowRight size={13} />
                         </button>
                       )}
                     </div>
@@ -613,15 +637,23 @@ function Dashboard({
                       setType(event.target.value as PageType)
                     }
                   >
-                    {Object.entries(pageNames).map(([id, name]) => (
-                      <option value={id} key={id}>
-                        {name}
-                      </option>
-                    ))}
+                    {Object.entries(pageNames).map(([id, name]) => {
+                      const blocked = !canCreatePageType(id, pages);
+                      return (
+                        <option value={id} key={id} disabled={blocked}>
+                          {blocked ? t("{p0} (zaten var)", { p0: name }) : name}
+                        </option>
+                      );
+                    })}
                   </select>
                   <button
                     className="primary-button"
-                    disabled={busy || selected.status !== "active"}
+                    disabled={
+                      busy ||
+                      selected.status !== "active" ||
+                      role === "viewer" ||
+                      !canCreatePageType(type, pages)
+                    }
                     onClick={() => void createPage(selected)}
                   >
                     <Plus size={16} />
@@ -642,13 +674,23 @@ function Dashboard({
                 role={role}
                 open={(id) => openPage(id, selected)}
                 notify={notify}
+                changed={(list) => {
+                  setPages(list);
+                  // Keep page counts and the activity log in step.
+                  void reload().catch(() => undefined);
+                  void api<{ action: string; created: number }[]>(
+                    `/stores/${selected.id}/audit`,
+                  )
+                    .then(setAudit)
+                    .catch(() => undefined);
+                }}
               />
               <h2 className="audit-heading">{t("İşlem geçmişi")}</h2>
               <div className="audit-list">
                 {audit.map((event, index) => (
                   <div key={index}>
                     <span>●</span>
-                    <p>{event.action}</p>
+                    <p>{t(event.action)}</p>
                     <small>
                       {new Date(event.created).toLocaleString(getUiLocale(), {
                         timeZone: "Europe/Istanbul",

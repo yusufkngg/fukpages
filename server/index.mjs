@@ -3,6 +3,7 @@ import { isButtonContent } from "../src/atomicContent.ts";
 import { normalizeLink } from "../src/links.ts";
 import { normalizeStyleValue } from "../src/styleValues.ts";
 import { registerPageManagement } from "./page-management.mjs";
+import { createPageRules, registerPageTrash } from "./page-lifecycle.mjs";
 import { DatabaseSync } from "node:sqlite";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFileSync, mkdirSync, existsSync } from "node:fs";
@@ -620,6 +621,7 @@ export function createApp({
     ).run("demo", "Aura Studio", "Demo çalışma alanı", "", Date.now());
   }
   const team = createTeamService(db, ownerLogin);
+  const pageRules = createPageRules(db);
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "1mb" }));
@@ -931,6 +933,7 @@ export function createApp({
     dataDir,
     validateDocument,
     catalog: commerce.catalog,
+    pageRules,
   });
   const validAssetBinding = (document, storeId) => {
     const refs = [
@@ -1098,10 +1101,13 @@ export function createApp({
     } catch (error) {
       return res.status(400).json({ error: error.message });
     }
+    const conflict = pageRules.singletonConflict(req.params.id, document.type);
+    if (conflict) return pageRules.rejectSingleton(res, conflict);
     const id = randomBytes(12).toString("hex");
     db.prepare(
       "INSERT INTO pages (id,store_id,document,updated) VALUES (?,?,?,?)",
     ).run(id, req.params.id, JSON.stringify(document), Date.now());
+    pageRules.syncHomeAssignment(req.params.id);
     audit(req.params.id, `Taslak oluşturuldu: ${document.name}`);
     studio.recordRevision(
       { id, version: 1, document: JSON.stringify(document) },
@@ -1160,10 +1166,23 @@ export function createApp({
     } catch (error) {
       return res.status(400).json({ error: error.message });
     }
+    const previousType = JSON.parse(page.document).type;
+    if (document.type !== previousType) {
+      const conflict = pageRules.singletonConflict(
+        page.store_id,
+        document.type,
+        page.id,
+      );
+      if (conflict) return pageRules.rejectSingleton(res, conflict);
+    }
     studio.recordRevision(page);
     db.prepare(
       "UPDATE pages SET document=?,version=version+1,updated=? WHERE id=? AND version=?",
     ).run(JSON.stringify(document), Date.now(), page.id, page.version);
+    if (document.type !== previousType) {
+      pageRules.releaseMismatchedAssignments(page.id, document.type);
+      pageRules.syncHomeAssignment(page.store_id);
+    }
     res.json({ version: page.version + 1, document });
   });
   app.post("/api/pages/:id/publish", auth, csrf, (req, res) => {
@@ -1251,6 +1270,16 @@ export function createApp({
     commerce,
     validateDocument,
     audit,
+    pageRules,
+  });
+  registerPageTrash({
+    app,
+    db,
+    auth,
+    csrf,
+    activeStore,
+    audit,
+    rules: pageRules,
   });
   registerSeo({
     pageManagement,
