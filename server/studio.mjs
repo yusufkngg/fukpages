@@ -1,4 +1,6 @@
 import { freezeBrandDocument } from "./transfer-brand.mjs";
+import { anchorsOutside, cloneWithFreshIds } from "./block-ids.mjs";
+import { registerMediaRetention } from "./media-retention.mjs";
 import { catalogDocumentUses } from "./catalog-media.mjs";
 import { clientAddress, createRateLimiter } from "./rate-limit.mjs";
 import { createAnalytics } from "./metrics.mjs";
@@ -200,6 +202,7 @@ export function registerStudio({
   validateDocument,
   catalog = () => ({ products: [], collections: [], source: "local" }),
   pageRules,
+  publication,
 }) {
   const destination = () =>
     /^https:\/\//.test(process.env.FORM_WEBHOOK_URL || "")
@@ -214,8 +217,15 @@ export function registerStudio({
     CREATE TABLE IF NOT EXISTS previews (token TEXT PRIMARY KEY,page_id TEXT NOT NULL,document TEXT NOT NULL,expires INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS form_submissions (id TEXT PRIMARY KEY,store_id TEXT NOT NULL,page_id TEXT NOT NULL,form_id TEXT NOT NULL,data TEXT NOT NULL,created INTEGER NOT NULL, UNIQUE(page_id,form_id,id));
     CREATE TABLE IF NOT EXISTS publication_history (id TEXT PRIMARY KEY,page_id TEXT NOT NULL,document TEXT NOT NULL,published INTEGER NOT NULL);
-    CREATE TABLE IF NOT EXISTS schedules (page_id TEXT PRIMARY KEY,publish_at INTEGER,unpublish_at INTEGER,status TEXT NOT NULL DEFAULT 'pending');
+    CREATE TABLE IF NOT EXISTS schedules (page_id TEXT PRIMARY KEY,publish_at INTEGER,unpublish_at INTEGER,status TEXT NOT NULL DEFAULT 'pending',error TEXT);
     CREATE TABLE IF NOT EXISTS metrics (page_id TEXT NOT NULL,event TEXT NOT NULL,day TEXT NOT NULL,count INTEGER NOT NULL,PRIMARY KEY(page_id,event,day));`);
+  if (
+    !db
+      .prepare("PRAGMA table_info(schedules)")
+      .all()
+      .some((column) => column.name === "error")
+  )
+    db.exec("ALTER TABLE schedules ADD COLUMN error TEXT");
   db.exec(
     "CREATE TABLE IF NOT EXISTS synced_sections(id TEXT PRIMARY KEY,store_id TEXT NOT NULL,version INTEGER NOT NULL DEFAULT 1);",
   );
@@ -651,6 +661,15 @@ export function registerStudio({
     );
     res.json(a);
   });
+  registerMediaRetention({
+    app,
+    db,
+    auth,
+    csrf,
+    activeStore,
+    assetRoot,
+    catalog,
+  });
   app.delete("/api/stores/:id/assets/:assetId", auth, csrf, (req, res) => {
     if (!activeStore(req.params.id, res)) return;
     const row = db
@@ -955,23 +974,34 @@ export function registerStudio({
         if (section.kind !== "section") throw new Error("Bir bölüm seç.");
         section.props.linkedSectionId = source.id;
         section.props.linkedVersion = String(source.version + 1);
-        const fresh = (n, rootId) => ({
-          ...n,
-          id: rootId || id(),
-          children: n.children.map((c) => fresh(c)),
-        });
         const changes = [];
         for (const row of db
           .prepare("SELECT * FROM pages WHERE store_id=?")
           .all(req.params.id)) {
           let changed = false;
           const doc = JSON.parse(row.document);
+          const linked = (n) => n.props?.linkedSectionId === source.id;
+          const takenAnchors = anchorsOutside(doc.nodes, linked);
           doc.nodes = doc.nodes.map((n) => {
-            if (n.props.linkedSectionId !== source.id) return n;
+            if (!linked(n)) return n;
             changed = true;
-            return fresh(section, n.id);
+            return cloneWithFreshIds(section, id, {
+              rootId: n.id,
+              takenAnchors,
+            });
           });
-          if (changed) changes.push({ row, doc });
+          if (!changed) continue;
+          // The whole receiving page is validated (element limit, ids,
+          // links); one failing page stops the update for every page.
+          try {
+            changes.push({ row, doc: validateDocument(doc) });
+          } catch (error) {
+            return res.status(400).json({
+              error: `“${doc.name}”: ${error.message}`,
+              code: "sync-invalid-page",
+              pageId: row.id,
+            });
+          }
         }
         db.exec("BEGIN");
         try {
@@ -1085,9 +1115,10 @@ export function registerStudio({
       if (!page || !row)
         return res.status(404).json({ error: "Yayın bulunamadı." });
       if (!activeStore(page.store_id, res)) return;
-      db.prepare(
-        "INSERT INTO publications VALUES(?,?,1,?) ON CONFLICT(page_id) DO UPDATE SET document=excluded.document,active=1,published=excluded.published",
-      ).run(page.id, row.document, Date.now());
+      const result = publication.publish(page, row.document, {
+        history: false,
+      });
+      if (!result.ok) return publication.reject(res, result);
       res.json({ ok: true, mode: "local" });
     },
   );
@@ -1097,9 +1128,7 @@ export function registerStudio({
       .get(req.params.id);
     if (!page) return res.status(404).json({ error: "Sayfa bulunamadı." });
     if (!activeStore(page.store_id, res)) return;
-    db.prepare("UPDATE publications SET active=0 WHERE page_id=?").run(
-      req.params.id,
-    );
+    publication.unpublish(req.params.id);
     res.json({ ok: true, mode: "local" });
   });
   app.get("/api/pages/:id/schedule", auth, (req, res) =>
@@ -1115,10 +1144,14 @@ export function registerStudio({
   );
   app.put("/api/pages/:id/schedule", auth, csrf, (req, res) => {
     const page = db
-      .prepare("SELECT store_id FROM pages WHERE id=?")
+      .prepare("SELECT id,store_id,document FROM pages WHERE id=?")
       .get(req.params.id);
     if (!page) return res.status(404).json({ error: "Sayfa bulunamadı." });
     if (!activeStore(page.store_id, res)) return;
+    if (req.body.publishAt) {
+      const conflict = publication.conflictFor(page, page.document);
+      if (conflict) return publication.reject(res, conflict);
+    }
     const a = req.body.publishAt ? Number(req.body.publishAt) : null,
       b = req.body.unpublishAt ? Number(req.body.unpublishAt) : null;
     if (
@@ -1130,7 +1163,7 @@ export function registerStudio({
         .status(400)
         .json({ error: "Geçerli gelecek yayın saatleri seç." });
     db.prepare(
-      "INSERT INTO schedules VALUES(?,?,?,'pending') ON CONFLICT(page_id) DO UPDATE SET publish_at=excluded.publish_at,unpublish_at=excluded.unpublish_at,status='pending'",
+      "INSERT INTO schedules (page_id,publish_at,unpublish_at,status,error) VALUES(?,?,?,'pending',NULL) ON CONFLICT(page_id) DO UPDATE SET publish_at=excluded.publish_at,unpublish_at=excluded.unpublish_at,status='pending',error=NULL",
     ).run(req.params.id, a, b);
     res.json({ ok: true, mode: "local" });
   });
@@ -1262,7 +1295,7 @@ export function registerStudio({
       res.json(
         db
           .prepare(
-            "SELECT * FROM form_submissions WHERE store_id=? ORDER BY created DESC LIMIT 500",
+            "SELECT f.*,j.state AS delivery,j.attempts AS delivery_attempts FROM form_submissions f LEFT JOIN webhook_jobs j ON j.submission_id=f.id WHERE f.store_id=? ORDER BY f.created DESC LIMIT 500",
           )
           .all(req.params.id)
           .map((r) => ({ ...r, data: JSON.parse(r.data) })),
@@ -1327,23 +1360,25 @@ export function registerStudio({
         )
         .all()) {
         if (job.publish_at && job.publish_at <= now) {
-          db.prepare(
-            "INSERT INTO publications VALUES(?,?,1,?) ON CONFLICT(page_id) DO UPDATE SET document=excluded.document,active=1,published=excluded.published",
-          ).run(job.page_id, job.document, now);
-          db.prepare("INSERT INTO publication_history VALUES(?,?,?,?)").run(
-            id(),
-            job.page_id,
+          const result = publication.publish(
+            { id: job.page_id, store_id: job.store_id },
             job.document,
-            now,
+            { at: now },
           );
+          if (!result.ok) {
+            // Same rule as a manual publish: the route stays with the page
+            // that has it and the job is marked, not silently retried.
+            db.prepare(
+              "UPDATE schedules SET status='conflict',error=? WHERE page_id=?",
+            ).run(result.error, job.page_id);
+            continue;
+          }
           db.prepare(
             "UPDATE schedules SET publish_at=NULL WHERE page_id=?",
           ).run(job.page_id);
         }
         if (job.unpublish_at && job.unpublish_at <= now) {
-          db.prepare("UPDATE publications SET active=0 WHERE page_id=?").run(
-            job.page_id,
-          );
+          publication.unpublish(job.page_id);
           db.prepare("UPDATE schedules SET status='done' WHERE page_id=?").run(
             job.page_id,
           );

@@ -18,6 +18,37 @@ export function draftKey(
   }
   return `fp-recovery:${scope}:${store}:${page}:${tab}`;
 }
+export const DRAFT_TTL = 14 * 24 * 60 * 60 * 1000;
+const draftPrefix = (scope: string, store: string, page: string) =>
+  `fp-recovery:${scope}:${store}:${page}:`;
+// Recovery copies are written per tab (two open tabs never overwrite each
+// other) but found per user/store/page, so closing a tab and opening the page
+// in a new one still offers the newest unsaved copy. Copies older than the
+// TTL are removed while looking.
+export function findDrafts(
+  scope: string,
+  store: string,
+  page: string,
+  storage: Storage = localStorage,
+  now = Date.now(),
+): { key: string; draft: LocalDraft }[] {
+  const prefix = draftPrefix(scope, store, page);
+  const found: { key: string; draft: LocalDraft }[] = [];
+  const keys: string[] = [];
+  for (let i = 0; i < storage.length; i++) {
+    const key = storage.key(i);
+    if (key?.startsWith("fp-recovery:")) keys.push(key);
+  }
+  for (const key of keys) {
+    const draft = readDraft(key, storage);
+    if (!draft || now - draft.updated > DRAFT_TTL) {
+      storage.removeItem(key);
+      continue;
+    }
+    if (key.startsWith(prefix)) found.push({ key, draft });
+  }
+  return found.sort((a, b) => b.draft.updated - a.draft.updated);
+}
 export function readDraft(
   key: string,
   storage: Storage = localStorage,

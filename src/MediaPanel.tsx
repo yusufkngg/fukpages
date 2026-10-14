@@ -1,5 +1,5 @@
 import { getUiLanguage, t } from "./i18n.ts";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { api, json, uploadFiles } from "./api";
 import { assetUrl, type Asset } from "./studio";
 export function MediaPanel({
@@ -24,6 +24,20 @@ export function MediaPanel({
     [failed, setFailed] = useState<File[]>([]),
     [detail, setDetail] = useState<Asset | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  type Group = { count: number; bytes: number };
+  const [storage, setStorage] = useState<{
+    active: Group;
+    archivedInUse: Group;
+    archivedUnused: Group;
+  } | null>(null);
+  const [confirmCleanup, setConfirmCleanup] = useState(false);
+  const loadStorage = () =>
+    api<typeof storage>(`/stores/${storeId}/media/storage`)
+      .then(setStorage)
+      .catch(() => setStorage(null));
+  useEffect(() => {
+    void loadStorage();
+  }, [storeId, assets]);
   async function upload(files: File[]) {
     setProgress(0);
     setFailed([]);
@@ -172,6 +186,27 @@ export function MediaPanel({
         <option value="mobile">{t("Seçili öğenin mobil görseli")}</option>
         <option value="background">{t("Seçili kutunun arka planı")}</option>
       </select>
+      {!filtered.length &&
+        (search || folder || favorites ? (
+          <div className="media-empty" data-media-empty>
+            <p>{t("Aramana uyan görsel yok.")}</p>
+            <button
+              onClick={() => {
+                setSearch("");
+                setFolder("");
+                setFavorites(false);
+              }}
+            >
+              {t("Aramayı temizle")}
+            </button>
+          </div>
+        ) : (
+          <div className="media-empty" data-media-empty>
+            <p>
+              {t("Henüz görsel yok. Yükle veya bir bağlantıdan içe aktar.")}
+            </p>
+          </div>
+        ))}
       <div className="media-grid">
         {filtered.map((a) => (
           <article key={a.id} data-asset-id={a.id}>
@@ -269,6 +304,79 @@ export function MediaPanel({
           <button onClick={() => setDetail(null)}>{t("Kapat")}</button>
         </div>
       )}
+      {storage && (
+        <section className="media-storage" data-media-storage>
+          <h3>{t("Depolama")}</h3>
+          <p>
+            {t("Kullanımda: {p0} dosya · {p1}", {
+              p0: storage.active.count,
+              p1: formatBytes(storage.active.bytes),
+            })}
+          </p>
+          <p>
+            {t("Arşivde, eski sürüm veya yayında kullanılan: {p0} · {p1}", {
+              p0: storage.archivedInUse.count,
+              p1: formatBytes(storage.archivedInUse.bytes),
+            })}
+          </p>
+          <p>
+            {t("Arşivde, hiçbir yerde kullanılmayan: {p0} · {p1}", {
+              p0: storage.archivedUnused.count,
+              p1: formatBytes(storage.archivedUnused.bytes),
+            })}
+          </p>
+          {storage.archivedUnused.count > 0 &&
+            (confirmCleanup ? (
+              <div className="media-storage-confirm">
+                <small>
+                  {t(
+                    "Bu dosyalar kalıcı olarak silinecek. Taslak, sürüm geçmişi ve yayınlar etkilenmez.",
+                  )}
+                </small>
+                <button
+                  className="danger"
+                  onClick={async () => {
+                    try {
+                      const result = await api<{
+                        removed: number;
+                        freed: number;
+                      }>(`/stores/${storeId}/media/cleanup`, {
+                        method: "POST",
+                      });
+                      notify(
+                        t("{p0} dosya silindi, {p1} boşaldı.", {
+                          p0: result.removed,
+                          p1: formatBytes(result.freed),
+                        }),
+                      );
+                      setConfirmCleanup(false);
+                      await refresh();
+                      await loadStorage();
+                    } catch (e) {
+                      notify((e as Error).message, true);
+                    }
+                  }}
+                >
+                  {t("Kalıcı olarak sil")}
+                </button>
+                <button onClick={() => setConfirmCleanup(false)}>
+                  {t("Vazgeç")}
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmCleanup(true)}>
+                {t("{p0} alanı boşalt", {
+                  p0: formatBytes(storage.archivedUnused.bytes),
+                })}
+              </button>
+            ))}
+        </section>
+      )}
     </div>
   );
+}
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }

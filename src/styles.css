@@ -7465,3 +7465,63 @@ p {
 .canvas-footer .focus-toggle[aria-pressed="true"] {
   color: var(--accent);
 }
+
+/* 0.12 — load error screen (F6) */
+.loading-screen.load-error {
+  flex-direction: column;
+  color: #eef2ec;
+  text-align: center;
+  padding: 24px;
+}
+.load-error h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.load-error p {
+  margin: 0;
+  max-width: 520px;
+  color: #b9c2bb;
+}
+.load-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.panel-notice {
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  background: rgba(176, 217, 118, 0.12);
+  color: inherit;
+}
+.panel-notice.error {
+  background: rgba(220, 80, 70, 0.14);
+  color: #ffb4ab;
+}
+.media-empty {
+  padding: 18px 12px;
+  text-align: center;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  margin: 8px 0;
+}
+.media-empty p {
+  margin: 0 0 8px;
+}
+.media-storage {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+}
+.media-storage p {
+  margin: 2px 0;
+}
+.media-storage-confirm {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}

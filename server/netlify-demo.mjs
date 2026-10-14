@@ -110,6 +110,7 @@ export function createDemoHandler({
   ownerHash,
   ownerLogin = "owner",
   secureCookies = true,
+  webhookFetch,
 } = {}) {
   return async (input, context = {}) => {
     const body = input.body || "";
@@ -181,6 +182,7 @@ export function createDemoHandler({
           demoMode: true,
           secureCookies,
           authSetupError: setupError,
+          ...(webhookFetch ? { webhookFetch } : {}),
         });
         db = service.db;
         service.studio.runSchedules();
@@ -189,6 +191,8 @@ export function createDemoHandler({
           basePath: "/.netlify/functions/api",
           binary: ["image/*", "font/*", "application/octet-stream"],
         })(event, context);
+        stage = "webhook_dispatch";
+        await service.growth.runWebhookJobs({ limit: 3, timeout: 4000 });
         stage = "state_pack";
         db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
         db.close();

@@ -428,6 +428,137 @@ test("synchronized sections update every linked draft atomically while published
     409,
   );
 });
+test("B4: synced sections keep internal links working and never push a page over the element limit", async (t) => {
+  const f = await fixture(t),
+    section = block("section", "promo", {}, [
+      block("button", "open", {
+        html: "Open",
+        action: "popup",
+        actionTarget: "pop",
+      }),
+      block("button", "jump", { html: "Jump", href: "#details" }),
+      block("box", "details", {}, [block("text", "copy", { html: "Old" })]),
+      block("popup", "pop", {}, [block("text", "inner", { html: "Popup" })]),
+    ]);
+  const saved = await f
+    .request("/stores/demo/sections", "POST", {
+      name: "Promo",
+      section,
+      synchronized: true,
+    })
+    .then((r) => r.json());
+  const page = await f
+    .request("/stores/demo/pages", "POST", { document: doc([saved.section]) })
+    .then((r) => r.json());
+  saved.section.children[2].children[0].props.html = "New";
+  const r = await f.request(`/stores/demo/sections/${saved.id}/sync`, "PUT", {
+    section: saved.section,
+    version: 1,
+  });
+  assert.equal(r.status, 200);
+  const got = (await f.request("/pages/" + page.id).then((r) => r.json()))
+    .document.nodes[0];
+  const [open, jump, details, pop] = got.children;
+  assert.equal(details.children[0].props.html, "New");
+  assert.equal(open.props.actionTarget, pop.id);
+  assert.equal(jump.props.href, "#" + details.id);
+  assert.notEqual(details.id, saved.section.children[2].id);
+  // A receiving page close to the 600-element limit is validated as a whole:
+  // the update is refused for every page and nothing is written.
+  const filler = Array.from({ length: 580 }, (_, i) =>
+    block("text", "f" + i, { html: "x" }),
+  );
+  const full = await f
+    .request("/stores/demo/pages", "POST", {
+      document: doc([
+        saved.section,
+        block("section", "filler", {}, filler.slice(0, 290)),
+        block("section", "filler2", {}, filler.slice(290)),
+      ]),
+    })
+    .then((r) => r.json());
+  const before = await f.request("/pages/" + page.id).then((r) => r.json());
+  const big = structuredClone(saved.section);
+  big.children.push(
+    ...Array.from({ length: 30 }, (_, i) =>
+      block("text", "extra" + i, { html: "more" }),
+    ),
+  );
+  const refused = await f.request(
+    `/stores/demo/sections/${saved.id}/sync`,
+    "PUT",
+    { section: big, version: 2 },
+  );
+  assert.equal(refused.status, 400);
+  assert.equal((await refused.json()).pageId, full.id);
+  const after = await f.request("/pages/" + page.id).then((r) => r.json());
+  assert.equal(after.version, before.version);
+});
+test("B5: storage separates used, archived-in-history and unused files and frees only files nothing refers to", async (t) => {
+  const f = await fixture(t);
+  const png = (background) =>
+    sharp({ create: { width: 40, height: 30, channels: 4, background } })
+      .png()
+      .toBuffer();
+  const kept = await upload(f, await png("#225588"), "kept.png");
+  const unused = await upload(f, await png("#882255"), "unused.png");
+  const page = await f
+    .request("/stores/demo/pages", "POST", {
+      document: doc([block("image", "img", { src: kept.url, alt: "Kept" })]),
+    })
+    .then((r) => r.json());
+  // The current draft stops using the file, an earlier version still does.
+  const current = await f.request("/pages/" + page.id).then((r) => r.json());
+  current.document.nodes[0].children = [];
+  current.document.nodes = [block("text", "t", { html: "No image" })];
+  assert.equal(
+    (
+      await f.request("/pages/" + page.id, "PUT", {
+        document: current.document,
+        version: current.version,
+      })
+    ).status,
+    200,
+  );
+  for (const asset of [kept, unused])
+    assert.equal(
+      (
+        await f.request(
+          `/stores/demo/assets/${asset.id}?acknowledge=true`,
+          "DELETE",
+        )
+      ).status,
+      200,
+    );
+  const storage = await f
+    .request("/stores/demo/media/storage")
+    .then((r) => r.json());
+  assert.equal(storage.archivedInUse.count, 1);
+  assert.equal(storage.archivedUnused.count, 1);
+  assert.equal(storage.unused[0].id, unused.id);
+  assert.ok(storage.archivedUnused.bytes > 0);
+  const cleanup = await f
+    .request("/stores/demo/media/cleanup", "POST", {})
+    .then((r) => r.json());
+  assert.equal(cleanup.removed, 1);
+  assert.equal(cleanup.storage.archivedUnused.count, 0);
+  assert.equal(cleanup.storage.archivedInUse.count, 1);
+  const file = (asset) => f.base() + asset.url;
+  assert.equal((await fetch(file(unused), { headers: {} })).status, 404);
+  // The file an earlier version uses is still served to the owner.
+  const history = await f
+    .request(`/pages/${page.id}/history`)
+    .then((r) => r.json());
+  assert.ok(history.length >= 1);
+  assert.ok(
+    f.db.prepare("SELECT id FROM assets WHERE id=?").get(kept.id),
+    "kept asset row remains",
+  );
+  assert.equal(
+    f.db.prepare("SELECT id FROM assets WHERE id=?").get(unused.id),
+    undefined,
+  );
+});
 test("local forms validate consent/email, deduplicate retries, persist submissions and stop after suspension", async (t) => {
   const f = await fixture(t),
     form = block("form", "form-1", {}, [

@@ -1987,4 +1987,33 @@ export const english: Record<string, string> = {
   "Seçimi italik yap": "Italicise selection",
   "Seçimin altını çiz": "Underline selection",
   "Metin biçimlendirme": "Text formatting",
+  "Oturumun sona erdi": "Your session has ended",
+  "Bu sayfaya erişimin yok": "You don't have access to this page",
+  "Sayfa bulunamadı": "Page not found",
+  "Tekrar giriş yap": "Sign in again",
+  "Panele dön": "Back to dashboard",
+  "Yerel taslağı indir": "Download local draft",
+  "Planlanan yayın uygulanmadı:": "The scheduled publish was not applied:",
+  "Yayın planı: {p0}": "Publishes: {p0}",
+  "Kaldırma planı: {p0}": "Unpublishes: {p0}",
+  "Webhook'a iletildi": "Delivered to webhook",
+  "Webhook kuyruğunda ({p0}. deneme)": "Queued for webhook (attempt {p0})",
+  "Webhook'a iletilemedi": "Webhook delivery failed",
+  "Mağaza durdurulduğu için iletilmedi":
+    "Not delivered because the store is disabled",
+  "Yalnızca uygulamada saklandı": "Stored in the app only",
+  "Aramana uyan görsel yok.": "No images match your search.",
+  "Aramayı temizle": "Clear search",
+  "Henüz görsel yok. Yükle veya bir bağlantıdan içe aktar.":
+    "No images yet. Upload one or import from a link.",
+  Depolama: "Storage",
+  "Kullanımda: {p0} dosya · {p1}": "In use: {p0} files · {p1}",
+  "Arşivde, eski sürüm veya yayında kullanılan: {p0} · {p1}":
+    "Archived, still used by a version or publication: {p0} · {p1}",
+  "Arşivde, hiçbir yerde kullanılmayan: {p0} · {p1}":
+    "Archived and unused: {p0} · {p1}",
+  "Bu dosyalar kalıcı olarak silinecek. Taslak, sürüm geçmişi ve yayınlar etkilenmez.":
+    "These files will be deleted permanently. Drafts, version history and publications are not affected.",
+  "{p0} dosya silindi, {p1} boşaldı.": "{p0} files deleted, {p1} freed.",
+  "{p0} alanı boşalt": "Free up {p0}",
 };

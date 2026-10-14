@@ -38,7 +38,7 @@ import { normalizeLink, navigationActions } from "./links";
 import { ConflictDialog, type DraftConflict } from "./ConflictDialog";
 import {
   draftKey,
-  readDraft,
+  findDrafts,
   writeDraft,
   downloadDocument,
   type LocalDraft,
@@ -326,7 +326,40 @@ export function Editor({
   const savingRef = useRef(false);
   const [saveError, setSaveError] = useState("");
   const recoveryKey = useRef("");
+  // Key of a copy found from an earlier/closed tab; removed with ours.
+  const recoverySource = useRef("");
   const [recovery, setRecovery] = useState<LocalDraft | null>(null);
+  const clearRecovery = useCallback(() => {
+    try {
+      if (recoveryKey.current) localStorage.removeItem(recoveryKey.current);
+      if (recoverySource.current)
+        localStorage.removeItem(recoverySource.current);
+    } catch {
+      /* unavailable */
+    }
+    recoverySource.current = "";
+    setRecovery(null);
+  }, []);
+  const forgetRecoverySource = useCallback(() => {
+    try {
+      if (
+        recoverySource.current &&
+        recoverySource.current !== recoveryKey.current
+      )
+        localStorage.removeItem(recoverySource.current);
+    } catch {
+      /* unavailable */
+    }
+    recoverySource.current = "";
+  }, []);
+  // Loading has its own state: a failed or timed-out load shows what went
+  // wrong with retry / back / download instead of a spinner that never ends.
+  const [loadError, setLoadError] = useState<{
+    message: string;
+    status: number;
+  } | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [loadDrafts, setLoadDrafts] = useState<LocalDraft[]>([]);
   const [conflict, setConflict] = useState<DraftConflict | null>(null),
     [conflictOpen, setConflictOpen] = useState(false);
   const [recoveryWritable, setRecoveryWritable] = useState(true);
@@ -367,6 +400,7 @@ export function Editor({
   );
   useEffect(() => {
     let current = true;
+    setLoadError(null);
     Promise.all([
       api<PageResponse>(`/pages/${pageId}`),
       api<{
@@ -391,14 +425,18 @@ export function Editor({
         setSaved(value);
         try {
           recoveryKey.current = draftKey(status.draftScope, store.id, pageId);
-          const local = readDraft(recoveryKey.current);
-          if (
-            local &&
-            JSON.stringify(local.document) !== value &&
-            JSON.stringify(local.document) !== raw
-          )
-            setRecovery(local);
-          else localStorage.removeItem(recoveryKey.current);
+          const found = findDrafts(status.draftScope, store.id, pageId);
+          const usable = found.find(({ draft }) => {
+            const text = JSON.stringify(draft.document);
+            return text !== value && text !== raw;
+          });
+          for (const { key } of found)
+            if (key !== usable?.key && key !== recoveryKey.current)
+              localStorage.removeItem(key);
+          if (usable) {
+            recoverySource.current = usable.key;
+            setRecovery(usable.draft);
+          } else localStorage.removeItem(recoveryKey.current);
         } catch {
           setRecoveryWritable(false);
         }
@@ -407,11 +445,28 @@ export function Editor({
         );
         setBoundSnapshot(result.themeSnapshot ?? null);
       })
-      .catch((error) => notify(error.message, true));
+      .catch(async (error) => {
+        if (!current) return;
+        setLoadError({
+          message: (error as Error).message,
+          status: error instanceof ApiError ? error.status : 0,
+        });
+        try {
+          const status = await api<{ draftScope: string }>("/auth/status");
+          if (current)
+            setLoadDrafts(
+              findDrafts(status.draftScope, store.id, pageId).map(
+                (entry) => entry.draft,
+              ),
+            );
+        } catch {
+          /* still offline */
+        }
+      });
     return () => {
       current = false;
     };
-  }, [pageId, notify]);
+  }, [pageId, notify, store.id, loadAttempt]);
   const pageType = page?.type;
   useEffect(() => {
     if (!page) return;
@@ -1743,9 +1798,50 @@ export function Editor({
   const switchPage = async (id: string) => {
     if (await save()) openPage(id);
   };
+  if (!page && loadError)
+    return (
+      <div className="loading-screen load-error" role="alert" data-load-error>
+        <h2>
+          {loadError.status === 401
+            ? t("Oturumun sona erdi")
+            : loadError.status === 403
+              ? t("Bu sayfaya erişimin yok")
+              : loadError.status === 404
+                ? t("Sayfa bulunamadı")
+                : t("Sayfa açılamadı")}
+        </h2>
+        <p>{loadError.message}</p>
+        <div className="load-error-actions">
+          {loadError.status === 401 ? (
+            <button className="primary" onClick={() => location.reload()}>
+              {t("Tekrar giriş yap")}
+            </button>
+          ) : (
+            ![403, 404].includes(loadError.status) && (
+              <button
+                className="primary"
+                onClick={() => setLoadAttempt((n) => n + 1)}
+              >
+                {t("Tekrar dene")}
+              </button>
+            )
+          )}
+          <button onClick={back}>{t("Panele dön")}</button>
+          {loadDrafts[0] && (
+            <button
+              onClick={() =>
+                downloadDocument(loadDrafts[0].document, "kurtarma")
+              }
+            >
+              {t("Yerel taslağı indir")}
+            </button>
+          )}
+        </div>
+      </div>
+    );
   if (!page)
     return (
-      <div className="loading-screen">
+      <div className="loading-screen" data-loading>
         <Loader2 className="spin" />
         {" " + t("Editör hazırlanıyor…")}
       </div>
@@ -1768,6 +1864,7 @@ export function Editor({
         });
         setConflictOpen(true);
       } else commit(() => validated.document);
+      forgetRecoverySource();
       setRecovery(null);
     } catch (error) {
       notify((error as Error).message, true);
@@ -2412,16 +2509,7 @@ export function Editor({
                   >
                     {t("Kurtarma kopyasını indir")}
                   </button>
-                  <button
-                    onClick={() => {
-                      try {
-                        localStorage.removeItem(recoveryKey.current);
-                      } catch {
-                        /* unavailable */
-                      }
-                      setRecovery(null);
-                    }}
-                  >
+                  <button onClick={clearRecovery}>
                     {t("Sunucu sürümüyle devam et")}
                   </button>
                 </>
@@ -2467,26 +2555,24 @@ export function Editor({
                     "tarihli bir kopya var. Düzenlemeye devam etmek için kullanacağın sürümü seç.",
                   )}
               </p>
-              <button onClick={() => void restoreRecovery()}>
-                {t("Taslağı kurtar")}
-              </button>
-              <button
-                onClick={() => downloadDocument(recovery.document, "kurtarma")}
-              >
-                {t("Kurtarma kopyasını indir")}
-              </button>
-              <button
-                onClick={() => {
-                  try {
-                    localStorage.removeItem(recoveryKey.current);
-                  } catch {
-                    /* unavailable */
+              <div className="dialog-actions">
+                <button
+                  className="primary"
+                  onClick={() => void restoreRecovery()}
+                >
+                  {t("Taslağı kurtar")}
+                </button>
+                <button
+                  onClick={() =>
+                    downloadDocument(recovery.document, "kurtarma")
                   }
-                  setRecovery(null);
-                }}
-              >
-                {t("Sunucu sürümüyle devam et")}
-              </button>
+                >
+                  {t("Kurtarma kopyasını indir")}
+                </button>
+                <button onClick={clearRecovery}>
+                  {t("Sunucu sürümüyle devam et")}
+                </button>
+              </div>
             </Dialog>
           )}
           {conflict && (
@@ -2509,6 +2595,7 @@ export function Editor({
                   commit(() => validated.document);
                   setConflict(null);
                   setConflictOpen(false);
+                  forgetRecoverySource();
                   setRecovery(null);
                   setSaveError("");
                   notify(

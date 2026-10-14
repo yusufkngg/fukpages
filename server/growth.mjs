@@ -271,7 +271,11 @@ export function registerGrowth({
   });
   let webhookBusy = false;
   return {
-    async runWebhookJobs() {
+    // Runs due jobs from the durable queue (webhook_jobs). The long-running
+    // server calls it every 15 s; the Netlify demo calls it at the end of
+    // each request with a small budget, so queued jobs no longer wait for a
+    // dispatcher that never runs there.
+    async runWebhookJobs({ limit = 10, timeout = 10000 } = {}) {
       if (webhookBusy) return;
       const url = process.env.FORM_WEBHOOK_URL;
       if (!url) return;
@@ -286,9 +290,9 @@ export function registerGrowth({
       try {
         for (const job of db
           .prepare(
-            "SELECT j.*,f.data,f.page_id,f.form_id,f.store_id FROM webhook_jobs j JOIN form_submissions f ON f.id=j.submission_id JOIN stores s ON s.id=f.store_id WHERE j.state='pending' AND j.next_at<=? AND s.status='active' LIMIT 10",
+            "SELECT j.*,f.data,f.page_id,f.form_id,f.store_id FROM webhook_jobs j JOIN form_submissions f ON f.id=j.submission_id JOIN stores s ON s.id=f.store_id WHERE j.state='pending' AND j.next_at<=? AND s.status='active' ORDER BY j.next_at LIMIT ?",
           )
-          .all(Date.now())) {
+          .all(Date.now(), limit)) {
           try {
             if (
               !db
@@ -301,7 +305,7 @@ export function registerGrowth({
             const r = await webhookFetch(url, {
               method: "POST",
               redirect: "error",
-              signal: AbortSignal.timeout(10000),
+              signal: AbortSignal.timeout(timeout),
               headers: {
                 "Content-Type": "application/json",
                 "Idempotency-Key": job.submission_id,

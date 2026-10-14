@@ -17,6 +17,7 @@ import { verifyPassword } from "./auth.mjs";
 import { registerSeo } from "./seo.mjs";
 import { registerGrowth } from "./growth.mjs";
 import { registerCatalog } from "./catalog.mjs";
+import { createPublicationService } from "./publication.mjs";
 import { documentUses, registerStudio } from "./studio.mjs";
 import {
   createShopifyThemeService,
@@ -971,9 +972,14 @@ export function createApp({
     );
   };
   const commerce = registerCatalog({ app, db, auth, csrf, activeStore });
+  const publication = createPublicationService({
+    db,
+    id: () => randomBytes(12).toString("hex"),
+  });
   const studio = registerStudio({
     app,
     db,
+    publication,
     auth,
     csrf,
     activeStore,
@@ -1240,22 +1246,9 @@ export function createApp({
     if (!activeStore(page.store_id, res)) return;
     const publishingDoc = JSON.parse(page.document),
       slug = publishingDoc.seo?.slug;
-    if (
-      slug &&
-      db
-        .prepare(
-          "SELECT p.id FROM publications u JOIN pages p ON p.id=u.page_id WHERE p.store_id=? AND p.id<>? AND u.active=1 AND json_extract(u.document,'$.seo.slug')=?",
-        )
-        .get(page.store_id, page.id, slug)
-    )
-      return res
-        .status(409)
-        .json({ error: "Bu kısa adres başka bir yayında kullanılıyor." });
-    db.prepare(
-      "INSERT INTO publications (page_id,document,published) VALUES (?,?,?) ON CONFLICT(page_id) DO UPDATE SET document=excluded.document, active=1, published=excluded.published",
-    ).run(page.id, page.document, Date.now());
+    const result = publication.publish(page, page.document);
+    if (!result.ok) return publication.reject(res, result);
     audit(page.store_id, "Yerel önizlemeye yayınlandı");
-    studio.recordPublication(page);
     res.json({
       published: true,
       mode: "local",

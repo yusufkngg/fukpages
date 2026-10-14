@@ -305,3 +305,87 @@ test("Concurrent Netlify invocations preserve independent writes and enforce pag
   );
   assert.deepEqual(edits.map((r) => r.statusCode).sort(), [200, 409]);
 });
+
+test("B6: the Netlify demo delivers queued form webhooks at the end of a request and keeps the result across cold starts", async (t) => {
+  const prior = process.env.FORM_WEBHOOK_URL;
+  process.env.FORM_WEBHOOK_URL = "https://provider.example.test/forms";
+  t.after(() => {
+    if (prior === undefined) delete process.env.FORM_WEBHOOK_URL;
+    else process.env.FORM_WEBHOOK_URL = prior;
+  });
+  const store = memoryStore(),
+    password = randomBytes(24).toString("hex");
+  const delivered = [];
+  const fresh = () =>
+    createDemoHandler({
+      store,
+      password,
+      webhookFetch: async (url, options) => {
+        delivered.push(options.headers["Idempotency-Key"]);
+        return new Response("", { status: 200 });
+      },
+    });
+  const headers = await session(fresh(), password);
+  const block = (kind, id, props = {}, children = []) => ({
+    kind,
+    id,
+    name: id,
+    props,
+    children,
+    styles: { desktop: {}, tablet: {}, mobile: {} },
+    hidden: { desktop: false, tablet: false, mobile: false },
+  });
+  const created = JSON.parse(
+    (
+      await fresh()(
+        request(
+          "/api/stores/demo/pages",
+          "POST",
+          {
+            document: {
+              schemaVersion: 1,
+              type: "landing",
+              name: "Webhook form",
+              nodes: [
+                block("section", "s", {}, [
+                  block("form", "form", { destination: "webhook" }, [
+                    block("input", "email", {
+                      fieldName: "email",
+                      inputType: "email",
+                      required: true,
+                    }),
+                  ]),
+                ]),
+              ],
+            },
+          },
+          headers,
+        ),
+      )
+    ).body,
+  );
+  assert.equal(
+    (
+      await fresh()(
+        request(`/api/pages/${created.id}/publish`, "POST", {}, headers),
+      )
+    ).statusCode,
+    200,
+  );
+  const requestId = randomBytes(16).toString("hex");
+  const submit = await fresh()(
+    request(
+      `/api/public/pages/${created.id}/forms/form`,
+      "POST",
+      { requestId, values: { email: "visitor@example.com" } },
+      { "content-type": "application/json", origin: "https://demo.example" },
+    ),
+  );
+  assert.equal(submit.statusCode, 201, submit.body);
+  assert.deepEqual(delivered, [requestId]);
+  const list = JSON.parse(
+    (await fresh()(request("/api/stores/demo/submissions", "GET", "", headers)))
+      .body,
+  );
+  assert.equal(list.find((s) => s.id === requestId).delivery, "sent");
+});

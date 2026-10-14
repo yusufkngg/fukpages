@@ -46,6 +46,8 @@ export function WorkflowPanel({
         id: string;
         data: Record<string, string>;
         created: number;
+        delivery?: string | null;
+        delivery_attempts?: number | null;
       }[]
     >([]),
     [preview, setPreview] = useState(""),
@@ -63,6 +65,12 @@ export function WorkflowPanel({
         day: string;
       }[]
     >([]);
+  const [schedule, setSchedule] = useState<{
+    status: string;
+    publish_at: number | null;
+    unpublish_at: number | null;
+    error?: string | null;
+  } | null>(null);
   const [timings, setTimings] = useState<
     {
       name: string;
@@ -82,6 +90,9 @@ export function WorkflowPanel({
     setPublications(b);
     setSubmissions(c);
     setMetrics(d);
+    setSchedule(
+      await api<typeof schedule>(`/pages/${pageId}/schedule`).catch(() => null),
+    );
   };
   useEffect(() => {
     void load().catch((e) => notify(e.message, true));
@@ -279,6 +290,40 @@ export function WorkflowPanel({
         </a>
       )}
       <h3>{t("Yerel yayın zamanlaması")}</h3>
+      {schedule?.status === "conflict" && (
+        <p className="panel-notice error" role="alert" data-schedule-conflict>
+          {t("Planlanan yayın uygulanmadı:")} {t(schedule.error || "")}
+        </p>
+      )}
+      {schedule?.status === "pending" && (
+        <p className="panel-notice" data-schedule-pending>
+          {schedule.publish_at
+            ? t("Yayın planı: {p0}", {
+                p0: new Date(schedule.publish_at).toLocaleString(
+                  getUiLocale(),
+                  {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                    timeZoneName: "short",
+                  },
+                ),
+              })
+            : ""}
+          {schedule.unpublish_at
+            ? " · " +
+              t("Kaldırma planı: {p0}", {
+                p0: new Date(schedule.unpublish_at).toLocaleString(
+                  getUiLocale(),
+                  {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                    timeZoneName: "short",
+                  },
+                ),
+              })
+            : ""}
+        </p>
+      )}
       <label>
         {t("Yayınla")}
         <input
@@ -310,6 +355,7 @@ export function WorkflowPanel({
               }),
             });
             notify(t("Yerel yayın planlandı. Sunucu çalışırken uygulanır."));
+            void load().catch(() => undefined);
           } catch (e) {
             notify((e as Error).message, true);
           }
@@ -379,7 +425,25 @@ export function WorkflowPanel({
       <h3>{t("Form gönderimleri")}</h3>
       {submissions.map((s) => (
         <div className="feature-card" key={s.id}>
-          <small>{new Date(s.created).toLocaleString(getUiLocale())}</small>
+          <small>
+            {new Date(s.created).toLocaleString(getUiLocale(), {
+              dateStyle: "medium",
+              timeStyle: "short",
+              timeZoneName: "short",
+            })}
+            {" · "}
+            {s.delivery === "sent"
+              ? t("Webhook'a iletildi")
+              : s.delivery === "pending"
+                ? t("Webhook kuyruğunda ({p0}. deneme)", {
+                    p0: String((s.delivery_attempts || 0) + 1),
+                  })
+                : s.delivery === "failed"
+                  ? t("Webhook'a iletilemedi")
+                  : s.delivery === "cancelled"
+                    ? t("Mağaza durdurulduğu için iletilmedi")
+                    : t("Yalnızca uygulamada saklandı")}
+          </small>
           {Object.entries(s.data).map(([k, v]) => (
             <p key={k}>
               {k}: {String(v)}

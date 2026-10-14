@@ -58,6 +58,14 @@ export async function api<T>(
 ): Promise<T> {
   let response: Response;
   try {
+    // Every request has a deadline so a hung call never keeps the editor's
+    // save lock or a loading screen forever.
+    const signal =
+      options.signal ??
+      AbortSignal.timeout(
+        !options.method || options.method === "GET" ? 30000 : 60000,
+      );
+    options = { ...options, signal };
     response = await fetch(`/api${path}`, {
       ...options,
       credentials: "same-origin",
