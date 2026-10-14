@@ -20,6 +20,17 @@ Canlı demo: https://fukpages.netlify.app/ . Giriş ekranı, API, demo mağaza v
 yerel sepet masaüstü/mobilde canlı olarak doğrulandı. Yönetici şifresi
 Netlify ortam ayarlarından sağlanır; gerçek sahip oturumu bu testte açılmadı.
 
+## 0.8: tam sayfa şablonları
+
+**Templates** panelinde sekiz tam sayfa şablonu var: ürün lansmanı, mağaza ana
+sayfası, klasik ve hikâye anlatan ürün sayfası, koleksiyon, kampanya, hakkımızda
+ve iletişim. Türe göre filtrelenir, canlı küçük önizleme ve masaüstü/tablet/mobil
+önizleme açılır. İçeriği olan sayfada şablon ya sayfanın yerine geçer ya da
+bölümleri sona eklenir; ikisi de geri alınabilir. **Page management → New page
+from template** ile şablondan yeni sayfa açılır. Bölümler marka kitine bağlıdır.
+Sürüklerken çizginin üstünde hedef düzenin boşluk değeri (px) görünür.
+[Ayrıntılar](docs/TEMPLATES_V08.md).
+
 ## 0.7: editör deneyimi ve yeni logo
 
 Üst çubuk tek satır: **Pages** listesiyle sayfa geçişi, **⋯** menüsünde sayfa

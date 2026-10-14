@@ -111,7 +111,8 @@ with browser_fixture(ui_language='en') as f:
         now_first, now_second = node('first').bounding_box(), node('second').bounding_box()
         now_middle = (now_first['y'] + now_first['height'] + now_second['y']) / 2
         assert abs(box['y'] + box['height'] / 2 - now_middle) <= 8, (box, now_middle)
-        expect(line).to_have_text('')
+        expect(line.locator('.drop-gap')).to_have_text('28')
+        expect(line.locator('.drop-gap')).to_have_attribute('title', 'Spacing between items')
         assert node('hero-col').evaluate("e=>getComputedStyle(e,'::before').content") == '"hero-col"'
         assert page.locator('.editable-surface .node-slot').count() == 0
         expect(node('hero-col')).to_have_attribute('data-drop-target', '')
@@ -134,6 +135,7 @@ with browser_fixture(ui_language='en') as f:
         expect(node('first')).to_have_class(re.compile(r'\bmoving\b'))
         expect(page.locator('.drag-chip')).to_contain_text('first')
         expect(node('hero-col')).to_have_attribute('data-drop-target', '')
+        expect(page.locator('[data-drop-gap]')).to_have_text('28')
         line = page.locator('[data-drop-indicator]').bounding_box()
         assert abs(line['y'] + line['height'] / 2 - (second['y'] + second['height'])) <= 8, (line, second)
         page.screenshot(path=str(out / 'v07-press-drag.png'))
@@ -161,6 +163,7 @@ with browser_fixture(ui_language='en') as f:
     def after_hero():
         line = page.locator('[data-drop-indicator]')
         expect(line).to_have_count(1)
+        expect(line.locator('.drop-gap')).to_have_count(0)
         box = line.bounding_box()
         assert abs(box['y'] + box['height'] / 2 - (hero['y'] + hero['height'])) <= 8, (box, hero)
         expect(line).to_have_text('Section')

@@ -159,6 +159,10 @@ export interface DropCandidate {
   /** This block lays its own children out in a row. */
   horizontal: boolean;
   children: RectLike[];
+  /** Spacing between this block's children (CSS px), when it has one. */
+  gap?: number;
+  /** Spacing between this block and its siblings (CSS px). */
+  parentGap?: number;
 }
 export interface ResolvedDrop {
   parent: string | null;

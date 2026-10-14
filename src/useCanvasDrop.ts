@@ -35,7 +35,8 @@ export interface DropPlan {
   /** Section drags only reorder top-level page sections. */
   section: boolean;
 }
-export type DropIndicator = Indicator & { label: string };
+/** `gap` is the spacing (CSS px) the receiving layout keeps between items. */
+export type DropIndicator = Indicator & { label: string; gap?: number };
 
 const surfaceSelector = ".editable-surface";
 
@@ -74,6 +75,14 @@ function childBlocks(container: Element) {
   return [...container.querySelectorAll<HTMLElement>("[data-node-id]")].filter(
     (element) => element.parentElement?.closest("[data-node-id]") === container,
   );
+}
+/** Spacing between items of a flex/grid frame along its flow, in CSS px. */
+function frameGap(frame: Element | null | undefined) {
+  if (!frame) return undefined;
+  const style = getComputedStyle(frame);
+  if (!/flex|grid/.test(style.display)) return undefined;
+  const value = parseFloat(rowFlow(frame) ? style.columnGap : style.rowGap);
+  return Number.isFinite(value) && value > 0 ? Math.round(value) : undefined;
 }
 function rowFlow(frame: Element | null | undefined) {
   if (!frame) return false;
@@ -206,6 +215,7 @@ export function useCanvasDrop(pageRef: RefObject<PageDocument | null>) {
           target.horizontal,
         ),
         label: target.children.length ? "" : nameOf(target.id),
+        gap: target.children.length ? target.gap : undefined,
       });
     }
     // Outline the receiving container (labelled) and draw the line.
@@ -213,6 +223,7 @@ export function useCanvasDrop(pageRef: RefObject<PageDocument | null>) {
     setIndicator({
       ...edgeIndicator(target.rect, resolved.mode, target.parentHorizontal),
       label: resolved.parent ? "" : t("Sayfa"),
+      gap: target.parentGap,
     });
   };
 
@@ -266,6 +277,8 @@ export function useCanvasDrop(pageRef: RefObject<PageDocument | null>) {
         parentHorizontal: rowFlow(element.parentElement),
         horizontal: rowFlow(children[0]?.parentElement),
         children: children.map((child) => child.getBoundingClientRect()),
+        gap: frameGap(children[0]?.parentElement),
+        parentGap: frameGap(element.parentElement),
       });
       element =
         element.parentElement?.closest<HTMLElement>("[data-node-id]") ??

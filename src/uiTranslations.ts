@@ -1624,4 +1624,25 @@ export const english: Record<string, string> = {
   DÖNÜŞÜM: "CONVERSION",
   "NAVİGASYON VE İÇERİK": "NAVIGATION & CONTENT",
   GELİŞMİŞ: "ADVANCED",
+  // 0.8 templates and drag spacing
+  "Öğeler arası boşluk": "Spacing between items",
+  "Şablon önizlemesi": "Template preview",
+  "Şablon türü": "Template type",
+  "{p0} bölüm": "{p0} sections",
+  "{p0} şablonunu kullan": "Use the {p0} template",
+  "Şablonu uygula": "Apply template",
+  "“{p0}” şablonu nasıl eklensin?": "How should “{p0}” be added?",
+  "Mevcut tasarımın geri al ve sürüm geçmişinde kalır. Yayındaki sayfa, tekrar yayınlayana kadar değişmez.":
+    "Your current design stays available through undo and version history. The published page does not change until you publish again.",
+  "Sayfayı şablonla değiştir": "Replace the page with this template",
+  "Bölümleri sayfanın sonuna ekle": "Add its sections to the end of the page",
+  "Şablondan sayfa oluştur": "New page from template",
+  "Bir şablon seç; sayfa taslak olarak oluşturulur ve editörde açılır.":
+    "Pick a template. The page is created as a draft and opens in the editor.",
+  "{p0} ile sayfa oluştur": "Create a page with {p0}",
+  "Oluşturuluyor…": "Creating…",
+  "Bu şablonla oluştur": "Create with this template",
+  "{p0} oluşturuldu.": "{p0} created.",
+  "“{p0}” şablonu uygulandı. Geri al ile önceki tasarıma dönebilirsin.":
+    "Applied the “{p0}” template. Use undo to return to the previous design.",
 };

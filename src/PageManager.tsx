@@ -1,8 +1,12 @@
 import { getUiLocale, getUiLanguage, t } from "./i18n.ts";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, json } from "./api";
 import { Dialog } from "./Dialog";
 import { pageTemplate } from "./pageTemplates";
+import { TemplatePicker } from "./TemplateLibrary";
+import { templateDocument } from "./pageTemplateLibrary";
+import { StudioProvider, defaultBrand, type Brand } from "./studio";
+import { LayoutTemplate } from "lucide-react";
 import {
   pageNames,
   type Store,
@@ -151,7 +155,24 @@ export function PageManager({
     [tab, setTab] = useState("all"),
     [search, setSearch] = useState(""),
     [assign, setAssign] = useState<PageSummary | null>(null),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [picker, setPicker] = useState(false),
+    [brand, setBrand] = useState<Brand>(defaultBrand);
+  useEffect(() => {
+    if (!picker) return;
+    api<{ brand: Brand }>(`/stores/${store.id}/brand`)
+      .then((r) => setBrand(r.brand))
+      .catch(() => {
+        /* previews fall back to the default brand */
+      });
+  }, [picker, store.id]);
+  const templateContext = useMemo(
+    () => ({
+      collectionId: catalog.collections[0]?.id,
+      productIds: catalog.products.slice(0, 2).map((p) => p.id),
+    }),
+    [catalog],
+  );
   const reload = useCallback(async () => {
     const [list, c] = await Promise.all([
       api<PageSummary[]>(`/stores/${store.id}/page-overview`),
@@ -247,7 +268,47 @@ export function PageManager({
               + {label}
             </button>
           ))}
+        {writable && (
+          <button
+            className="template-start-button"
+            disabled={busy}
+            onClick={() => setPicker(true)}
+          >
+            <LayoutTemplate size={14} />
+            {t("Şablondan sayfa oluştur")}
+          </button>
+        )}
       </div>
+      {picker && (
+        <StudioProvider
+          page={{ schemaVersion: 1, name: "", type: "landing", nodes: [] }}
+          value={{ brand, catalog }}
+        >
+          <TemplatePicker
+            context={templateContext}
+            onClose={() => setPicker(false)}
+            create={async (template, type) => {
+              const document = templateDocument(
+                template.id,
+                templateContext,
+                type,
+              );
+              if (!document) return;
+              try {
+                const created = await api<{ id: string }>(
+                  `/stores/${store.id}/pages`,
+                  { method: "POST", body: json({ document }) },
+                );
+                setPicker(false);
+                notify(t("{p0} oluşturuldu.", { p0: document.name }));
+                open(created.id);
+              } catch (e) {
+                notify((e as Error).message, true);
+              }
+            }}
+          />
+        </StudioProvider>
+      )}
       <div className="page-table">
         <div className="page-table-header">
           <span>{t("Sayfa adı")}</span>

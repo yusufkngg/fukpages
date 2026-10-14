@@ -23,6 +23,13 @@ import { TextToolbar } from "./TextToolbar";
 import { Breadcrumb } from "./Breadcrumb";
 import { SectionInsert } from "./SectionInsert";
 import { chipFollowsCursor, useCanvasDrop } from "./useCanvasDrop";
+import { TemplateLibrary } from "./TemplateLibrary";
+import {
+  appendTemplateSections,
+  templateLabel,
+  type PageTemplate,
+  type TemplateContext,
+} from "./pageTemplateLibrary";
 import { PanelSplitter, usePanelWidths } from "./PanelSplitter";
 import { cssNumber, freeHeight, setFreeLayout } from "./freePlacement";
 import { normalizeLink, navigationActions } from "./links";
@@ -42,6 +49,7 @@ import {
   Fragment,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -124,7 +132,6 @@ import {
   moveBlock,
   pageNames,
   removeBlock,
-  starterDocument,
   widths,
   type Block,
   type Device,
@@ -314,6 +321,13 @@ export function Editor({
     useSensor(KeyboardSensor),
   );
   const canvasDrop = useCanvasDrop(pageRef);
+  const templateContext = useMemo<TemplateContext>(
+    () => ({
+      collectionId: catalog.collections[0]?.id,
+      productIds: catalog.products.slice(0, 2).map((product) => product.id),
+    }),
+    [catalog],
+  );
   useEffect(() => {
     let current = true;
     Promise.all([
@@ -1510,6 +1524,34 @@ export function Editor({
       setPublishing(false);
     }
   }
+  const applyTemplate = (
+    template: PageTemplate,
+    sections: Block[],
+    mode: "replace" | "append",
+  ) => {
+    const current = pageRef.current;
+    if (!current) return;
+    // A page that uses the Shopify theme's header/footer keeps them.
+    const usable = current.themeLayout?.useShell
+      ? sections.filter(
+          (node) =>
+            !["header", "footer"].includes(String(node.props.sectionRole)),
+        )
+      : sections;
+    commit((document) =>
+      mode === "replace"
+        ? { ...document, nodes: usable }
+        : appendTemplateSections(document, usable),
+    );
+    const first =
+      usable.find((node) => node.props.sectionRole === "content") ?? usable[0];
+    if (first) showNewNode(first.id);
+    notify(
+      t("“{p0}” şablonu uygulandı. Geri al ile önceki tasarıma dönebilirsin.", {
+        p0: templateLabel(template).name,
+      }),
+    );
+  };
   const switchPage = async (id: string) => {
     if (await save()) openPage(id);
   };
@@ -2324,85 +2366,12 @@ export function Editor({
                 />
               )}
               {library === "templates" && (
-                <div className="library-scroll template-list">
-                  {[
-                    ["Aura · Product launch", "aura", t("Ürününü öne çıkar.")],
-                    [
-                      "Minimal · Editorial",
-                      "editorial",
-                      t("Sade tasarım, güçlü hikâye."),
-                    ],
-                    [
-                      "Fresh · Summer sale",
-                      "sale",
-                      t("Kampanyanı canlı renklerle anlat."),
-                    ],
-                  ].map(([name, id, description]) => (
-                    <button
-                      key={id}
-                      className="template-card"
-                      onClick={() => {
-                        const next = starterDocument(page.type);
-                        next.themeLayout = page.themeLayout;
-                        next.name = name;
-                        if (id === "editorial") {
-                          next.nodes = next.nodes.filter(
-                            (_, index) => index !== 0,
-                          );
-                          const heading = findBlock(
-                            next.nodes,
-                            firstHeading(next.nodes),
-                          );
-                          if (heading)
-                            heading.props.html = "LESS, BUT<br/>BETTER.";
-                          next.nodes[0].styles.desktop.backgroundColor =
-                            "#f5efe8";
-                        }
-                        if (id === "sale") {
-                          const heading = findBlock(
-                            next.nodes,
-                            firstHeading(next.nodes),
-                          );
-                          if (heading)
-                            heading.props.html = "GOOD VIBES.<br/>GREAT DEALS.";
-                          next.nodes[1].styles.desktop.backgroundColor =
-                            "#f8f5d6";
-                        }
-                        commit(() => next);
-                        setSelected(firstHeading(next.nodes));
-                        notify(
-                          t(
-                            "Şablon uygulandı. Geri al ile önceki tasarıma dönebilirsin.",
-                          ),
-                        );
-                      }}
-                    >
-                      <div className={`template-thumbnail ${id}`}>
-                        <span>
-                          {id === "aura"
-                            ? "aura✦"
-                            : id === "sale"
-                              ? "SUMMER / 26"
-                              : "The Journal."}
-                        </span>
-                        <b>
-                          {id === "aura"
-                            ? "SOUND THAT MOVES YOU."
-                            : id === "sale"
-                              ? "GOOD VIBES."
-                              : "LESS, BUT BETTER."}
-                        </b>
-                        <div />
-                      </div>
-                      <strong>{name}</strong>
-                      <small>{description}</small>
-                      <span className="template-use">
-                        {t("Şablonu kullan") + " "}
-                        <ChevronRight size={12} />
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                <TemplateLibrary
+                  pageType={page.type}
+                  context={templateContext}
+                  hasContent={page.nodes.length > 0}
+                  apply={applyTemplate}
+                />
               )}
             </aside>
             <PanelSplitter
@@ -2814,6 +2783,16 @@ export function Editor({
             {canvasDrop.indicator.label && (
               <span>{canvasDrop.indicator.label}</span>
             )}
+            {canvasDrop.indicator.gap !== undefined &&
+              canvasDrop.indicator.orientation !== "box" && (
+                <b
+                  className="drop-gap"
+                  title={t("Öğeler arası boşluk")}
+                  data-drop-gap
+                >
+                  {canvasDrop.indicator.gap}
+                </b>
+              )}
           </div>
         )}
         <DragOverlay
