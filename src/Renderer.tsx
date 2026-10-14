@@ -2,6 +2,7 @@ import { t } from "./i18n.ts";
 import { setCaption } from "./atomicContent.ts";
 import { accordionItems } from "./AccordionItems";
 import {
+  createElement,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -16,6 +17,7 @@ import { AdvancedContent, performAction } from "./AdvancedContent";
 import { buttonLink, normalizeLink, navigationActions } from "./links";
 import { freeHeight, placedStyle } from "./freePlacement";
 import { assetUrl, brandStyle, useStudio } from "./studio";
+import { iconStroke, parseIconNode, type IconNode } from "./iconNode";
 import { Play, ShoppingBag, ArrowUpRight } from "lucide-react";
 import {
   effectiveStyle,
@@ -123,6 +125,40 @@ export function editableText(value: unknown) {
   return element.textContent ?? "";
 }
 const safeHref = (url: unknown) => normalizeLink(url) || "#";
+/** Library icon drawn from validated geometry; size and colour follow text. */
+export function VectorIcon({
+  node,
+  strokeWidth = 2,
+  fill = false,
+  label = "",
+}: {
+  node: IconNode;
+  strokeWidth?: number;
+  fill?: boolean;
+  label?: string;
+}) {
+  return (
+    <svg
+      className="vector-icon"
+      viewBox="0 0 24 24"
+      width="1em"
+      height="1em"
+      fill={fill ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      role={label ? "img" : undefined}
+      aria-label={label || undefined}
+      aria-hidden={label ? undefined : true}
+      focusable="false"
+    >
+      {node.map(([shape, attributes], index) =>
+        createElement(shape, { key: index, ...attributes }),
+      )}
+    </svg>
+  );
+}
 function Countdown({ value }: { value: unknown }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -477,7 +513,30 @@ export function BlockContent({
           {editable && <span>{t("Boşluk")}</span>}
         </div>
       );
-    case "icon":
+    case "icon": {
+      const vector = !p.src && parseIconNode(p.iconNode);
+      if (vector) {
+        const svg = (
+          <VectorIcon
+            node={vector}
+            strokeWidth={iconStroke(p.strokeWidth)}
+            fill={!!p.iconFill}
+            label={String(p.alt || "")}
+          />
+        );
+        return p.href && !editable ? (
+          <a
+            className="icon-link"
+            href={safeHref(p.href)}
+            target={p.targetBlank ? "_blank" : undefined}
+            rel={p.targetBlank ? "noopener noreferrer" : undefined}
+          >
+            {svg}
+          </a>
+        ) : (
+          svg
+        );
+      }
       if (p.src && p.iconTint)
         return (
           <span
@@ -506,6 +565,7 @@ export function BlockContent({
       ) : (
         <span>{String(p.text)}</span>
       );
+    }
     case "badge":
       return node.props.atomicContent ? (
         <div className="atomic-badge">{children}</div>

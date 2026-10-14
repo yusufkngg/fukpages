@@ -1,7 +1,16 @@
 import { t } from "./i18n.ts";
-import { useRef, type CSSProperties } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import { Copy, CornerLeftUp, GripVertical, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Copy,
+  CornerLeftUp,
+  GripVertical,
+  MoreHorizontal,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { ColumnHandles } from "./ColumnHandles";
 import { ElementHandles, useElementGesture } from "./ElementHandles";
 import { freeHeight, placedStyle } from "./freePlacement";
@@ -90,6 +99,10 @@ export interface CanvasNodeProps {
   parentFree?: boolean;
   geometry: (id: string, styles: Record<string, string>, free: boolean) => void;
   inheritedLocked?: boolean;
+  /** Double-click or Enter: edit text, choose an icon, replace an image. */
+  activate?: (id: string) => void;
+  move?: (id: string, direction: -1 | 1) => void;
+  menu?: (id: string, x: number, y: number) => void;
 }
 
 export function CanvasNode({
@@ -106,9 +119,25 @@ export function CanvasNode({
   parentFree = false,
   geometry,
   inheritedLocked = false,
+  activate,
+  move,
+  menu,
 }: CanvasNodeProps) {
   const locked = inheritedLocked || !!node.props.locked;
   const elementRef = useRef<HTMLDivElement | null>(null);
+  const isSelected = selected === node.id;
+  // Like a page builder, the toolbar drops below a block that touches the
+  // top of the page so it never covers the browser chrome or gets clipped.
+  const [toolbarBelow, setToolbarBelow] = useState(false);
+  useLayoutEffect(() => {
+    const element = elementRef.current;
+    if (!isSelected || !element) return;
+    const surface = element.closest(".editable-surface");
+    const top = element.getBoundingClientRect().top;
+    setToolbarBelow(
+      !!surface && top - surface.getBoundingClientRect().top < 28,
+    );
+  }, [isSelected]);
   const gesture = useElementGesture(
     () => elementRef.current,
     parentFree,
@@ -143,8 +172,12 @@ export function CanvasNode({
   const horizontal =
     style.display === "flex" &&
     String(style.flexDirection ?? "row").startsWith("row");
-  const isSelected = selected === node.id;
   const Icon = blockIcons[node.kind];
+  const toolbarAction =
+    (action: () => void) => (event: { stopPropagation: () => void }) => {
+      event.stopPropagation();
+      action();
+    };
   return (
     <div
       ref={(element) => {
@@ -205,9 +238,27 @@ export function CanvasNode({
           event.currentTarget.focus({ preventScroll: true });
         select(node.id, event.shiftKey || event.ctrlKey || event.metaKey);
       }}
+      onDoubleClick={(event) => {
+        // Text handles its own double-click (inline editing); everything
+        // else opens its main setting, innermost block first.
+        const target = event.target as HTMLElement;
+        if (
+          target.closest(
+            '[contenteditable="true"],input,textarea,select,[data-block-toolbar]',
+          )
+        )
+          return;
+        event.stopPropagation();
+        activate?.(node.id);
+      }}
     >
       {isSelected && (
-        <div className="block-toolbar" data-block-toolbar>
+        <div
+          className={`block-toolbar ${toolbarBelow ? "below" : ""}`}
+          data-block-toolbar
+          role="toolbar"
+          aria-label={t("{p0} araçları", { p0: node.name })}
+        >
           <span>
             <Icon size={11} />
             {node.name}
@@ -230,32 +281,58 @@ export function CanvasNode({
           {parent && (
             <button
               title={t("Üst katmana çık")}
-              onClick={(event) => {
-                event.stopPropagation();
-                select(parent);
-              }}
+              aria-label={t("Üst katmana çık")}
+              onClick={toolbarAction(() => select(parent))}
             >
               <CornerLeftUp size={12} />
             </button>
           )}
+          {move && !locked && !parentFree && (
+            <>
+              <button
+                title={t("Yukarı taşı")}
+                aria-label={t("Yukarı taşı")}
+                onClick={toolbarAction(() => move(node.id, -1))}
+              >
+                <ArrowUp size={12} />
+              </button>
+              <button
+                title={t("Aşağı taşı")}
+                aria-label={t("Aşağı taşı")}
+                onClick={toolbarAction(() => move(node.id, 1))}
+              >
+                <ArrowDown size={12} />
+              </button>
+            </>
+          )}
           <button
-            title={t("Öğeyi çoğalt")}
-            onClick={(event) => {
-              event.stopPropagation();
-              duplicate(node.id);
-            }}
+            title={t("Öğeyi çoğalt") + " (Ctrl+D)"}
+            aria-label={t("Öğeyi çoğalt")}
+            onClick={toolbarAction(() => duplicate(node.id))}
           >
             <Copy size={12} />
           </button>
           <button
-            title={t("Öğeyi sil")}
-            onClick={(event) => {
-              event.stopPropagation();
-              remove(node.id);
-            }}
+            title={t("Öğeyi sil") + " (Delete)"}
+            aria-label={t("Öğeyi sil")}
+            onClick={toolbarAction(() => remove(node.id))}
           >
             <Trash2 size={12} />
           </button>
+          {menu && (
+            <button
+              title={t("Diğer işlemler")}
+              aria-label={t("Diğer işlemler")}
+              aria-haspopup="menu"
+              onClick={(event) => {
+                event.stopPropagation();
+                const box = event.currentTarget.getBoundingClientRect();
+                menu(node.id, box.left, box.bottom + 4);
+              }}
+            >
+              <MoreHorizontal size={13} />
+            </button>
+          )}
         </div>
       )}
       {isSelected &&
@@ -295,6 +372,9 @@ export function CanvasNode({
                 geometry={geometry}
                 parentFree={!!freeHeight(node, device)}
                 inheritedLocked={locked}
+                activate={activate}
+                move={move}
+                menu={menu}
               />
             ))}
             {!node.children.length && (

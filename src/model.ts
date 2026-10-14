@@ -7,6 +7,7 @@ import {
 } from "./atomicContent.ts";
 import type { CSSProperties } from "react";
 import { normalizeStyles } from "./styleValues.ts";
+import { vectorIconProps } from "./vectorIcons.ts";
 export type Device = "desktop" | "tablet" | "mobile";
 export const advancedLabels = localized({
   form: "Form",
@@ -446,7 +447,7 @@ export function createBlock(kind: Kind): Block {
       desktop = { height: "48px", width: "100%" };
       break;
     case "icon":
-      props.text = "✦";
+      Object.assign(props, vectorIconProps("star"));
       desktop = {
         fontSize: "32px",
         color: "#17241c",
@@ -709,7 +710,7 @@ export function starterDocument(type: PageType = "landing"): PageDocument {
         borderRadius: "16px",
       },
       [
-        block("icon", { text: ["◷", "✦", "∞"][i] }),
+        block("icon", vectorIconProps(["clock", "sparkles", "infinity"][i])!),
         block(
           "heading",
           { html: text },

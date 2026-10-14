@@ -20,6 +20,17 @@ Canlı demo: https://fukpages.netlify.app/ . Giriş ekranı, API, demo mağaza v
 yerel sepet masaüstü/mobilde canlı olarak doğrulandı. Yönetici şifresi
 Netlify ortam ayarlarından sağlanır; gerçek sahip oturumu bu testte açılmadı.
 
+## 0.10: sayfa oluşturucu etkileşimleri ve vektör ikonlar
+
+Tuvalde tek tık öğeyi seçer; ikon, görsel veya butona tıklayınca artık metin
+imleci ya da metin vurgusu çıkmaz. Çift tık veya **Enter** öğenin asıl ayarını
+açar: metinde satır içi düzenleme, ikonda **İkon kitaplığı**, görselde medya.
+**Delete** seçili öğeyi siler, Ctrl+Z geri alır. Araç çubuğunda yukarı/aşağı
+taşı ve **⋯** menüsü, sağ tıkta ikonlu ve kısayollu işlem menüsü var. İkonlar
+1.544 ikonluk aranabilir Lucide kitaplığından vektör olarak seçilir (Türkçe
+arama: "kargo", "kalp", "iade"…); boyut, renk, çizgi kalınlığı, dolgu ve
+bağlantı ayarlanır. [Ayrıntılar](docs/INTERACTIONS_V10.md).
+
 ## 0.9: tek ana sayfa, güvenli çoğaltma ve çöp kutusu
 
 Her mağazada tek ana sayfa olur; ana sayfa çoğaltılamaz ve ikincisi
@@ -420,6 +431,7 @@ npm test
 npm run build
 python tests/browser_smoke.py
 python tests/browser_pages.py
+python tests/browser_interactions.py
 python tests/browser_smoke.py --dev
 python tests/browser_smoke.py --theme-fixture
 python tests/browser_studio.py

@@ -2,6 +2,7 @@ import express from "express";
 import { isButtonContent } from "../src/atomicContent.ts";
 import { normalizeLink } from "../src/links.ts";
 import { normalizeStyleValue } from "../src/styleValues.ts";
+import { cleanIconNode, iconName, iconStroke } from "../src/iconNode.ts";
 import { registerPageManagement } from "./page-management.mjs";
 import { createPageRules, registerPageTrash } from "./page-lifecycle.mjs";
 import { DatabaseSync } from "node:sqlite";
@@ -331,9 +332,29 @@ export function validateDocument(input) {
           "submitLabel",
           "view",
           "moving",
+          "icon",
+          "iconNode",
+          "strokeWidth",
+          "iconFill",
         ].includes(key)
       )
         continue;
+      if (key === "iconNode") {
+        if (value === "" || value === undefined || value === null) continue;
+        // Vector icons are geometry only; anything else is rejected.
+        const node = cleanIconNode(value);
+        if (!node) throw new Error("Geçersiz ikon.");
+        props.iconNode = node;
+        continue;
+      }
+      if (key === "icon") {
+        props.icon = iconName(value);
+        continue;
+      }
+      if (key === "strokeWidth") {
+        props.strokeWidth = String(iconStroke(value));
+        continue;
+      }
       props[key] = [
         "src",
         "href",

@@ -1,5 +1,6 @@
 import { getUiLanguage } from "./i18n.ts";
 import { createItemList } from "./atomicContent.ts";
+import { vectorIconProps } from "./vectorIcons.ts";
 import {
   block,
   type Block,
@@ -224,12 +225,11 @@ function card(children: Block[], styles: Styles = {}) {
     ),
   );
 }
-function icon(glyph: string) {
-  return block(
-    "icon",
-    { text: glyph },
-    { fontSize: "26px", color: "var(--brand-primary)" },
-  );
+function icon(name: string) {
+  return block("icon", vectorIconProps(name) ?? { text: name }, {
+    fontSize: "26px",
+    color: "var(--brand-primary)",
+  });
 }
 function itemRow(items: [string, string][], center = true) {
   const node = row(
@@ -402,10 +402,10 @@ function trustBand(background = tint(35)) {
     c("Güven bandı", "Trust band"),
     [
       itemRow([
-        ["✓", c("Ücretsiz kargo", "Free shipping")],
-        ["↺", c("30 gün kolay iade", "30-day returns")],
-        ["★", c("2 yıl garanti", "2-year warranty")],
-        ["◈", c("Güvenli ödeme", "Secure checkout")],
+        ["truck", c("Ücretsiz kargo", "Free shipping")],
+        ["undo-2", c("30 gün kolay iade", "30-day returns")],
+        ["award", c("2 yıl garanti", "2-year warranty")],
+        ["shield-check", c("Güvenli ödeme", "Secure checkout")],
       ]),
     ],
     { background, space: "26px", center: true },
@@ -880,8 +880,8 @@ function purchase() {
       }),
       itemRow(
         [
-          ["✓", c("Ücretsiz kargo", "Free shipping")],
-          ["↺", c("30 gün iade", "30-day returns")],
+          ["truck", c("Ücretsiz kargo", "Free shipping")],
+          ["undo-2", c("30 gün iade", "30-day returns")],
         ],
         false,
       ),
@@ -922,7 +922,7 @@ function specs(background = tint(25)) {
     c("Ayrıntılarda saklı.", "It's all in the details."),
     [
       [
-        "✦",
+        "sparkles",
         c("Malzeme", "Materials"),
         c(
           "Uzun ömürlü, özenle seçilmiş malzemeler.",
@@ -930,12 +930,12 @@ function specs(background = tint(25)) {
         ),
       ],
       [
-        "↔",
+        "ruler",
         c("Ölçüler", "Dimensions"),
         c("Ölçü ve ağırlık bilgilerini ekle.", "Add size and weight details."),
       ],
       [
-        "✓",
+        "badge-check",
         c("Garanti", "Warranty"),
         c("2 yıl üretici garantisi.", "2-year manufacturer warranty."),
       ],
@@ -1069,9 +1069,9 @@ function contact(titleTag: "h1" | "h2" = "h2") {
       ),
       itemRow(
         [
-          ["✉", "hello@brand.com"],
-          ["☎", "+90 212 000 00 00"],
-          ["⌖", c("İstanbul, Türkiye", "Istanbul, Türkiye")],
+          ["mail", "hello@brand.com"],
+          ["phone", "+90 212 000 00 00"],
+          ["map-pin", c("İstanbul, Türkiye", "Istanbul, Türkiye")],
         ],
         false,
       ),
@@ -1178,7 +1178,7 @@ export const pageTemplates: PageTemplate[] = [
       trustBand(),
       featureCards(c("Neden bizi seçmelisin?", "Why customers choose us"), [
         [
-          "✦",
+          "sparkles",
           c("Özenli tasarım", "Thoughtful design"),
           c(
             "Her ayrıntı günlük kullanım için düşünüldü.",
@@ -1186,7 +1186,7 @@ export const pageTemplates: PageTemplate[] = [
           ),
         ],
         [
-          "◎",
+          "infinity",
           c("Uzun ömür", "Built to last"),
           c(
             "Dayanıklı malzemeler, kolay bakım.",
@@ -1194,7 +1194,7 @@ export const pageTemplates: PageTemplate[] = [
           ),
         ],
         [
-          "♡",
+          "heart",
           c("Mutlu müşteriler", "Loved by customers"),
           c(
             "Binlerce müşteri tarafından önerildi.",
@@ -1370,7 +1370,7 @@ export const pageTemplates: PageTemplate[] = [
         c("Değerlerimiz", "What we stand for"),
         [
           [
-            "◎",
+            "eye",
             c("Şeffaflık", "Transparency"),
             c(
               "Ne yaptığımızı ve nasıl yaptığımızı açıkça anlatırız.",
@@ -1378,7 +1378,7 @@ export const pageTemplates: PageTemplate[] = [
             ),
           ],
           [
-            "♲",
+            "recycle",
             c("Sorumluluk", "Responsibility"),
             c(
               "Malzeme ve üretimde uzun vadeli düşünürüz.",
@@ -1386,7 +1386,7 @@ export const pageTemplates: PageTemplate[] = [
             ),
           ],
           [
-            "♡",
+            "hand-heart",
             c("Özen", "Care"),
             c(
               "Her siparişi kendi siparişimiz gibi hazırlarız.",

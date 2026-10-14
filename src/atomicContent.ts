@@ -1,5 +1,6 @@
 import type { Block, PageDocument, Styles } from "./model.ts";
 import { t } from "./i18n.ts";
+import { vectorIconProps } from "./vectorIcons.ts";
 
 const iconPattern = /[★☆♥♡✓✔✦✧∞⚡→←↑↓↗↘↙↖●○✚✕☀☁♣♦☕♫✈❝◷✂]\uFE0F?/gu;
 const inlineTags = new Set(["b", "strong", "i", "em", "u", "s", "p", "span"]);
@@ -172,22 +173,19 @@ export function contentFragments(html: string): Fragment[] {
 }
 const textNode = (html: string, slot?: string) =>
   make("text", { html, ...(slot ? { slot } : {}) }, { ...inherited });
+/** An icon block from a library name ("check") or an older text symbol. */
 const iconNode = (glyph: string, styles: Styles = {}) =>
-  make(
-    "icon",
-    { text: glyph },
-    {
-      ...inherited,
-      display: "inline-flex",
-      width: "fit-content",
-      lineHeight: "1",
-      flexShrink: "0",
-      ...styles,
-    },
-  );
+  make("icon", vectorIconProps(glyph) ?? { text: glyph }, {
+    ...inherited,
+    display: "inline-flex",
+    width: "fit-content",
+    lineHeight: "1",
+    flexShrink: "0",
+    ...styles,
+  });
 export function createItemList(
   text = t("Describe a benefit"),
-  icon = "✓",
+  icon = "check",
 ): Block {
   return make(
     "itemList",
@@ -295,7 +293,16 @@ export function setCaption(node: Block, caption: string): Block {
     if (fragment.kind === "icon") {
       const old = oldIcons[iconIndex++];
       return old
-        ? { ...old, props: { ...old.props, text: fragment.value, src: "" } }
+        ? {
+            ...old,
+            props: {
+              ...old.props,
+              text: fragment.value,
+              src: "",
+              icon: "",
+              iconNode: "",
+            },
+          }
         : {
             ...iconNode(fragment.value),
             props: { text: fragment.value, slot: "captionIcon" },

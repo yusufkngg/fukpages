@@ -1,4 +1,5 @@
 import { t, localized } from "./i18n.ts";
+import { vectorIconProps } from "./vectorIcons.ts";
 import {
   block,
   cloneBlock,
@@ -70,7 +71,7 @@ const button = (label: string) =>
   block("button", { text: label, href: "#" }, { borderRadius: "26px" });
 const card = (name: string, content: string, icon: string) =>
   block("box", {}, { width: "100%", gap: "15px", backgroundColor: "#eef2e5" }, [
-    block("icon", { text: icon }),
+    block("icon", vectorIconProps(icon) ?? { text: icon }),
     title(name, "22px"),
     text(content),
   ]);
@@ -184,7 +185,7 @@ export const sectionPresets: SectionPreset[] = localized(
                 const node = card(
                   "★★★★★",
                   t("“Yorum metnini kendi müşteri yorumunla değiştir.”"),
-                  "❝",
+                  "quote",
                 );
                 node.children[2].name = t("Review text");
                 const author = block(
@@ -588,9 +589,9 @@ for (const base of basePresets)
         node.children = [
           title(t("Teknik özellikler")),
           block("row", {}, {}, [
-            card(t("Malzeme"), t("Malzeme bilgisini düzenle."), "✦"),
-            card(t("Boyut"), t("Ölçü bilgisini düzenle."), "↔"),
-            card(t("Garanti"), t("Garanti bilgisini düzenle."), "✓"),
+            card(t("Malzeme"), t("Malzeme bilgisini düzenle."), "sparkles"),
+            card(t("Boyut"), t("Ölçü bilgisini düzenle."), "ruler"),
+            card(t("Garanti"), t("Garanti bilgisini düzenle."), "badge-check"),
           ]),
         ];
       if (base.id === "size-guide")
@@ -606,8 +607,8 @@ for (const base of basePresets)
       if (base.id === "delivery-returns")
         node.children = [
           block("row", {}, {}, [
-            card(t("Teslimat"), t("Teslimat koşullarını ekle."), "→"),
-            card(t("İade"), t("İade koşullarını ekle."), "↩"),
+            card(t("Teslimat"), t("Teslimat koşullarını ekle."), "truck"),
+            card(t("İade"), t("İade koşullarını ekle."), "undo-2"),
           ]),
         ];
       if (base.id === "email-popup") {

@@ -55,6 +55,8 @@ type Props = {
   move: (direction: -1 | 1) => void;
   setLayout: (id: string, enabled: boolean) => void;
   contentIntent?: number;
+  /** Changes when the canvas asks to open the icon library. */
+  iconRequest?: number;
   parentFree?: boolean;
 };
 export function Inspector({
@@ -70,12 +72,13 @@ export function Inspector({
   move,
   setLayout,
   contentIntent = 0,
+  iconRequest = 0,
   parentFree = false,
 }: Props) {
   const [tab, setTab] = useState("style");
   useEffect(() => {
-    if (contentIntent) setTab("style");
-  }, [contentIntent]);
+    if (contentIntent || iconRequest) setTab("style");
+  }, [contentIntent, iconRequest]);
   const [linked, setLinked] = useState(true);
   const { brand } = useStudio();
   if (!node)
@@ -320,6 +323,9 @@ export function Inspector({
             node={node}
             openMedia={openMedia}
             update={update}
+            style={style}
+            styles={effective}
+            openRequest={iconRequest}
             fit={() =>
               update((n) => ({
                 ...n,
@@ -341,9 +347,7 @@ export function Inspector({
           <AccordionItemsPanel node={node} update={update} />
         )}
         {tab === "style" &&
-          ["heading", "text", "button", "badge", "icon"].includes(
-            node.kind,
-          ) && (
+          ["heading", "text", "button", "badge"].includes(node.kind) && (
             <TextStyleControls
               styles={effective}
               fonts={[
@@ -417,11 +421,8 @@ export function Inspector({
                     </select>
                   </label>
                 )}
-                {["button", "badge", "icon"].includes(node.kind) &&
-                  textProp(
-                    "text",
-                    node.kind === "icon" ? t("İkon karakteri") : t("Yazı"),
-                  )}
+                {["button", "badge"].includes(node.kind) &&
+                  textProp("text", t("Yazı"))}
                 {(["image", "video"].includes(node.kind) ||
                   (node.kind === "product" && !node.props.atomicContent)) &&
                   textProp(

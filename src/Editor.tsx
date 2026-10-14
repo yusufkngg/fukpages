@@ -16,6 +16,7 @@ import {
   usePageOverview,
 } from "./PageBar";
 import { CanvasNode, EmptyPage } from "./CanvasNode";
+import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { Layer } from "./LayerTree";
 import { ElementLibrary } from "./ElementLibrary";
 import { ToolRail, type RailTool } from "./ToolRail";
@@ -65,16 +66,30 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
+  ArrowDown,
+  ArrowUp,
   Check,
   ChevronDown,
   ChevronRight,
+  ClipboardPaste,
+  Copy,
+  CopyPlus,
+  CornerLeftUp,
   Download,
   Eye,
+  EyeOff,
   GripVertical,
+  Image as ImageIcon,
   Layers,
   LayoutTemplate,
   Loader2,
   LockKeyhole,
+  LockOpen,
+  PaintBucket,
+  Paintbrush,
+  Sparkles,
+  Trash2,
+  Type,
   Monitor,
   Plus,
   Redo2,
@@ -213,6 +228,8 @@ export function Editor({
   const pageRef = useRef<PageDocument | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [contentIntent, setContentIntent] = useState(0);
+  // Bumped when the canvas asks the inspector to open the icon library.
+  const [iconRequest, setIconRequest] = useState(0);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -229,6 +246,8 @@ export function Editor({
     const dismiss = (event: Event) => {
       if (event.type === "keydown" && (event as KeyboardEvent).key !== "Escape")
         return;
+      // Escape closes only the menu; the element stays selected.
+      if (event.type === "keydown") event.stopPropagation();
       if (
         event.type === "pointerdown" &&
         event.target instanceof Element &&
@@ -609,6 +628,78 @@ export function Editor({
     },
     [commit],
   );
+  /** Moves a block one place up or down among its siblings. */
+  const moveNode = useCallback(
+    (id: string, direction: -1 | 1) => {
+      const current = pageRef.current;
+      if (!current || isLocked(current.nodes, id)) return;
+      const where = locateBlock(current.nodes, id);
+      if (!where) return;
+      const siblings = where.parent
+        ? (findBlock(current.nodes, where.parent)?.children ?? [])
+        : current.nodes;
+      if (
+        where.index + direction < 0 ||
+        where.index + direction >= siblings.length
+      )
+        return;
+      commit((document) => ({
+        ...document,
+        nodes: moveBlock(
+          document.nodes,
+          id,
+          where.parent,
+          where.index + (direction > 0 ? 2 : -1),
+        ),
+      }));
+      setSelected(id);
+    },
+    [commit],
+  );
+  /**
+   * Double-click or Enter on a block opens what it is about: inline text
+   * editing, the icon library or the media library for an image.
+   */
+  const activate = useCallback(
+    (id: string) => {
+      const current = pageRef.current;
+      const node = current && findBlock(current.nodes, id);
+      if (!current || !node) return;
+      setSelected(id);
+      setSelection([id]);
+      if (isLocked(current.nodes, id)) {
+        notify(t("Kilitli öğeyi önce aç."));
+        return;
+      }
+      if (node.kind === "icon") setIconRequest((n) => n + 1);
+      else if (node.kind === "image") {
+        setLibrary("media");
+        notify(
+          t("Görseli değiştirmek için medya kitaplığından bir görsel seç."),
+        );
+      } else if (["heading", "text"].includes(node.kind)) {
+        const text = document.querySelector<HTMLElement>(
+          `[data-node-id="${CSS.escape(id)}"] > .rich-content`,
+        );
+        text?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+        // Put the caret at the end, ready to type.
+        requestAnimationFrame(() => {
+          if (!text) return;
+          const range = document.createRange();
+          range.selectNodeContents(text);
+          range.collapse(false);
+          const selection = window.getSelection();
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+        });
+      } else if (["button", "badge"].includes(node.kind)) {
+        const caption = node.children.find((child) => child.kind === "text");
+        if (caption) activate(caption.id);
+        else setContentIntent((n) => n + 1);
+      }
+    },
+    [notify],
+  );
   const createElement = (kind: Kind, columns = 2) => {
     const node = createBlock(kind);
     if (kind === "row")
@@ -732,8 +823,13 @@ export function Editor({
       const selected = selectedRef.current;
       const selection = selectionRef.current;
       const target = event.target as HTMLElement;
+      // Keys pressed in a field, a modal dialog or a menu never act on the
+      // canvas (Backspace in the icon library must not delete the selected
+      // block). The floating Layers panel keeps the shortcuts.
       const typing =
-        target.matches("input,textarea,select") || target.isContentEditable;
+        target.matches("input,textarea,select") ||
+        target.isContentEditable ||
+        !!target.closest?.('dialog,[role="menu"]');
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setLibrary("blocks");
@@ -902,6 +998,16 @@ export function Editor({
           }));
         }
       }
+      if (
+        event.key === "Enter" &&
+        selected &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        (target === document.body || target.matches("[data-node-id]"))
+      ) {
+        event.preventDefault();
+        activate(selected);
+      }
       if (event.key === "Escape") {
         setSelected(null);
         setPreview(false);
@@ -920,6 +1026,7 @@ export function Editor({
     save,
     device,
     commit,
+    activate,
   ]);
   const addAsset = useCallback(
     (asset: Asset, mode = "replace", anchor = selected) => {
@@ -1810,26 +1917,166 @@ export function Editor({
     }
   };
   const moveSelected = (direction: -1 | 1) => {
-    if (!selected || isLocked(page.nodes, selected)) return;
-    const where = locateBlock(page.nodes, selected);
-    if (!where) return;
-    const siblings = where.parent
+    if (selected) moveNode(selected, direction);
+  };
+  const openMenu = (id: string, x: number, y: number) => {
+    selectMany(id);
+    setContextMenu({ x, y });
+  };
+  const stored = (key: string) => {
+    try {
+      return !!localStorage.getItem(key);
+    } catch {
+      return false;
+    }
+  };
+  const contextMenuGroups = (node: Block): ContextMenuItem[][] => {
+    const where = locateBlock(page.nodes, node.id);
+    const siblings = where?.parent
       ? (findBlock(page.nodes, where.parent)?.children ?? [])
       : page.nodes;
-    if (
-      where.index + direction < 0 ||
-      where.index + direction >= siblings.length
-    )
-      return;
-    commit((document) => ({
-      ...document,
-      nodes: moveBlock(
-        document.nodes,
-        selected,
-        where.parent,
-        where.index + (direction > 0 ? 2 : -1),
-      ),
-    }));
+    const locked = isLocked(page.nodes, node.id);
+    const open: ContextMenuItem[] =
+      node.kind === "icon"
+        ? [
+            {
+              id: "activate",
+              label: t("İkonu değiştir"),
+              icon: Sparkles,
+              shortcut: "Enter",
+              run: () => activate(node.id),
+            },
+          ]
+        : node.kind === "image"
+          ? [
+              {
+                id: "activate",
+                label: t("Görseli değiştir"),
+                icon: ImageIcon,
+                shortcut: "Enter",
+                run: () => activate(node.id),
+              },
+            ]
+          : ["heading", "text"].includes(node.kind)
+            ? [
+                {
+                  id: "activate",
+                  label: t("Metni düzenle"),
+                  icon: Type,
+                  shortcut: "Enter",
+                  run: () => activate(node.id),
+                },
+              ]
+            : [];
+    return [
+      open,
+      [
+        {
+          id: "copyBlocks",
+          label: t("Kopyala"),
+          icon: Copy,
+          shortcut: "Ctrl+C",
+          run: () => {
+            command("copyBlocks");
+            notify(t("Öğe kopyalandı. Ctrl+V ile yapıştırabilirsin."));
+          },
+        },
+        {
+          id: "pasteBlocks",
+          label: t("Yapıştır"),
+          icon: ClipboardPaste,
+          shortcut: "Ctrl+V",
+          disabled: !stored("fp-block-clipboard"),
+          run: () => command("pasteBlocks"),
+        },
+        {
+          id: "duplicate",
+          label: t("Çoğalt"),
+          icon: CopyPlus,
+          shortcut: "Ctrl+D",
+          disabled: locked,
+          run: () => duplicate(node.id),
+        },
+        {
+          id: "remove",
+          label: t("Sil"),
+          icon: Trash2,
+          shortcut: "Delete",
+          danger: true,
+          disabled: locked,
+          run: () => remove(node.id),
+        },
+      ],
+      [
+        {
+          id: "copyStyle",
+          label: t("Stili kopyala"),
+          icon: Paintbrush,
+          run: () => {
+            command("copyStyle");
+            notify(t("Stil kopyalandı."));
+          },
+        },
+        {
+          id: "pasteStyle",
+          label: t("Stili yapıştır"),
+          icon: PaintBucket,
+          disabled: locked || !stored("fp-style-clipboard"),
+          run: () => command("pasteStyle"),
+        },
+      ],
+      [
+        {
+          id: "moveUp",
+          label: t("Yukarı taşı"),
+          icon: ArrowUp,
+          disabled: locked || !where || where.index === 0,
+          run: () => moveNode(node.id, -1),
+        },
+        {
+          id: "moveDown",
+          label: t("Aşağı taşı"),
+          icon: ArrowDown,
+          disabled: locked || !where || where.index >= siblings.length - 1,
+          run: () => moveNode(node.id, 1),
+        },
+        {
+          id: "parent",
+          label: t("Üst öğeyi seç"),
+          icon: CornerLeftUp,
+          disabled: !where?.parent,
+          run: () => command("parent"),
+        },
+      ],
+      [
+        {
+          id: "hide",
+          label: t("{p0} görünümünde gizle", { p0: deviceNames[device] }),
+          icon: EyeOff,
+          disabled: locked,
+          run: () => {
+            commit((d) => ({
+              ...d,
+              nodes: mapBlock(d.nodes, node.id, (n) => ({
+                ...n,
+                hidden: { ...n.hidden, [device]: true },
+              })),
+            }));
+            notify(
+              t(
+                "Öğe bu cihazda gizlendi. Katmanlar panelinden geri açabilirsin.",
+              ),
+            );
+          },
+        },
+        {
+          id: "lock",
+          label: node.props.locked ? t("Kilidi aç") : t("Kilitle"),
+          icon: node.props.locked ? LockOpen : LockKeyhole,
+          run: () => command("lock"),
+        },
+      ],
+    ];
   };
   const selectLayer = (id: string) => {
     selectMany(id);
@@ -2468,6 +2715,9 @@ export function Editor({
                             remove={remove}
                             dragging={!!dragging}
                             geometry={geometry}
+                            activate={activate}
+                            move={moveNode}
+                            menu={openMenu}
                           />
                           {!dragging &&
                             !node.hidden[device] &&
@@ -2630,6 +2880,7 @@ export function Editor({
                   move={moveSelected}
                   setLayout={changeFreeLayout}
                   contentIntent={contentIntent}
+                  iconRequest={iconRequest}
                   parentFree={
                     !!freeHeight(
                       findBlock(
@@ -2730,31 +2981,14 @@ export function Editor({
               </div>
             </FloatingPanel>
           )}
-          {contextMenu && (
-            <div
-              className="editor-context-menu"
-              style={{ left: contextMenu.x, top: contextMenu.y }}
-            >
-              {[
-                ["copyStyle", t("Stili kopyala")],
-                ["pasteStyle", t("Stili yapıştır")],
-                ["copyBlocks", t("Öğeleri kopyala")],
-                ["pasteBlocks", t("Öğeleri yapıştır")],
-                ["parent", t("Üst öğeyi seç")],
-                ["lock", t("Kilidi değiştir")],
-              ].map(([id, label]) => (
-                <button
-                  key={id}
-                  onClick={() => {
-                    command(id);
-                    setContextMenu(null);
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-              <button onClick={() => setContextMenu(null)}>{t("Kapat")}</button>
-            </div>
+          {contextMenu && selectedNode && (
+            <ContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              title={selectedNode.name}
+              close={() => setContextMenu(null)}
+              groups={contextMenuGroups(selectedNode)}
+            />
           )}
           <input
             ref={importRef}
