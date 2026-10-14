@@ -147,3 +147,18 @@ export function setFreeLayout(
     children,
   };
 }
+
+/**
+ * A fixed pixel width never pushes a block past its container: 404 px text
+ * in a 350 px mobile column renders 350 px wide instead of overflowing.
+ */
+export function fitWidth<T extends Record<string, unknown>>(
+  style: T,
+  parentFree = false,
+): T {
+  const width = style.width;
+  if (parentFree || typeof width !== "string") return style;
+  return /^\d+(\.\d+)?px$/.test(width)
+    ? { ...style, width: `min(${width}, 100%)` }
+    : style;
+}

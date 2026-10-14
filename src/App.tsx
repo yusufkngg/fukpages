@@ -42,6 +42,7 @@ import {
   type PageSummary,
   type PageType,
   type Store,
+  deviceForWidth,
 } from "./model";
 function Login({
   configured,
@@ -940,14 +941,7 @@ export function App() {
           if (active) setPublicError(error.message);
         })
         .finally(() => clearTimeout(timeout));
-      const change = () =>
-        setDevice(
-          window.innerWidth <= 600
-            ? "mobile"
-            : window.innerWidth <= 900
-              ? "tablet"
-              : "desktop",
-        );
+      const change = () => setDevice(deviceForWidth(window.innerWidth));
       change();
       window.addEventListener("resize", change);
       return () => {

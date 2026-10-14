@@ -140,6 +140,8 @@ import {
   cloneBlock,
   createBlock,
   deviceNames,
+  deviceForWidth,
+  breakpointRange,
   findBlock,
   firstHeading,
   insertBlock,
@@ -2271,11 +2273,16 @@ export function Editor({
                 max={2560}
                 value={viewWidth}
                 style={{ width: 65 }}
-                onChange={(e) =>
-                  setCustomWidth(
-                    Math.max(280, Math.min(2560, Number(e.target.value))),
-                  )
-                }
+                onChange={(e) => {
+                  // The width decides the breakpoint, exactly as on the
+                  // published page: 390 px is always the mobile layout.
+                  const width = Math.max(
+                    280,
+                    Math.min(2560, Number(e.target.value) || 280),
+                  );
+                  setCustomWidth(width);
+                  setDevice(deviceForWidth(width));
+                }}
               />
               <button
                 title={t("Cihaz genişliğine dön")}
@@ -2719,6 +2726,9 @@ export function Editor({
                 <span>
                   <span className="canvas-status-dot" />
                   {deviceNames[device]}
+                  <small className="breakpoint-range">
+                    {breakpointRange[device]}
+                  </small>
                   {" " + t("görünümü")}
                   <PreviewResourcePicker
                     type={page.type}

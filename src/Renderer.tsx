@@ -15,7 +15,7 @@ import DOMPurify from "dompurify";
 import { CommerceBlock } from "./Commerce";
 import { AdvancedContent, performAction } from "./AdvancedContent";
 import { buttonLink, normalizeLink, navigationActions } from "./links";
-import { freeHeight, placedStyle } from "./freePlacement";
+import { fitWidth, freeHeight, placedStyle } from "./freePlacement";
 import { assetUrl, brandStyle, useStudio } from "./studio";
 import { iconStroke, parseIconNode, type IconNode } from "./iconNode";
 import { Play, ShoppingBag, ArrowUpRight } from "lucide-react";
@@ -710,7 +710,7 @@ export function ReadOnlyBlock({
       data-block={node.id}
       style={{
         ...brandStyle(node, device),
-        ...placedStyle(node, device, parentFree),
+        ...fitWidth(placedStyle(node, device, parentFree), parentFree),
         ...(node.props.backgroundSrc
           ? {
               backgroundImage: `linear-gradient(${String(node.props.backgroundOverlay || "#00000000")},${String(node.props.backgroundOverlay || "#00000000")}),url("${assetUrl(node.props.backgroundSrc, studio.previewToken)}")`,

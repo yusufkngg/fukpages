@@ -125,4 +125,45 @@ with browser_fixture(ui_language='en') as f:
     page.get_by_label('Text content', exact=True).fill('Changed after unlocking')
     expect(node('body')).to_contain_text('Changed after unlocking')
     print('PASS: locked elements reject inspector, keyboard and inline edits and never follow links in the editor', flush=True)
+
+    # Responsive: the width decides the breakpoint; fixed widths never overflow.
+    resp = document('Responsive check', [
+        block('section', 'r-section', {}, [
+            block('heading', 'r-title', {'html': 'Responsive title', 'tag': 'h1'}),
+            block('heading', 'r-sized', {'html': 'Sized title', 'tag': 'h2'}, styles={'fontSize': '56px'}),
+            block('column', 'r-col', {}, [
+                block('text', 'r-wide', {'html': 'A paragraph with a fixed width that is wider than a phone column.'}, styles={'width': '404px'}),
+            ], styles={'width': '100%'}),
+        ], styles={'paddingLeft': '20px', 'paddingRight': '20px'}),
+    ])
+    resp['nodes'][0]['children'][1]['styles']['mobile'] = {'fontSize': '28px'}
+    rid = api('/stores/demo/pages', 'POST', {'document': resp})['id']
+    open_editor(rid, 'Responsive check')
+    surface = page.locator('.editable-surface')
+    page.get_by_label('Preview width', exact=True).fill('390')
+    expect(surface).to_have_attribute('data-device', 'mobile')
+    expect(page.get_by_role('button', name='Mobile', exact=True)).to_have_class(re.compile('active'))
+    expect(node('r-sized')).to_have_css('font-size', '28px')
+    page.get_by_label('Preview width', exact=True).fill('768')
+    expect(surface).to_have_attribute('data-device', 'tablet')
+    page.get_by_label('Preview width', exact=True).fill('1280')
+    expect(surface).to_have_attribute('data-device', 'desktop')
+    expect(node('r-sized')).to_have_css('font-size', '56px')
+    page.get_by_role('button', name='Mobile', exact=True).click()
+    wide = node('r-wide').evaluate('el=>[el.getBoundingClientRect().right, el.parentElement.closest("[data-node-id]").getBoundingClientRect().right]')
+    assert wide[0] <= wide[1] + 0.5, wide
+    visitor = f['browser'].new_context(viewport={'width': 390, 'height': 800})
+    api('/pages/' + rid + '/publish', 'POST', {})
+    view = visitor.new_page()
+    view.goto(base + '/?published=' + rid)
+    expect(view.locator('[data-block=r-sized]')).to_have_css('font-size', '28px')
+    assert view.evaluate('()=>document.documentElement.scrollWidth-innerWidth') <= 1
+    print('PASS: 390/768/1280 px choose mobile/tablet/desktop like the live page; fixed widths fit their column', flush=True)
+
+    # The inspector shows the value the canvas really uses for brand-styled text.
+    page.get_by_role('button', name='Desktop', exact=True).click()
+    node('r-title').click()
+    rendered = node('r-title').evaluate('el=>getComputedStyle(el).fontSize')
+    expect(page.get_by_label(re.compile('^Font size$|^Text size$'))).to_have_value(rendered)
+    print('PASS: inherited brand typography shows its rendered size in the inspector', flush=True)
     assert not errors, errors

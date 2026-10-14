@@ -126,6 +126,39 @@ export function Inspector({
             .map((v) => Number(v).toString(16).padStart(2, "0"))
             .join("");
     }
+  // What the canvas really shows for values the element does not set
+  // itself (brand tokens, inheritance): read back from the rendered block,
+  // so a global reset never shows a stale 16 px fallback.
+  if (element) {
+    const computed = getComputedStyle(element);
+    const hex = (value: string) => {
+      const rgb = /^rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(value);
+      return rgb
+        ? "#" +
+            rgb
+              .slice(1, 4)
+              .map((v) => Number(v).toString(16).padStart(2, "0"))
+              .join("")
+        : value;
+    };
+    for (const key of [
+      "fontSize",
+      "fontWeight",
+      "lineHeight",
+      "letterSpacing",
+      "color",
+      "fontFamily",
+    ] as const) {
+      const value = effective[key];
+      if (
+        key in node.styles[device] ||
+        (value !== undefined && !String(value).includes("var("))
+      )
+        continue;
+      const shown = computed[key];
+      if (shown) effective[key] = key === "color" ? hex(shown) : shown;
+    }
+  }
   const own = node.styles[device];
   const style = (key: string, value: string | number) =>
     update(

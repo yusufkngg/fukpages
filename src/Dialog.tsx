@@ -1,6 +1,7 @@
 import { t } from "./i18n.ts";
 import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { deviceForWidth } from "./model";
 
 /** Native modal: inert background, keyboard focus containment and Escape. */
 export function Dialog({
@@ -28,12 +29,7 @@ export function Dialog({
     const content = dialog.querySelector<HTMLElement>(".dialog-content");
     if (content)
       content.dataset.device =
-        surface?.dataset.device ||
-        (window.innerWidth <= 600
-          ? "mobile"
-          : window.innerWidth <= 900
-            ? "tablet"
-            : "desktop");
+        surface?.dataset.device || deviceForWidth(window.innerWidth);
     dialog.showModal();
     document.body.style.overflow = "hidden";
     return () => {

@@ -126,6 +126,18 @@ export const widths: Record<Device, number> = {
   tablet: 768,
   mobile: 390,
 };
+/**
+ * The breakpoint a viewport width belongs to — the same rule for the
+ * published page, the editor canvas and dialogs: ≤600 px mobile,
+ * ≤900 px tablet, wider desktop.
+ */
+export const deviceForWidth = (width: number): Device =>
+  width <= 600 ? "mobile" : width <= 900 ? "tablet" : "desktop";
+export const breakpointRange: Record<Device, string> = {
+  mobile: "≤600 px",
+  tablet: "601–900 px",
+  desktop: "≥901 px",
+};
 export const deviceNames: Record<Device, string> = localized({
   desktop: "Masaüstü",
   tablet: "Tablet",

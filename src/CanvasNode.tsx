@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { ColumnHandles } from "./ColumnHandles";
 import { ElementHandles, useElementGesture } from "./ElementHandles";
-import { freeHeight, placedStyle } from "./freePlacement";
+import { fitWidth, freeHeight, placedStyle } from "./freePlacement";
 import { BlockContent } from "./Renderer";
 import { assetUrl, brandStyle } from "./studio";
 import { blockIcons } from "./icons";
@@ -175,7 +175,7 @@ export function CanvasNode({
   if (node.hidden[device]) return null;
   const style: CSSProperties = {
     ...brandStyle(node, device),
-    ...placedStyle(node, device, parentFree),
+    ...fitWidth(placedStyle(node, device, parentFree), parentFree),
     ...(node.props.backgroundSrc
       ? {
           backgroundImage: `linear-gradient(${String(node.props.backgroundOverlay || "#00000000")},${String(node.props.backgroundOverlay || "#00000000")}),url("${assetUrl(node.props.backgroundSrc)}")`,
