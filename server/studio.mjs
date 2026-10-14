@@ -1,5 +1,6 @@
 import { freezeBrandDocument } from "./transfer-brand.mjs";
 import { catalogDocumentUses } from "./catalog-media.mjs";
+import { clientAddress, createRateLimiter } from "./rate-limit.mjs";
 import { createAnalytics } from "./metrics.mjs";
 import multer from "multer";
 import sharp from "sharp";
@@ -1133,7 +1134,7 @@ export function registerStudio({
     ).run(req.params.id, a, b);
     res.json({ ok: true, mode: "local" });
   });
-  const submissionsLimit = new Map();
+  const limiter = createRateLimiter(db);
   app.post("/api/public/pages/:id/forms/:formId", async (req, res) => {
     const row = db
       .prepare(
@@ -1159,15 +1160,17 @@ export function registerStudio({
       });
     if (req.body.companyWebsite)
       return res.status(400).json({ error: "Form gönderilemedi." });
-    const key = req.ip + ":" + req.params.id;
-    const attempts = submissionsLimit.get(key) || [];
-    const recent = attempts.filter((t) => t > Date.now() - 60000);
-    if (recent.length >= 5)
+    // Per visitor and per form, persisted: rotating addresses still hit the
+    // form-wide cap and Netlify's fresh instances share the same counts.
+    const who = clientAddress(req);
+    if (
+      !limiter.hit(`form:${req.params.id}:${who}`, 5, 60000) ||
+      !limiter.hit(`form:${req.params.id}`, 60, 60000) ||
+      !limiter.hit(`form-day:${row.store_id}`, 2000, 86400000)
+    )
       return res
         .status(429)
         .json({ error: "Çok fazla gönderim. Bir dakika sonra tekrar dene." });
-    recent.push(Date.now());
-    submissionsLimit.set(key, recent);
     const collect = (nodes) =>
       nodes.forEach((n) => {
         if (
@@ -1274,6 +1277,15 @@ export function registerStudio({
       )
       .get(req.params.id);
     if (!row) return res.status(404).end();
+    if (
+      !limiter.hit(
+        `event:${req.params.id}:${clientAddress(req)}`,
+        120,
+        60000,
+      ) ||
+      !limiter.hit(`event:${req.params.id}`, 3000, 60000)
+    )
+      return res.status(429).json({ error: "Çok fazla istek." });
     analytics.record(req, res, req.params.id);
   });
   app.get("/api/pages/:id/metrics", auth, (req, res) =>

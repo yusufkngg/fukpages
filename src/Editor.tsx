@@ -367,7 +367,11 @@ export function Editor({
           result.assignments?.find((id: string) => id !== "*") || "",
         );
         version.current = result.version;
-        const value = JSON.stringify(result.document);
+        // Opening a page never writes it: the normalised form becomes the
+        // saved baseline, so only a real edit marks the page as changed
+        // (and then saves the normalised document with it).
+        const raw = JSON.stringify(result.document);
+        const value = JSON.stringify(document);
         savedRef.current = value;
         setSaved(value);
         try {
@@ -376,7 +380,7 @@ export function Editor({
           if (
             local &&
             JSON.stringify(local.document) !== value &&
-            JSON.stringify(local.document) !== JSON.stringify(document)
+            JSON.stringify(local.document) !== raw
           )
             setRecovery(local);
           else localStorage.removeItem(recoveryKey.current);

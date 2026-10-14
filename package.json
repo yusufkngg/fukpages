@@ -13,7 +13,7 @@
     "owner:setup": "node scripts/set-owner.mjs",
     "test": "node --import tsx --test tests/*.test.mjs tests/*.test.ts",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"server/*.mjs\" \"netlify/functions/*.mjs\" \"scripts/*.mjs\" \"tests/*.{mjs,ts}\"",
-    "test:browser": "python tests/browser_smoke.py && python tests/browser_editor.py && python tests/browser_templates.py && python tests/browser_pages.py && python tests/browser_interactions.py && python tests/browser_collections.py && python tests/browser_studio.py && python tests/browser_reliability.py && python tests/browser_critical.py && python tests/browser_sections_quality.py && node scripts/netlify-context.mjs && python tests/browser_netlify.py",
+    "test:browser": "python tests/browser_smoke.py && python tests/browser_editor.py && python tests/browser_templates.py && python tests/browser_pages.py && python tests/browser_interactions.py && python tests/browser_collections.py && python tests/browser_core.py && python tests/browser_studio.py && python tests/browser_reliability.py && python tests/browser_critical.py && python tests/browser_sections_quality.py && node scripts/netlify-context.mjs && python tests/browser_netlify.py",
     "test:network": "node --use-env-proxy --use-system-ca tests/remote_media_smoke.mjs",
     "test:responsive": "python tests/browser_responsive.py",
     "test:feedback": "python tests/browser_feedback.py",
@@ -30,7 +30,8 @@
     "test:pages": "python tests/browser_pages.py",
     "test:interactions": "python tests/browser_interactions.py",
     "icons": "node scripts/build-icons.mjs",
-    "test:collections": "python tests/browser_collections.py"
+    "test:collections": "python tests/browser_collections.py",
+    "test:core": "python tests/browser_core.py"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",

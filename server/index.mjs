@@ -649,6 +649,20 @@ export function createApp({
   const pageRules = createPageRules(db);
   const app = express();
   app.disable("x-powered-by");
+  // One spelling per route: the team guard reads the same path the router
+  // matches, so "/API/stores/…" or "/api//stores/…" cannot slip past it.
+  app.set("case sensitive routing", true);
+  app.use((req, res, next) => {
+    const path = req.path;
+    if (
+      /^\/+api(\/|$)/i.test(path) &&
+      (!path.startsWith("/api/") && path !== "/api"
+        ? true
+        : /\/\/|%2f|%5c|\\/i.test(req.originalUrl.split("?")[0]))
+    )
+      return res.status(404).json({ error: "Bulunamadı." });
+    next();
+  });
   app.use(express.json({ limit: "1mb" }));
   app.use((req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");

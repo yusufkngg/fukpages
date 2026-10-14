@@ -1827,4 +1827,6 @@ export const english: Record<string, string> = {
   "Kartlarda göster": "Show on cards",
   "Koleksiyon başlığı ve açıklaması": "Collection title and description",
   "Sepete ekle düğmesi": "Add to cart button",
+  "Bulunamadı.": "Not found.",
+  "Çok fazla istek.": "Too many requests.",
 };
